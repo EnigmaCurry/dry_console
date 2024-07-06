@@ -167,8 +167,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
       with:
-        body_path: CHANGELOG.md
+        body_path: CHANGELOG.md/CHANGELOG.md
         files: |
           CHANGELOG.md/CHANGELOG.md
           dry_console-v*.tar.gz/dry_console-v*.tar.gz
-          dry_console-v*.tar.gz.sha256/dry_console-v*.tar.gz.sha256
