@@ -1,0 +1,34 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - run: rustup toolchain install stable --profile minimal
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: rust-build
+    - name: Install cargo-binstall
+      run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+    - name: Install just
+      run: cargo binstall -y --locked just
+    - name: Get binary deps
+      run: just bin-deps
+    - name: Build wasm
+      run: just build-release-frontend
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose

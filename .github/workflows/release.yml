@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-wasm:
+    name: Build browser (wasm) client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - run: rustup toolchain install stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Get version from cargo.toml
+        uses: SebRollen/toml-action@v1.2.0
+        id: cargo_version
+        with:
+          file: 'Cargo.toml'
+          field: 'workspace.package.version'
+      - name: Get the tag of current release
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> ${GITHUB_OUTPUT}
+      - name: Verify package version is equal to tag version
+        if: ${{ steps.cargo_version.outputs.value != steps.get_version.outputs.VERSION }}
+        run: |
+          echo "${{ steps.cargo_version.outputs.value }}"
+          echo "${{ steps.get_version.outputs.VERSION }}"
+          exit 1
+      - name: Install cargo-binstall
+        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+      - name: Install just
+        run: cargo binstall -y --locked just
+      - name: Get binary deps
+        run: just bin-deps
+      - name: Build wasm
+        run: just build-release-frontend
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+  build:
+    needs:
+      - build-wasm
+    name: Build - ${{ matrix.platform.release_for }}
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - run: rustup toolchain install stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+          shared-key: rust-release
+          workspaces: |
+            frontend
+            server
+      - name: Get version from cargo.toml
+        uses: SebRollen/toml-action@v1.2.0
+        id: cargo_version
+        with:
+          file: 'Cargo.toml'
+          field: 'workspace.package.version'
+      - name: Get the tag of current release
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> ${GITHUB_OUTPUT}
+      - name: Verify package version is equal to tag version
+        if: ${{ steps.cargo_version.outputs.value != steps.get_version.outputs.VERSION }}
+        run: |
+          echo "${{ steps.cargo_version.outputs.value }}"
+          echo "${{ steps.get_version.outputs.VERSION }}"
+          exit 1
+      - name: Get compiled frontend client
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          # cross-version: v0.2.5
+          command: ${{ matrix.platform.command }}
+          target: ${{ matrix.platform.target }}
+          args: "--bin ${{ matrix.platform.bin }} --locked --release"
+          strip: true
+      - name: move binary path
+        run: mv target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} .
+      - name: Package as archive
+        shell: bash
+        run: |
+          tar czvf ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz \
+                ${{ matrix.platform.bin }}
+        if: startsWith( github.ref, 'refs/tags/v' )
+      # - name: Generate SHA-256
+      #   run: shasum -a 256 ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz > ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz.sha256
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz
+          path: ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz
+      # - name: Upload digests
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz.sha256
+      #     path: ${{ matrix.platform.bin }}-v${{ steps.cargo_version.outputs.value }}-${{ matrix.platform.name }}.tar.gz.sha256
+    strategy:
+      matrix:
+        platform:
+          - release_for: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: dry_console
+            name: Linux-x86_64
+            command: build
+          - release_for: Linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            bin: dry_console
+            name: Linux-aarch64
+            command: build
+          - release_for: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: dry_console
+            name: Darwin-x86_64
+            command: build
+          - release_for: macOS-arm64
+            os: macOS-latest
+            target: aarch64-apple-darwin
+            bin: dry_console
+            name: Darwin-arm64
+            command: build
+          # - release_for: Windows-x86_64
+          #   os: windows-latest
+          #   target: x86_64-pc-windows-msvc
+          #   bin: dry_console.exe
+          #   name: Windows-x86_64
+          #   command: build
+          # - release_for: FreeBSD-x86_64
+          #   os: ubuntu-latest
+          #   target: x86_64-unknown-freebsd
+          #   bin: dry_console
+          #   name: FreeBSD-x86_64
+          #   command: build
+
+  release:
+    name: Release - ${{ matrix.platform.release_for }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v4
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/v')
+      with:
+        files: |
+          dry_console-v*.tar.gz/dry_console-v*.tar.gz
+          dry_console-v*.tar.gz.sha256/dry_console-v*.tar.gz.sha256

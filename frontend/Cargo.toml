@@ -1,0 +1,20 @@
+[package]
+name = "frontend"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+repository.workspace = true
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+gloo-net = "0.4"
+log = "0.4.17"
+wasm-bindgen-futures = "0.4.33"
+wasm-logger = "0.2.0"
+yew = { version = "0.20.0", features = ["csr"] }
+yew-router = "0.17.0"
+

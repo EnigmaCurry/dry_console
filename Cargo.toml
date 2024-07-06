@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+  "server",
+  "frontend",
+]
+
+[workspace.package]
+version = "0.1.32"
+description = "dry_console"
+repository = "https://github.com/EnigmaCurry/dry_console"
+documentation = "https://docs.rs/dry_console"
+authors = ["EnigmaCurry <ryan@enigmacurry.com>"]
