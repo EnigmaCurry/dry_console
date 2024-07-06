@@ -334,7 +334,7 @@ dependencies = [
 
 [[package]]
 name = "dry_console"
-version = "0.1.32"
+version = "0.1.34"
 dependencies = [
  "axum",
  "clap",
@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "frontend"
-version = "0.1.32"
+version = "0.1.34"
 dependencies = [
  "console_error_panic_hook",
  "gloo-net 0.4.0",
