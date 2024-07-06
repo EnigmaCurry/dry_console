@@ -44,7 +44,15 @@ jobs:
         with:
           name: dist
           path: dist
-
+      - name: Add git-cliff credentials
+        run: echo -e "\n[remote.github]\nowner = \"EnigmaCurry\"\nrepo = \"dry_console\"\ntoken = \"${GITHUB_TOKEN}\"" >> cliff.toml
+      - name: Update CHANGELOG
+        run: git-cliff -o CHANGELOG.md
+      - name: Upload CHANGELOG.md
+        uses: actions/upload-artifact@v4
+        with:
+          name: CHANGELOG.md
+          path: CHANGELOG.md
   build:
     needs:
       - build-wasm
@@ -159,6 +167,8 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/v')
       with:
+        body_path: CHANGELOG.md
         files: |
+          CHANGELOG.md
           dry_console-v*.tar.gz/dry_console-v*.tar.gz
           dry_console-v*.tar.gz.sha256/dry_console-v*.tar.gz.sha256

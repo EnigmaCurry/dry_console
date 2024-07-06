@@ -9,6 +9,7 @@ deps:
 bin-deps:
     rustup target add wasm32-unknown-unknown
     cargo binstall -y --locked trunk
+    cargo binstall -y --locked git-cliff
 
 run:
     cargo watch -s 'just build && cargo run --bin dry_console -- --port 8080 --live-reload'
