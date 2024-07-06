@@ -18,7 +18,7 @@ This tool is built for the following platforms:
 For MS Windows, use the Linux version in WSL2.
 
 ```
-VERSION=v0.1.34
+VERSION=v0.1.36
 PLATFORM=$(uname -s)-$(uname -m)
 INSTALL_PATH=~/dry_console
 
