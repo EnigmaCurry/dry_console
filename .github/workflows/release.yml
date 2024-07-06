@@ -169,6 +169,6 @@ jobs:
       with:
         body_path: CHANGELOG.md
         files: |
-          CHANGELOG.md
+          CHANGELOG.md/CHANGELOG.md
           dry_console-v*.tar.gz/dry_console-v*.tar.gz
           dry_console-v*.tar.gz.sha256/dry_console-v*.tar.gz.sha256
