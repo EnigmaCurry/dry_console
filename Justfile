@@ -44,6 +44,12 @@ install: deps build-release-frontend
 static-run: build-release
     ./target/release/server
 
+bump-version:
+    VERSION=$(git cliff --bumped-version | sed 's/^v//'); \
+    cargo set-version ${VERSION}; \
+    sed -i "s/^VERSION=v.*$/VERSION=v${VERSION}/" README.md
+    cargo update
+
 release: clean-dist build-release
     rm -rf release; \
     TMP_DIR=$(mktemp -d); \
