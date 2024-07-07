@@ -7,6 +7,7 @@ use enum_iterator::{all, Sequence};
 
 use super::{mod_route, ApiModule, API_PREFIX};
 
+pub mod counter;
 pub mod hello;
 
 const TEST_PREFIX: &str = "test";
@@ -14,6 +15,7 @@ const TEST_PREFIX: &str = "test";
 #[derive(Debug, PartialEq, Sequence, Clone)]
 enum TestModule {
     Hello,
+    Counter,
 }
 impl ApiModule for TestModule {
     fn main() -> Router {
@@ -27,6 +29,7 @@ impl ApiModule for TestModule {
     fn router(&self) -> Router {
         match self {
             TestModule::Hello => hello::main(),
+            TestModule::Counter => counter::main(),
         }
     }
     fn to_string(&self) -> String {

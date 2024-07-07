@@ -1,0 +1,11 @@
+[Unit]
+Description=dry_console
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h
+ExecStart=%h/.cargo/bin/dry_console
+
+[Install]
+WantedBy=default.target
