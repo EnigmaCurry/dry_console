@@ -18,7 +18,7 @@ This tool is built for the following platforms:
 For MS Windows, use the Linux version in WSL2.
 
 ```
-VERSION=v0.1.36
+VERSION=v0.1.37
 PLATFORM=$(uname -s)-$(uname -m)
 INSTALL_PATH=~/dry_console
 
@@ -86,7 +86,16 @@ just static-run
 Clean build and release a new package:
 
 ```
-just release
+## release-diy is a minimal release target for self-hosting:
+just release-diy
 ```
 
 A wild tarball appears in `./release`.
+
+## Github actions release
+
+```
+## This will bump the release version number automatically!
+just release
+```
+

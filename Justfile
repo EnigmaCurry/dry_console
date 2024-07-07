@@ -44,7 +44,34 @@ install: deps build-release-frontend
 static-run: build-release
     ./target/release/server
 
-release: clean-dist build-release
+# Create new release PR on Github
+release:
+    @if [ -n "$(git status --porcelain)" ]; then echo "## Git status is not clean. Commit your changes before bumping version."; exit 1; fi
+    source ./funcs.sh; \
+    set -eo pipefail; \
+    CURRENT_VERSION=$(grep -Po '^version = \K.*' Cargo.toml | sed -e 's/"//g' | head -1); \
+    VERSION=$(git cliff --bumped-version | sed 's/^v//'); \
+    echo; \
+    (if git rev-parse v${VERSION} 2>/dev/null; then \
+      echo "New version tag already exists: v${VERSION} - did you forget to push it?" && \
+      echo "If you changed your mind, delete it (git tag -d v${VERSION})" && \
+      exit 1; \
+     fi \
+    ); \
+    echo "## Current $(grep '^version =' Cargo.toml | head -1)"; \
+    confirm yes "New version would be \"${VERSION}\"" " -- Proceed?"; \
+    cargo set-version ${VERSION}; \
+    sed -i "s/^VERSION=v.*$/VERSION=v${VERSION}/" README.md; \
+    cargo update; \
+    git checkout -b "release-v${VERSION}"; \
+    git add Cargo.toml Cargo.lock README.md; \
+    git commit -m "release: ${VERSION}"; \
+    echo "Bumped version: ${VERSION}"; \
+    confirm no "Do you want to push this branch now" "?"; \
+    git push origin "release-v${VERSION}";
+
+# self-hosted release (non-github actions)
+release-diy: clean-dist build-release
     rm -rf release; \
     TMP_DIR=$(mktemp -d); \
     VERSION=$(cd server; cargo read-manifest | jq -r .version); \
