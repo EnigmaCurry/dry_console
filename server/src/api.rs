@@ -3,6 +3,8 @@ use axum::Router;
 use axum::{response::Redirect, routing::MethodRouter};
 use enum_iterator::{all, Sequence};
 
+use crate::{AppState, SharedState};
+
 mod test;
 mod workstation;
 
@@ -10,9 +12,9 @@ const API_PREFIX: &str = "api";
 
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
-    fn main() -> Router;
+    fn main() -> Router<SharedState>;
     fn to_string(&self) -> String;
-    fn router(&self) -> Router;
+    fn router(&self) -> Router<SharedState>;
     #[allow(dead_code)]
     fn redirect(&self) -> MethodRouter;
 }
@@ -24,7 +26,7 @@ pub enum APIModule {
     Workstation,
 }
 impl ApiModule for APIModule {
-    fn main() -> Router {
+    fn main() -> Router<SharedState> {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<APIModule>() {
@@ -32,7 +34,7 @@ impl ApiModule for APIModule {
         }
         app
     }
-    fn router(&self) -> Router {
+    fn router(&self) -> Router<SharedState> {
         match self {
             APIModule::Test => test::router(),
             APIModule::Workstation => workstation::router(),
@@ -47,14 +49,18 @@ impl ApiModule for APIModule {
     }
 }
 
-pub fn router() -> Router {
+pub fn router() -> Router<SharedState> {
     // Adds all routes for all modules in APIModule:
     let r = APIModule::main();
     //tracing::debug!("{r:#?}");
     r
 }
 
-fn mod_route(module: APIModule, path: &str, method_router: MethodRouter<()>) -> Router {
+fn mod_route(
+    module: APIModule,
+    path: &str,
+    method_router: MethodRouter<SharedState>,
+) -> Router<SharedState> {
     let path_stripped = path.trim_matches('/');
     let path = format!("{path_stripped}/");
     Router::new().route(

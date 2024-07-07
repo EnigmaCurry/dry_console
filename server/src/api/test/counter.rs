@@ -6,6 +6,8 @@ use axum::{
     Router,
 };
 
+use crate::SharedState;
+
 use super::test_route;
 use serde::{Deserialize, Serialize};
 
@@ -50,30 +52,17 @@ impl Counter {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Global app state
-////////////////////////////////////////////////////////////////////////////////
-type SharedState = Arc<RwLock<AppState>>;
-#[derive(Default)]
-struct AppState {
-    counter: Counter,
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
-pub fn main() -> Router {
-    let shared_state = SharedState::default();
-
-    Router::new()
-        .merge(router())
-        .with_state(Arc::clone(&shared_state))
+pub fn main() -> Router<SharedState> {
+    Router::new().merge(router())
 }
 
-fn route(path: &str, method_router: MethodRouter<()>) -> Router {
+fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
     test_route(super::TestModule::Counter, path, method_router)
 }
 
-fn router() -> Router {
+fn router() -> Router<SharedState> {
     async fn handler() -> &'static str {
         "Hello, World!\n"
     }
