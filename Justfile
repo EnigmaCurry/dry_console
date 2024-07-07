@@ -45,10 +45,19 @@ static-run: build-release
     ./target/release/server
 
 bump-version:
+    @if [ -n "$(git status --porcelain)" ]; then echo "## Git status is not clean. Commit your changes before bumping version."; exit 1; fi
+    source ./funcs.sh; \
+    set -e; \
     VERSION=$(git cliff --bumped-version | sed 's/^v//'); \
+    echo; \
+    echo "## Current $(grep '^version =' Cargo.toml | head -1)"; \
+    confirm yes "New version would be \"${VERSION}\"" " -- Proceed?"; \
     cargo set-version ${VERSION}; \
-    sed -i "s/^VERSION=v.*$/VERSION=v${VERSION}/" README.md
-    cargo update
+    sed -i "s/^VERSION=v.*$/VERSION=v${VERSION}/" README.md; \
+    cargo update; \
+    git commit -m "release: ${VERSION}"; \
+    git tag v${VERSION};
+    echo "Bumped version: ${VERSION}"
 
 release: clean-dist build-release
     rm -rf release; \
