@@ -286,9 +286,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74b6a57f98764a267ff415d50a25e6e166f3831a5071af4995296ea97d210490"
+checksum = "5208975e568d83b6b05cc0a063c8e7e9acc2b43bee6da15616a5b73e109d7437"
 dependencies = [
  "jobserver",
  "libc",
@@ -376,6 +376,7 @@ dependencies = [
  "enum-iterator",
  "open",
  "serde",
+ "text-sanitizer",
  "tokio",
  "tower",
  "tower-http",
@@ -1455,6 +1456,15 @@ name = "sync_wrapper"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
+
+[[package]]
+name = "text-sanitizer"
+version = "1.6.0"
+source = "git+https://github.com/EnigmaCurry/text-sanitizer-rs.git#cdbcf2b258592a9053c5c0da6ab99afec5c8fcfd"
+dependencies = [
+ "serde",
+ "serde_derive",
+]
 
 [[package]]
 name = "thiserror"

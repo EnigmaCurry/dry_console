@@ -5,6 +5,8 @@ use axum::{
 };
 use enum_iterator::{all, Sequence};
 
+use crate::SharedState;
+
 use super::{mod_route, ApiModule, API_PREFIX};
 
 pub mod counter;
@@ -18,7 +20,7 @@ enum TestModule {
     Counter,
 }
 impl ApiModule for TestModule {
-    fn main() -> Router {
+    fn main() -> Router<SharedState> {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<TestModule>() {
@@ -26,7 +28,7 @@ impl ApiModule for TestModule {
         }
         app
     }
-    fn router(&self) -> Router {
+    fn router(&self) -> Router<SharedState> {
         match self {
             TestModule::Hello => hello::main(),
             TestModule::Counter => counter::main(),
@@ -41,11 +43,15 @@ impl ApiModule for TestModule {
     }
 }
 
-pub fn router() -> Router {
+pub fn router() -> Router<SharedState> {
     TestModule::main()
 }
 
-fn test_route(module: TestModule, path: &str, method_router: MethodRouter<()>) -> Router {
+fn test_route(
+    module: TestModule,
+    path: &str,
+    method_router: MethodRouter<SharedState>,
+) -> Router<SharedState> {
     let path_stripped = path.trim_matches('/');
     let path = format!("{path_stripped}/");
     mod_route(

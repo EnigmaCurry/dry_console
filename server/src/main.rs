@@ -1,18 +1,36 @@
 mod api;
 
+use axum::body::Bytes;
+use axum::extract::State;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::get;
+use axum::Router;
 use clap::Parser;
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::info;
 
+////////////////////////////////////////////////////////////////////////////////
+// static WASM client code
+////////////////////////////////////////////////////////////////////////////////
+
 const CLIENT_INDEX_HTML: &[u8] = include_bytes!("../../dist/index.html");
 const CLIENT_JS: &[u8] = include_bytes!("../../dist/frontend.js");
 const CLIENT_WASM: &[u8] = include_bytes!("../../dist/frontend_bg.wasm");
+
+////////////////////////////////////////////////////////////////////////////////
+// Global app state
+////////////////////////////////////////////////////////////////////////////////
+type SharedState = Arc<RwLock<AppState>>;
+#[derive(Default)]
+struct AppState {
+    cache: HashMap<String, Bytes>,
+}
 
 // Setup the command line interface with clap.
 #[derive(Parser, Debug)]
@@ -76,11 +94,15 @@ async fn main() {
     ));
 
     info!("listening on http://{sock_addr}");
+    let app_state = SharedState::default();
+
     let mut app = api::router()
         .route("/hello", get(client_index_html))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
-        .route("/frontend_bg.wasm", get(client_wasm));
+        .route("/frontend_bg.wasm", get(client_wasm))
+        .layer(TraceLayer::new_for_http())
+        .with_state(app_state);
 
     if opt.live_reload {
         info!("Live-Reload is enabled.");
@@ -93,7 +115,7 @@ async fn main() {
     if opt.open {
         open::that(format!("http://{sock_addr}")).expect("Couldn't open web browser.");
     }
-    axum::serve(listener, app.layer(TraceLayer::new_for_http()))
+    axum::serve(listener, app)
         .await
         .expect("Error: unable to start server");
 }
