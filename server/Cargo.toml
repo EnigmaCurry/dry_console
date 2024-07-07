@@ -15,8 +15,8 @@ axum = "0.7.5"
 clap = { version = "4.5.8", features = ["derive"] }
 enum-iterator = "2.1.0"
 open = "5.2.0"
+regex = "1.10.5"
 serde = { version = "1.0.204", features = ["derive"] }
-text-sanitizer = { git = 'https://github.com/EnigmaCurry/text-sanitizer-rs.git' }
 tokio = { version = "1.24.1", features = ["full"] }
 tower = "0.4.13"
 tower-http = { version = "0.5.2", features = ["full"] }
