@@ -86,16 +86,18 @@ just static-run
 Clean build and release a new package:
 
 ```
-## release-diy is a minimal release target for self-hosting:
-just release-diy
+## release is a minimal release target for self-hosting:
+## (This is not what github actions uses)
+just release
 ```
 
 A wild tarball appears in `./release`.
 
-## Github actions release
+## Bump release version
+
+Do this before releasing a new version, it will update Cargo.toml,
+Cargo.lock, and README.md with the new version suggested by git-cliff:
 
 ```
-## This will bump the release version number automatically!
-just release
+just bump-version
 ```
-
