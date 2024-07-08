@@ -1,3 +1,7 @@
+set export
+
+HTTP_PORT := "8090"
+
 # Help
 list: 
     just --list
@@ -18,8 +22,12 @@ bin-deps:
 
 # Run (development)
 run:
-    cargo watch -s 'just build && cargo run --bin dry_console -- --port 8080'
+    cargo watch -s "just build && cargo run --bin dry_console -- --port ${HTTP_PORT}"
 
+# Open web browser to app URL
+open:
+    xdg-open http://localhost:${HTTP_PORT}
+    
 # Build frontend WASM (debug)
 build-frontend: clean-dist
     cd frontend; trunk build ${RELEASE_BUILD_ARGS:-} --filehash false

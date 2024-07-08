@@ -2,6 +2,8 @@ use axum::body::Bytes;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use crate::response::{AppError, AppError::SharedStateError};
+
 ////////////////////////////////////////////////////////////////////////////////
 // Global app state
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,36 +32,40 @@ impl AppState {
 }
 pub type SharedState = Arc<RwLock<AppState>>;
 pub trait ShareableState {
-    fn cache_set(&mut self, key: &str, value: &Bytes);
-    fn cache_set_string(&mut self, key: &str, value: &str);
-    fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
-    fn cache_get_string(&self, key: &str, default: &str) -> String;
+    fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError>;
+    fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError>;
+    fn cache_get(&self, key: &str, default: &Bytes) -> Result<Bytes, AppError>;
+    fn cache_get_string(&self, key: &str, default: &str) -> Result<String, AppError>;
 }
 impl ShareableState for SharedState {
-    fn cache_set(&mut self, key: &str, value: &Bytes) {
+    fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError> {
         match self.write() {
             Ok(mut state) => {
                 state.cache_set(key, value);
+                Ok(())
             }
-            Err(e) => {
-                panic!("{e}");
-            }
-        };
+            Err(e) => Err(SharedStateError(e.to_string())),
+        }
     }
-    fn cache_set_string(&mut self, key: &str, value: &str) {
+    fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError> {
         match self.write() {
             Ok(mut state) => {
                 state.cache_set_string(key, value);
+                Ok(())
             }
-            Err(e) => {
-                panic!("{e}");
-            }
+            Err(e) => Err(SharedStateError(e.to_string())),
         }
     }
-    fn cache_get(&self, key: &str, default: &Bytes) -> Bytes {
-        self.read().unwrap().cache_get(key, default)
+    fn cache_get(&self, key: &str, default: &Bytes) -> Result<Bytes, AppError> {
+        match self.read() {
+            Ok(state) => Ok(state.cache_get(key, default)),
+            Err(e) => Err(SharedStateError(e.to_string())),
+        }
     }
-    fn cache_get_string(&self, key: &str, default: &str) -> String {
-        self.read().unwrap().cache_get_string(key, default)
+    fn cache_get_string(&self, key: &str, default: &str) -> Result<String, AppError> {
+        match self.read() {
+            Ok(state) => Ok(state.cache_get_string(key, default)),
+            Err(e) => Err(SharedStateError(e.to_string())),
+        }
     }
 }

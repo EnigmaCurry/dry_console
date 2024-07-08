@@ -1,5 +1,6 @@
 mod api;
 mod app_state;
+mod response;
 
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
@@ -83,10 +84,10 @@ async fn main() {
     let state = app_state::SharedState::default();
 
     let mut app = api::router()
-        .route("/hello", get(client_index_html))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm))
+        .route("/*else", get(client_index_html))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 
