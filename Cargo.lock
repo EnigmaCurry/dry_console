@@ -399,6 +399,7 @@ dependencies = [
  "open",
  "regex",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tower",

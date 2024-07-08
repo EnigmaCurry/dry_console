@@ -1,8 +1,10 @@
 use aper::{NeverConflict, StateMachine};
-use axum::{routing::get, Router};
+use axum::{body::Bytes, extract::State, routing::get, Router};
+use serde_json;
 
 use crate::{
-    response::{AppJson, JsonResult},
+    app_state::{ShareableState, SharedState},
+    response::{AppError, AppJson, JsonResult},
     AppMethodRouter, AppRouter,
 };
 
@@ -62,8 +64,29 @@ fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
 }
 
 fn router() -> AppRouter {
-    async fn handler() -> JsonResult<Counter> {
-        Ok(AppJson(Counter { value: 1 }))
+    async fn handler(State(mut state): State<SharedState>) -> JsonResult<Counter> {
+        let mut c: Counter;
+        match state.cache_get_string("test::counter", "") {
+            Ok(s) => {
+                match s {
+                    s if s.is_empty() => {
+                        c = Counter::default();
+                    }
+                    s => {
+                        c = serde_json::from_str(&s).unwrap();
+                    }
+                };
+                c = c.apply(&c.add(1)).unwrap();
+                match serde_json::to_string(&c) {
+                    Ok(j) => match state.cache_set_string("test::counter", &j) {
+                        Ok(_) => Ok(AppJson(c)),
+                        Err(e) => Err(e),
+                    },
+                    Err(e) => Err(AppError::InternalError(e.to_string())),
+                }
+            }
+            Err(e) => Err(e),
+        }
     }
     route("/", get(handler))
 }
