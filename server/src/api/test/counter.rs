@@ -1,10 +1,10 @@
 use aper::{NeverConflict, StateMachine};
-use axum::{
-    routing::{get, MethodRouter},
-    Router,
-};
+use axum::{routing::get, Router};
 
-use crate::app_state::SharedState;
+use crate::{
+    response::{AppJson, JsonResult},
+    AppMethodRouter, AppRouter,
+};
 
 use super::test_route;
 use serde::{Deserialize, Serialize};
@@ -53,17 +53,17 @@ impl Counter {
 ////////////////////////////////////////////////////////////////////////////////
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
-pub fn main() -> Router<SharedState> {
+pub fn main() -> AppRouter {
     Router::new().merge(router())
 }
 
-fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
+fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
     test_route(super::TestModule::Counter, path, method_router)
 }
 
-fn router() -> Router<SharedState> {
-    async fn handler() -> &'static str {
-        "Hello, World!\n"
+fn router() -> AppRouter {
+    async fn handler() -> JsonResult<Counter> {
+        Ok(AppJson(Counter { value: 1 }))
     }
     route("/", get(handler))
 }

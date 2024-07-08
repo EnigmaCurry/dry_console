@@ -6,8 +6,10 @@ use axum::{
 
 use serde::Serialize;
 use thiserror;
+use ulid::Ulid;
 
 /// JSON response
+pub type JsonResult<T> = Result<AppJson<T>, AppError>;
 #[derive(FromRequest)]
 #[from_request(via(axum::Json), rejection(AppError))]
 pub struct AppJson<T>(pub T);
@@ -25,6 +27,8 @@ where
 // https://docs.rs/thiserror/latest/thiserror/
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
+    #[error("InternalError: {0}")]
+    InternalError(String),
     #[error("SharedStateError: {0}")]
     SharedStateError(String),
 }
@@ -33,21 +37,20 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         #[derive(Serialize)]
         struct ErrorResponse {
-            message: String,
+            error: String,
+            trace_id: Ulid,
         }
-        let (status, message) = match self {
-            AppError::SharedStateError(e) => {
-                tracing::error!(%e, "error with shared state");
+        let trace_id = Ulid::new();
+        tracing::debug!("Error trace_id: {}", trace_id);
+        let (status, e) = match self {
+            AppError::InternalError(error) | AppError::SharedStateError(error) => {
+                tracing::error!(%error);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Something went wrong".to_owned(),
+                    "Something went wrong".to_string(),
                 )
             }
         };
-        (status, AppJson(ErrorResponse { message })).into_response()
+        (status, AppJson(ErrorResponse { error: e, trace_id })).into_response()
     }
-}
-
-pub async fn fallback_404() -> (StatusCode, &'static str) {
-    (StatusCode::NOT_FOUND, "API Not Found")
 }

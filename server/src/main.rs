@@ -3,11 +3,13 @@ mod app_state;
 mod response;
 mod routing;
 
+use app_state::SharedState;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
-use axum::routing::get;
+use axum::routing::{get, MethodRouter};
 use axum::Router;
 use clap::Parser;
+use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use tower_http::trace::TraceLayer;
@@ -15,6 +17,9 @@ use tower_livereload::LiveReloadLayer;
 use tracing::info;
 
 const API_PREFIX: &str = "/api";
+
+pub type AppRouter = Router<SharedState>;
+pub type AppMethodRouter = MethodRouter<SharedState, Infallible>;
 
 ////////////////////////////////////////////////////////////////////////////////
 // static assets

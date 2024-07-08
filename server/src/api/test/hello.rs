@@ -1,25 +1,28 @@
 use super::test_route;
-use crate::api::APIModule;
+
 use crate::app_state::{ShareableState, SharedState};
+use crate::{AppMethodRouter, AppRouter};
 use axum::extract::{Path, State};
-use axum::{routing::get, routing::MethodRouter, Router};
+use axum::{routing::get, Router};
 use regex::Regex;
 
 const HELLO_NAME_CACHE: &str = "test::hello::name";
 
-pub fn main() -> Router<SharedState> {
+pub fn main() -> AppRouter {
     Router::new().merge(hello()).merge(hello_name())
 }
 
-fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
+fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
     test_route(super::TestModule::Hello, path, method_router)
 }
 
-fn hello() -> Router<SharedState> {
+fn hello() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> String {
         let default = "World";
-        let state = &state.read().unwrap();
-        let name: String = state.cache_get_string(HELLO_NAME_CACHE, default);
+        let name = match state.cache_get_string(HELLO_NAME_CACHE, default) {
+            Ok(s) => s,
+            Err(_) => default.to_string(),
+        };
         if name == default {
             format!("Hello, {default}!")
         } else {
@@ -29,7 +32,7 @@ fn hello() -> Router<SharedState> {
     route("/", get(handler))
 }
 
-fn hello_name() -> Router<SharedState> {
+fn hello_name() -> AppRouter {
     async fn handler(Path(name): Path<String>, State(mut state): State<SharedState>) -> String {
         let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9]+$").unwrap();
         if re.is_match(&name) {
