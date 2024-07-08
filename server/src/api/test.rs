@@ -7,12 +7,10 @@ use enum_iterator::{all, Sequence};
 
 use crate::app_state::SharedState;
 
-use super::{mod_route, ApiModule, API_PREFIX};
+use super::{route, ApiModule};
 
 pub mod counter;
 pub mod hello;
-
-const TEST_PREFIX: &str = "test";
 
 #[derive(Debug, PartialEq, Sequence, Clone)]
 enum TestModule {
@@ -38,7 +36,7 @@ impl ApiModule for TestModule {
         format!("{:?}", self).to_lowercase()
     }
     fn redirect(&self) -> MethodRouter {
-        let r = format!("/{API_PREFIX}/{TEST_PREFIX}/{}/", self.to_string());
+        let r = format!("/{}/", self.to_string());
         get(move || async move { Redirect::permanent(&r) })
     }
 }
@@ -52,11 +50,8 @@ fn test_route(
     path: &str,
     method_router: MethodRouter<SharedState>,
 ) -> Router<SharedState> {
-    let path_stripped = path.trim_matches('/');
-    let path = format!("{path_stripped}/");
-    mod_route(
-        super::APIModule::Test,
-        &format!("/{}/{path}", module.to_string()),
+    route(
+        format!("{}{path}", module.to_string()).as_str(),
         method_router,
     )
 }

@@ -47,3 +47,7 @@ impl IntoResponse for AppError {
         (status, AppJson(ErrorResponse { message })).into_response()
     }
 }
+
+async fn fallback_404() -> (StatusCode, &'static str) {
+    (StatusCode::NOT_FOUND, "Not Found")
+}

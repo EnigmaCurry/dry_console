@@ -22,7 +22,7 @@ bin-deps:
 
 # Run (development)
 run:
-    cargo watch -s "just build && cargo run --bin dry_console -- --port ${HTTP_PORT}"
+    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT}"
 
 # Open web browser to app URL
 open:

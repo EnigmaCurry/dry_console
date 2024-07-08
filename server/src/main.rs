@@ -5,6 +5,7 @@ mod response;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::get;
+use axum::Router;
 use clap::Parser;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
@@ -83,7 +84,8 @@ async fn main() {
     info!("listening on http://{sock_addr}");
     let state = app_state::SharedState::default();
 
-    let mut app = api::router()
+    let mut app = Router::new()
+        .nest("/api", api::router())
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm))
@@ -95,7 +97,7 @@ async fn main() {
         info!("Live-Reload is enabled.");
         app = app.layer(LiveReloadLayer::new());
     }
-
+    tracing::debug!("{:#?}", app);
     let listener = tokio::net::TcpListener::bind(&sock_addr)
         .await
         .expect(&format!("Error: unable to bind socket: {sock_addr}"));

@@ -8,8 +8,6 @@ use crate::app_state::SharedState;
 mod test;
 mod workstation;
 
-const API_PREFIX: &str = "api";
-
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
     fn main() -> Router<SharedState>;
@@ -30,8 +28,10 @@ impl ApiModule for APIModule {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<APIModule>() {
-            app = app.merge(m.router());
+            app = app.nest(format!("/{}/", m.to_string()).as_str(), m.router());
         }
+        // Return merge router with a final fallback for 404:
+        // app.route("/*else")
         app
     }
     fn router(&self) -> Router<SharedState> {
@@ -44,7 +44,7 @@ impl ApiModule for APIModule {
         format!("{:?}", self).to_lowercase()
     }
     fn redirect(&self) -> MethodRouter {
-        let r = format!("/{}/{}/", API_PREFIX, self.to_string());
+        let r = format!("/{}/", self.to_string());
         get(move || async move { Redirect::permanent(&r) })
     }
 }
@@ -52,19 +52,16 @@ impl ApiModule for APIModule {
 pub fn router() -> Router<SharedState> {
     // Adds all routes for all modules in APIModule:
     let r = APIModule::main();
-    //tracing::debug!("{r:#?}");
     r
 }
 
-fn mod_route(
-    module: APIModule,
-    path: &str,
-    method_router: MethodRouter<SharedState>,
-) -> Router<SharedState> {
-    let path_stripped = path.trim_matches('/');
-    let path = format!("{path_stripped}/");
-    Router::new().route(
-        format!("/{}/{}/{}", API_PREFIX, module.to_string(), path).as_str(),
-        method_router,
-    )
+fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
+    let p: String;
+    match path.trim_matches('/') {
+        "" => {
+            p = "/".to_string();
+        }
+        p2 => p = format!("/{}/", p2.to_string()),
+    }
+    Router::new().route(&p, method_router)
 }
