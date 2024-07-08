@@ -14,6 +14,8 @@ use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::info;
 
+const API_PREFIX: &str = "/api";
+
 ////////////////////////////////////////////////////////////////////////////////
 // static assets
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,7 +88,7 @@ async fn main() {
     let state = app_state::SharedState::default();
 
     let mut app = Router::new()
-        .nest("/api", api::router())
+        .nest(API_PREFIX, api::router())
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm))

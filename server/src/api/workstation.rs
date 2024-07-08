@@ -1,4 +1,7 @@
-use crate::{api::route, app_state::SharedState};
+use crate::{
+    api::{route, APIModule},
+    app_state::SharedState,
+};
 use axum::{routing::get, Router};
 
 pub fn router() -> Router<SharedState> {
@@ -12,12 +15,12 @@ fn workstation() -> Router<SharedState> {
     async fn handler() -> &'static str {
         "Workstation"
     }
-    route("/", get(handler))
+    route(APIModule::Workstation, "/", get(handler))
 }
 
 fn workstation_foo() -> Router<SharedState> {
     async fn handler() -> &'static str {
         "Workstation foo"
     }
-    route("/foo", get(handler))
+    route(APIModule::Workstation, "/foo", get(handler))
 }

@@ -42,7 +42,7 @@ impl ApiModule for TestModule {
 }
 
 pub fn router() -> Router<SharedState> {
-    TestModule::main()
+    TestModule::main().route("/", get(|| async { "Test" }))
 }
 
 fn test_route(
@@ -51,6 +51,7 @@ fn test_route(
     method_router: MethodRouter<SharedState>,
 ) -> Router<SharedState> {
     route(
+        super::APIModule::Test,
         format!("{}{path}", module.to_string()).as_str(),
         method_router,
     )

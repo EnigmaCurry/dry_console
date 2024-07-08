@@ -1,4 +1,5 @@
 use super::test_route;
+use crate::api::APIModule;
 use crate::app_state::{ShareableState, SharedState};
 use axum::extract::{Path, State};
 use axum::{routing::get, routing::MethodRouter, Router};
