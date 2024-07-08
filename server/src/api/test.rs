@@ -5,7 +5,7 @@ use axum::{
 };
 use enum_iterator::{all, Sequence};
 
-use crate::SharedState;
+use crate::app_state::SharedState;
 
 use super::{mod_route, ApiModule, API_PREFIX};
 

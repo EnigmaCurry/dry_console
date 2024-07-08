@@ -75,29 +75,31 @@ added to your shell's `PATH` variable.)
 just run
 ```
 
-## Production
+## Release (Github actions)
 
-Build and run the production binary:
+### Bump release version
 
-```
-just static-run
-```
-
-Clean build and release a new package:
-
-```
-## release is a minimal release target for self-hosting:
-## (This is not what github actions uses)
-just release
-```
-
-A wild tarball appears in `./release`.
-
-## Bump release version
-
-Do this before releasing a new version, it will update Cargo.toml,
-Cargo.lock, and README.md with the new version suggested by git-cliff:
+Update the version number in Cargo.toml, Cargo.lock, and README.md as
+suggested by git-cliff:
 
 ```
 just bump-version
 ```
+
+### Make PR with the changeset
+
+Branch protection is enabled, all changesets must come in the form of
+a Pull Request.
+
+### Merge PR and tag release
+
+Once the PR is merged, tag the release `vX.X.X` and push it to the
+`master` branch.
+
+```
+git checkout master
+git pull origin master
+git tag vX.X.X
+git push origin tag vX.X.X
+```
+

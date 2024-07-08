@@ -3,7 +3,7 @@ use axum::Router;
 use axum::{response::Redirect, routing::MethodRouter};
 use enum_iterator::{all, Sequence};
 
-use crate::{AppState, SharedState};
+use crate::app_state::SharedState;
 
 mod test;
 mod workstation;

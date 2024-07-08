@@ -1,12 +1,10 @@
-use std::sync::{Arc, RwLock};
-
 use aper::{NeverConflict, StateMachine};
 use axum::{
     routing::{get, MethodRouter},
     Router,
 };
 
-use crate::SharedState;
+use crate::app_state::SharedState;
 
 use super::test_route;
 use serde::{Deserialize, Serialize};
@@ -39,6 +37,7 @@ impl StateMachine for Counter {
         }
     }
 }
+#[allow(dead_code)]
 impl Counter {
     pub fn add(&self, i: i64) -> CounterTransition {
         CounterTransition::Add(i)
