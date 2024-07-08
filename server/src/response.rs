@@ -48,6 +48,6 @@ impl IntoResponse for AppError {
     }
 }
 
-async fn fallback_404() -> (StatusCode, &'static str) {
-    (StatusCode::NOT_FOUND, "Not Found")
+pub async fn fallback_404() -> (StatusCode, &'static str) {
+    (StatusCode::NOT_FOUND, "API Not Found")
 }

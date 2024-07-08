@@ -1,6 +1,7 @@
 mod api;
 mod app_state;
 mod response;
+mod routing;
 
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};

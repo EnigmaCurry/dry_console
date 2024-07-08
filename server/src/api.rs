@@ -1,3 +1,4 @@
+use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
 use axum::{response::Redirect, routing::MethodRouter};
@@ -7,6 +8,8 @@ use crate::app_state::SharedState;
 
 mod test;
 mod workstation;
+
+use crate::routing::route;
 
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
@@ -50,18 +53,9 @@ impl ApiModule for APIModule {
 }
 
 pub fn router() -> Router<SharedState> {
-    // Adds all routes for all modules in APIModule:
-    let r = APIModule::main();
-    r
-}
-
-fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
-    let p: String;
-    match path.trim_matches('/') {
-        "" => {
-            p = "/".to_string();
-        }
-        p2 => p = format!("/{}/", p2.to_string()),
-    }
-    Router::new().route(&p, method_router)
+    // Adds all routes for all modules, and a catch-all for remaining API 404s.
+    APIModule::main().route(
+        "/*else",
+        get(|| async { (StatusCode::NOT_FOUND, "API Not Found") }),
+    )
 }
