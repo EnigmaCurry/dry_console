@@ -3,8 +3,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-
 use serde::Serialize;
+use std::io;
 use thiserror;
 use ulid::Ulid;
 
@@ -27,10 +27,14 @@ where
 // https://docs.rs/thiserror/latest/thiserror/
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
-    #[error("InternalError: {0}")]
-    InternalError(String),
-    #[error("SharedStateError: {0}")]
-    SharedStateError(String),
+    #[error("Internal error: {0}")]
+    Internal(String),
+    #[error("SharedState error: {0}")]
+    SharedState(String),
+    #[error("Io error: {0}")]
+    Io(io::Error),
+    #[error("SharedState error: {0}")]
+    Json(serde_json::Error),
 }
 
 impl IntoResponse for AppError {
@@ -43,14 +47,25 @@ impl IntoResponse for AppError {
         let trace_id = Ulid::new();
         tracing::debug!("Error trace_id: {}", trace_id);
         let (status, e) = match self {
-            AppError::InternalError(error) | AppError::SharedStateError(error) => {
-                tracing::error!(%error);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Something went wrong".to_string(),
-                )
+            AppError::Internal(_error) | AppError::SharedState(_error) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Something went wrong".to_string(),
+            ),
+            AppError::Io(_error) => (StatusCode::BAD_REQUEST, "Bad request: IO error".to_string()),
+            AppError::Json(_error) => {
+                (StatusCode::BAD_REQUEST, "JSON validation error".to_string())
             }
         };
         (status, AppJson(ErrorResponse { error: e, trace_id })).into_response()
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(err: serde_json::Error) -> AppError {
+        use serde_json::error::Category;
+        match err.classify() {
+            Category::Io => AppError::Io(err.into()),
+            Category::Syntax | Category::Data | Category::Eof => AppError::Json(err),
+        }
     }
 }

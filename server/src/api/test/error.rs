@@ -44,7 +44,7 @@ fn good_user() -> AppRouter {
 
 fn bad_user() -> AppRouter {
     async fn handler() -> JsonResult<User> {
-        Err(AppError::InternalError("hmm".to_string()))
+        Err(AppError::Internal("hmm".to_string()))
     }
     route("/bad_user", get(handler))
 }

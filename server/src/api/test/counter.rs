@@ -1,9 +1,9 @@
 use aper::{NeverConflict, StateMachine};
-use axum::{body::Bytes, extract::State, routing::get, Router};
+use axum::{extract::State, routing::get, Router};
 use serde_json;
 
 use crate::{
-    app_state::{ShareableState, SharedState},
+    app_state::SharedState,
     response::{AppError, AppJson, JsonResult},
     AppMethodRouter, AppRouter,
 };
@@ -65,28 +65,40 @@ fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
 
 fn router() -> AppRouter {
     async fn handler(State(mut state): State<SharedState>) -> JsonResult<Counter> {
-        let mut c: Counter;
-        match state.cache_get_string("test::counter", "") {
-            Ok(s) => {
-                match s {
-                    s if s.is_empty() => {
-                        c = Counter::default();
-                    }
-                    s => {
-                        c = serde_json::from_str(&s).unwrap();
-                    }
-                };
-                c = c.apply(&c.add(1)).unwrap();
-                match serde_json::to_string(&c) {
-                    Ok(j) => match state.cache_set_string("test::counter", &j) {
-                        Ok(_) => Ok(AppJson(c)),
-                        Err(e) => Err(e),
-                    },
-                    Err(e) => Err(AppError::InternalError(e.to_string())),
+        match state.read() {
+            Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
+                "" => match serde_json::to_string(&Counter::default()) {
+                    Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
+                    Err(e) => Err(AppError::Internal(e.to_string())),
+                },
+                j => {
+                    todo!();
                 }
-            }
-            Err(e) => Err(e),
+            },
+            Err(e) => Err(AppError::SharedState(e.to_string())),
         }
+
+        // match state.cache_get_string("test::counter", "") {
+        //     Ok(s) => {
+        //         match s {
+        //             s if s.is_empty() => {
+        //                 c = Counter::default();
+        //             }
+        //             s => {
+        //                 c = serde_json::from_str(&s).unwrap();
+        //             }
+        //         };
+        //         c = c.apply(&c.add(1)).unwrap();
+        //         match serde_json::to_string(&c) {
+        //             Ok(j) => match state.cache_set_string("test::counter", &j) {
+        //                 Ok(_) => Ok(AppJson(c)),
+        //                 Err(e) => Err(e),
+        //             },
+        //             Err(e) => Err(AppError::InternalError(e.to_string())),
+        //         }
+        //     }
+        //     Err(e) => Err(e),
+        // }
     }
     route("/", get(handler))
 }
