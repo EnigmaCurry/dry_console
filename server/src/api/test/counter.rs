@@ -1,9 +1,15 @@
+use std::sync::RwLockWriteGuard;
+
 use aper::{NeverConflict, StateMachine};
-use axum::{extract::State, routing::get, Router};
+use axum::{
+    extract::State,
+    routing::{get, post},
+    Router,
+};
 use serde_json;
 
 use crate::{
-    app_state::SharedState,
+    app_state::{AppState, SharedState},
     response::{AppError, AppJson, JsonResult},
     AppMethodRouter, AppRouter,
 };
@@ -56,49 +62,59 @@ impl Counter {
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
 pub fn main() -> AppRouter {
-    Router::new().merge(router())
+    Router::new().merge(get_counter()).merge(update_counter())
 }
 
 fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
     test_route(super::TestModule::Counter, path, method_router)
 }
 
-fn router() -> AppRouter {
-    async fn handler(State(mut state): State<SharedState>) -> JsonResult<Counter> {
+fn get_counter() -> AppRouter {
+    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
         match state.read() {
             Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
                 "" => match serde_json::to_string(&Counter::default()) {
                     Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
                     Err(e) => Err(AppError::Internal(e.to_string())),
                 },
-                j => {
-                    todo!();
-                }
+                j => Ok(AppJson(serde_json::from_str(&j)?)),
             },
             Err(e) => Err(AppError::SharedState(e.to_string())),
         }
-
-        // match state.cache_get_string("test::counter", "") {
-        //     Ok(s) => {
-        //         match s {
-        //             s if s.is_empty() => {
-        //                 c = Counter::default();
-        //             }
-        //             s => {
-        //                 c = serde_json::from_str(&s).unwrap();
-        //             }
-        //         };
-        //         c = c.apply(&c.add(1)).unwrap();
-        //         match serde_json::to_string(&c) {
-        //             Ok(j) => match state.cache_set_string("test::counter", &j) {
-        //                 Ok(_) => Ok(AppJson(c)),
-        //                 Err(e) => Err(e),
-        //             },
-        //             Err(e) => Err(AppError::InternalError(e.to_string())),
-        //         }
-        //     }
-        //     Err(e) => Err(e),
-        // }
     }
     route("/", get(handler))
+}
+
+fn update_counter() -> AppRouter {
+    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
+        fn from_json(c: &str) -> Result<Counter, serde_json::Error> {
+            Ok(serde_json::from_str(&c)?)
+        }
+        fn to_json(c: Counter) -> Result<String, serde_json::Error> {
+            Ok(serde_json::to_string(&c)?)
+        }
+        fn get_counter(
+            state: &RwLockWriteGuard<'_, AppState>,
+        ) -> Result<Counter, serde_json::Error> {
+            match state.cache_get_string("test::counter", "").as_str() {
+                "" => Ok(Counter::default()),
+                j => Ok(from_json(j)?),
+            }
+        }
+        match state.write() {
+            Ok(mut state) => match get_counter(&state) {
+                Ok(c) => match c.apply(&c.add(1)) {
+                    Ok(c) => {
+                        let j = serde_json::to_string(&c)?;
+                        state.cache_set_string("test::counter", &j);
+                        Ok(AppJson(c))
+                    }
+                    Err(_) => Err(AppError::Internal("Failed to apply transition".to_string())),
+                },
+                Err(e) => Err(AppError::Json(e)),
+            },
+            Err(e) => Err(AppError::SharedState(e.to_string())),
+        }
+    }
+    route("/", post(handler))
 }
