@@ -2,6 +2,7 @@ mod api;
 mod app_state;
 mod response;
 mod routing;
+mod websocket;
 
 use app_state::SharedState;
 use axum::http::{header, StatusCode};

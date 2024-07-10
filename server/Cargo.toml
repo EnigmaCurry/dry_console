@@ -12,6 +12,7 @@ edition = "2021"
 [dependencies]
 aper = "0.3.0"
 axum = { version = "0.7.5", features = ["macros", "ws"] }
+axum-typed-websockets = "0.6.0"
 clap = { version = "4.5.8", features = ["derive"] }
 enum-iterator = "2.1.0"
 open = "5.2.0"

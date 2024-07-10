@@ -226,6 +226,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-typed-websockets"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df537817c0dc8ddccc7a4d479ea5d23438baf6f7ea97c583ac2256a75ff742fd"
+dependencies = [
+ "axum",
+ "futures-util",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,6 +459,7 @@ version = "0.1.38"
 dependencies = [
  "aper",
  "axum",
+ "axum-typed-websockets",
  "clap",
  "enum-iterator",
  "open",
