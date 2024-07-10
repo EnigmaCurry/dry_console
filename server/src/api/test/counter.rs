@@ -1,15 +1,18 @@
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
+
 use super::test_route;
+
 use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
     routing::{get, post},
     Json, Router,
 };
+use dashmap::DashMap;
 use serde_json;
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -112,7 +115,6 @@ impl AtomicCounter {
 ////////////////////////////////////////////////////////////////////////////////
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
-
 pub fn main() -> AppRouter {
     Router::new().merge(get_counter()).merge(update_counter())
 }
@@ -125,7 +127,7 @@ fn get_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
         let map = state.lock().await;
         let c = match map.get("test::counter") {
-            Some(counter) => serde_json::from_str(&counter).unwrap_or_default(),
+            Some(counter) => serde_json::from_str(counter.value()).unwrap_or_default(),
             None => AtomicCounter::default(),
         };
         Ok(AppJson(c))
@@ -137,7 +139,10 @@ fn update_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
         let mut map = state.lock().await;
 
-        let counter_str = map.get("test::counter").unwrap_or(&"0".to_string()).clone();
+        let counter_str = map
+            .get("test::counter")
+            .map(|v| v.clone())
+            .unwrap_or_else(|| "0".to_string());
         let c = serde_json::from_str(&counter_str).unwrap_or_default();
         let c2 = c.apply(&c.add(1))?;
 
