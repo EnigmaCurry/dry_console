@@ -7,11 +7,11 @@ use std::sync::Arc;
 // Global app state
 ////////////////////////////////////////////////////////////////////////////////
 pub trait AppState {
-    fn cache_set(&mut self, key: &str, value: &Bytes);
-    fn cache_set_string(&mut self, key: &str, value: &str);
+    fn cache_set(&self, key: &str, value: &Bytes);
+    fn cache_set_string(&self, key: &str, value: &str);
     fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
     fn cache_get_string(&self, key: &str, default: &str) -> String;
-    fn cache_set_json<T: Serialize>(&mut self, key: &str, value: &T) -> Result<(), String>;
+    fn cache_set_json<T: Serialize>(&self, key: &str, value: &T) -> Result<(), String>;
     fn cache_get_json<T: DeserializeOwned + Clone>(
         &self,
         key: &str,
@@ -19,10 +19,10 @@ pub trait AppState {
     ) -> Result<T, String>;
 }
 impl AppState for SharedState {
-    fn cache_set(&mut self, key: &str, value: &Bytes) {
+    fn cache_set(&self, key: &str, value: &Bytes) {
         self.insert(key.to_string(), value.clone());
     }
-    fn cache_set_string(&mut self, key: &str, value: &str) {
+    fn cache_set_string(&self, key: &str, value: &str) {
         self.cache_set(key, &Bytes::from(value.to_string()));
     }
     fn cache_get(&self, key: &str, default: &Bytes) -> Bytes {
@@ -36,8 +36,7 @@ impl AppState for SharedState {
             .unwrap_or(&default)
             .to_string()
     }
-
-    fn cache_set_json<T: Serialize>(&mut self, key: &str, value: &T) -> Result<(), String> {
+    fn cache_set_json<T: Serialize>(&self, key: &str, value: &T) -> Result<(), String> {
         match serde_json::to_string(value) {
             Ok(json_string) => Ok(self.cache_set_string(key, &json_string)),
             Err(e) => Err(e.to_string()),

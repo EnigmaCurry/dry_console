@@ -122,3 +122,7 @@ systemd-disable:
 systemd-restart: 
     systemctl --user restart --force dry_console
     systemctl --user status dry_console --no-pager
+
+test-counter:
+    ./test_counter.sh
+
