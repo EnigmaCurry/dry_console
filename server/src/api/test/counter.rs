@@ -1,8 +1,4 @@
-use std::sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc, RwLockWriteGuard,
-};
-
+use super::test_route;
 use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
@@ -10,6 +6,10 @@ use axum::{
     Router,
 };
 use serde_json;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 
 use crate::{
     app_state::{AppState, SharedState},
@@ -17,14 +17,15 @@ use crate::{
     AppMethodRouter, AppRouter,
 };
 
-use super::test_route;
 use serde::{Deserialize, Serialize};
+use tracing;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Counter
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Debug, Default)]
 struct AtomicCounter(AtomicUsize);
+
 // Implement Serialize for AtomicCounter
 impl Serialize for AtomicCounter {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -45,18 +46,22 @@ impl<'de> Deserialize<'de> for AtomicCounter {
         Ok(AtomicCounter::new(val))
     }
 }
+
 impl AtomicCounter {
     fn new(val: usize) -> Self {
         AtomicCounter(AtomicUsize::new(val))
     }
+
     fn atomic_add(&self, val: &usize) -> usize {
         self.0.fetch_add(*val, Ordering::SeqCst);
         self.load()
     }
+
     fn atomic_sub(&self, val: &usize) -> usize {
         self.0.fetch_sub(*val, Ordering::SeqCst);
         self.load()
     }
+
     fn load(&self) -> usize {
         self.0.load(Ordering::SeqCst)
     }
@@ -64,7 +69,7 @@ impl AtomicCounter {
 
 impl Clone for AtomicCounter {
     fn clone(&self) -> Self {
-        AtomicCounter::new(self.0.load(Ordering::SeqCst))
+        AtomicCounter::new(self.load())
     }
 }
 
@@ -74,9 +79,11 @@ enum CounterTransition {
     Subtract(usize),
     Reset,
 }
+
 impl StateMachine for AtomicCounter {
     type Transition = CounterTransition;
     type Conflict = NeverConflict;
+
     fn apply(&self, event: &CounterTransition) -> Result<AtomicCounter, NeverConflict> {
         match event {
             CounterTransition::Add(i) => Ok(AtomicCounter::new(self.atomic_add(i))),
@@ -91,9 +98,11 @@ impl AtomicCounter {
     pub fn add(&self, i: usize) -> CounterTransition {
         CounterTransition::Add(i)
     }
+
     pub fn subtract(&self, i: usize) -> CounterTransition {
         CounterTransition::Subtract(i)
     }
+
     pub fn reset(&self) -> CounterTransition {
         CounterTransition::Reset
     }
@@ -121,18 +130,22 @@ fn get_counter() -> AppRouter {
 fn update_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
         fn from_json(c: &str) -> Result<AtomicCounter, serde_json::Error> {
-            Ok(serde_json::from_str(&c)?)
+            Ok(serde_json::from_str(c)?)
         }
+
         fn to_json(c: &AtomicCounter) -> Result<String, serde_json::Error> {
-            Ok(serde_json::to_string(&c)?)
+            Ok(serde_json::to_string(c)?)
         }
+
         fn get_counter(state: SharedState) -> Result<AtomicCounter, serde_json::Error> {
             match state.cache_get_string("test::counter", "").as_str() {
                 "" => Ok(AtomicCounter::default()),
-                j => Ok(from_json(j)?),
+                j => from_json(j),
             }
         }
+
         tracing::debug!("here");
+
         let c = get_counter(state.clone())?;
         let c2 = c.apply(&c.add(1))?;
         let j = to_json(&c2)?;
