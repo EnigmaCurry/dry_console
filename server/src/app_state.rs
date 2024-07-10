@@ -2,6 +2,7 @@ use axum::body::Bytes;
 use dashmap::DashMap;
 use serde::{de::DeserializeOwned, Serialize};
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Global app state
@@ -58,4 +59,4 @@ impl AppState for SharedState {
         }
     }
 }
-pub type SharedState = Arc<DashMap<String, Bytes>>;
+pub type SharedState = Arc<Mutex<DashMap<String, String>>>;

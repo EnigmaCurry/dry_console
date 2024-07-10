@@ -3,13 +3,14 @@ use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
     routing::{get, post},
-    Router,
+    Json, Router,
 };
 use serde_json;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
+use tokio::sync::Mutex;
 
 use crate::{
     app_state::{AppState, SharedState},
@@ -52,13 +53,13 @@ impl AtomicCounter {
         AtomicCounter(AtomicUsize::new(val))
     }
 
-    fn atomic_add(&self, val: &usize) -> usize {
-        self.0.fetch_add(*val, Ordering::SeqCst);
+    fn atomic_add(&self, val: usize) -> usize {
+        self.0.fetch_add(val, Ordering::SeqCst);
         self.load()
     }
 
-    fn atomic_sub(&self, val: &usize) -> usize {
-        self.0.fetch_sub(*val, Ordering::SeqCst);
+    fn atomic_sub(&self, val: usize) -> usize {
+        self.0.fetch_sub(val, Ordering::SeqCst);
         self.load()
     }
 
@@ -86,8 +87,8 @@ impl StateMachine for AtomicCounter {
 
     fn apply(&self, event: &CounterTransition) -> Result<AtomicCounter, NeverConflict> {
         match event {
-            CounterTransition::Add(i) => Ok(AtomicCounter::new(self.atomic_add(i))),
-            CounterTransition::Subtract(i) => Ok(AtomicCounter::new(self.atomic_sub(i))),
+            CounterTransition::Add(i) => Ok(AtomicCounter::new(self.atomic_add(*i))),
+            CounterTransition::Subtract(i) => Ok(AtomicCounter::new(self.atomic_sub(*i))),
             CounterTransition::Reset => Ok(AtomicCounter::new(0)),
         }
     }
@@ -111,6 +112,7 @@ impl AtomicCounter {
 ////////////////////////////////////////////////////////////////////////////////
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
+
 pub fn main() -> AppRouter {
     Router::new().merge(get_counter()).merge(update_counter())
 }
@@ -121,7 +123,11 @@ fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
 
 fn get_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
-        let c = state.cache_get_json("test::counter", &AtomicCounter::default())?;
+        let map = state.lock().await;
+        let c = match map.get("test::counter") {
+            Some(counter) => serde_json::from_str(&counter).unwrap_or_default(),
+            None => AtomicCounter::default(),
+        };
         Ok(AppJson(c))
     }
     route("/", get(handler))
@@ -129,27 +135,13 @@ fn get_counter() -> AppRouter {
 
 fn update_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
-        fn from_json(c: &str) -> Result<AtomicCounter, serde_json::Error> {
-            Ok(serde_json::from_str(c)?)
-        }
+        let mut map = state.lock().await;
 
-        fn to_json(c: &AtomicCounter) -> Result<String, serde_json::Error> {
-            Ok(serde_json::to_string(c)?)
-        }
-
-        fn get_counter(state: SharedState) -> Result<AtomicCounter, serde_json::Error> {
-            match state.cache_get_string("test::counter", "").as_str() {
-                "" => Ok(AtomicCounter::default()),
-                j => from_json(j),
-            }
-        }
-
-        tracing::debug!("here");
-
-        let c = get_counter(state.clone())?;
+        let counter_str = map.get("test::counter").unwrap_or(&"0".to_string()).clone();
+        let c = serde_json::from_str(&counter_str).unwrap_or_default();
         let c2 = c.apply(&c.add(1))?;
-        let j = to_json(&c2)?;
-        state.cache_set_string("test::counter", &j);
+
+        map.insert("test::counter".to_string(), serde_json::to_string(&c2)?);
         Ok(AppJson(c2))
     }
     route("/", post(handler))
