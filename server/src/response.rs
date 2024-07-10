@@ -51,12 +51,15 @@ impl IntoResponse for AppError {
         let trace_id = Ulid::new();
         tracing::debug!("Error trace_id: {}", trace_id);
         let (status, e) = match self {
-            AppError::Internal(_error)
-            | AppError::SharedState(_error)
-            | AppError::StateMachineConflict(_error) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Something went wrong".to_string(),
-            ),
+            AppError::Internal(error)
+            | AppError::SharedState(error)
+            | AppError::StateMachineConflict(error) => {
+                tracing::error!(error);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Something went wrong".to_string(),
+                )
+            }
             AppError::Io(_error) => (StatusCode::BAD_REQUEST, "Bad request: IO error".to_string()),
             AppError::Json(_error) => {
                 (StatusCode::BAD_REQUEST, "JSON validation error".to_string())
@@ -85,5 +88,11 @@ impl<T> From<PoisonError<T>> for AppError {
 impl From<aper::NeverConflict> for AppError {
     fn from(_err: aper::NeverConflict) -> Self {
         Self::StateMachineConflict("State machine conflict".to_string())
+    }
+}
+
+impl From<String> for AppError {
+    fn from(err: String) -> Self {
+        Self::Internal(err)
     }
 }

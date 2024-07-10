@@ -1,4 +1,4 @@
-use std::sync::RwLockWriteGuard;
+use std::sync::{Arc, RwLockWriteGuard};
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
@@ -71,38 +71,27 @@ fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
 
 fn get_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
-        match state.read() {
-            Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
-                "" => match serde_json::to_string(&Counter::default()) {
-                    Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
-                    Err(e) => Err(AppError::Internal(e.to_string())),
-                },
-                j => Ok(AppJson(serde_json::from_str(&j)?)),
-            },
-            Err(e) => Err(AppError::SharedState(e.to_string())),
-        }
+        let c = state.cache_get_json("test::counter", &Counter::default())?;
+        Ok(AppJson(c))
     }
     route("/", get(handler))
 }
 
 fn update_counter() -> AppRouter {
-    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
+    async fn handler(State(mut state): State<SharedState>) -> JsonResult<Counter> {
         fn from_json(c: &str) -> Result<Counter, serde_json::Error> {
             Ok(serde_json::from_str(&c)?)
         }
         fn to_json(c: &Counter) -> Result<String, serde_json::Error> {
             Ok(serde_json::to_string(&c)?)
         }
-        fn get_counter(
-            state: &RwLockWriteGuard<'_, AppState>,
-        ) -> Result<Counter, serde_json::Error> {
+        fn get_counter(state: SharedState) -> Result<Counter, serde_json::Error> {
             match state.cache_get_string("test::counter", "").as_str() {
                 "" => Ok(Counter::default()),
                 j => Ok(from_json(j)?),
             }
         }
-        let mut state = state.write()?;
-        let c = get_counter(&state)?;
+        let c = get_counter(state.clone())?;
         let c = c.apply(&c.add(1))?;
         let j = to_json(&c)?;
         state.cache_set_string("test::counter", &j);
