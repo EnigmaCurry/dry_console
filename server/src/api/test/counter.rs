@@ -90,7 +90,7 @@ fn update_counter() -> AppRouter {
         fn from_json(c: &str) -> Result<Counter, serde_json::Error> {
             Ok(serde_json::from_str(&c)?)
         }
-        fn to_json(c: Counter) -> Result<String, serde_json::Error> {
+        fn to_json(c: &Counter) -> Result<String, serde_json::Error> {
             Ok(serde_json::to_string(&c)?)
         }
         fn get_counter(
@@ -101,20 +101,12 @@ fn update_counter() -> AppRouter {
                 j => Ok(from_json(j)?),
             }
         }
-        match state.write() {
-            Ok(mut state) => match get_counter(&state) {
-                Ok(c) => match c.apply(&c.add(1)) {
-                    Ok(c) => {
-                        let j = serde_json::to_string(&c)?;
-                        state.cache_set_string("test::counter", &j);
-                        Ok(AppJson(c))
-                    }
-                    Err(_) => Err(AppError::Internal("Failed to apply transition".to_string())),
-                },
-                Err(e) => Err(AppError::Json(e)),
-            },
-            Err(e) => Err(AppError::SharedState(e.to_string())),
-        }
+        let mut state = state.write()?;
+        let c = get_counter(&state)?;
+        let c = c.apply(&c.add(1))?;
+        let j = to_json(&c)?;
+        state.cache_set_string("test::counter", &j);
+        Ok(AppJson(c))
     }
     route("/", post(handler))
 }

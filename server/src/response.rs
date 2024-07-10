@@ -1,10 +1,12 @@
+use crate::app_state::AppState;
+use aper::StateMachine;
 use axum::{
     extract::{rejection::JsonRejection, FromRequest},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
-use std::io;
+use std::{io, sync::PoisonError};
 use thiserror;
 use ulid::Ulid;
 
@@ -35,6 +37,8 @@ pub enum AppError {
     Io(io::Error),
     #[error("SharedState error: {0}")]
     Json(serde_json::Error),
+    #[error("StateMachineConflict: {0}")]
+    StateMachineConflict(String),
 }
 
 impl IntoResponse for AppError {
@@ -47,7 +51,9 @@ impl IntoResponse for AppError {
         let trace_id = Ulid::new();
         tracing::debug!("Error trace_id: {}", trace_id);
         let (status, e) = match self {
-            AppError::Internal(_error) | AppError::SharedState(_error) => (
+            AppError::Internal(_error)
+            | AppError::SharedState(_error)
+            | AppError::StateMachineConflict(_error) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Something went wrong".to_string(),
             ),
@@ -67,5 +73,17 @@ impl From<serde_json::Error> for AppError {
             Category::Io => AppError::Io(err.into()),
             Category::Syntax | Category::Data | Category::Eof => AppError::Json(err),
         }
+    }
+}
+
+impl<T> From<PoisonError<T>> for AppError {
+    fn from(_err: PoisonError<T>) -> Self {
+        Self::SharedState("SharedState poison error".to_string())
+    }
+}
+
+impl From<aper::NeverConflict> for AppError {
+    fn from(_err: aper::NeverConflict) -> Self {
+        Self::StateMachineConflict("State machine conflict".to_string())
     }
 }
