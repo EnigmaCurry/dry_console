@@ -20,53 +20,44 @@ For MS Windows, use the Linux version inside WSL2.
 
 # Install script
 
-To install, copy and paste this entire code block directly into your
-Bash shell. (Customize the variables at the top, if you wish):
+To install, copy and paste this *entire* code block directly into your
+Bash shell. (Customize the variables at the top, beforehand, if you
+wish):
 
 ```
 # Cross platform Bash install script for dry_console:
+(set -ex
 
-# Configure the version to download:
+# Configure these variables if you wish:
 VERSION=v0.1.38
+INSTALL_DIR=/usr/local/bin
+REPO_DOWNLOAD=https://github.com/EnigmaCurry/dry_console/releases/download
+USE_SUDO=true
+
+# Download and extract the platform specific release tarball:
 PLATFORM=$(uname -s)-$(uname -m)
+PROGRAM=dry_console
 TMP_DIR=$(mktemp -d)
-
-# Download and extract the release tarball:
-(set -e
+if [[ "${USE_SUDO}" == "true" ]]; then
+    SUDO_PREFIX="sudo"
+else
+    SUDO_PREFIX=""
+fi
 mkdir -p ${TMP_DIR}
-cd ${TMP_DIR}
-curl -LO https://github.com/EnigmaCurry/dry_console/releases/download/${VERSION}/dry_console-${VERSION}-${PLATFORM}.tar.gz
-tar xfv dry_console-${VERSION}-${PLATFORM}.tar.gz
-rm -f dry_console-${VERSION}-${PLATFORM}.tar.gz)
-
-# Change directory to TMP_DIR and show the extracted program:
-cd ${TMP_DIR}
-pwd
-ls -lh
+pushd ${TMP_DIR}
+curl -L ${REPO_DOWNLOAD}/${VERSION}/${PROGRAM}-${VERSION}-${PLATFORM}.tar.gz \
+     -o release.tar.gz
+tar xfv release.tar.gz
+${SUDO_PREFIX} install ${TMP_DIR}/${PROGRAM} ${INSTALL_DIR}
+popd
+rm -rf ${TMP_DIR}
+ls -lh ${INSTALL_DIR}/${PROGRAM})
 ```
 
-This script will create a temporary directory (`TMP_DIR`) and download
-and extract the release tarball specific to your platform. The program
-is a single, self-contained binary. To start the program, simply run
-`dry_console` from the temporary directory:
-
-```
-./dry_console
-```
-
-To install the program system wide, run:
-
-```
-sudo install ./dry_console /usr/local/bin
-```
-
-With the program installed in `/usr/local/bin` (which should already
-be included in your `PATH`), you may now run the program from any
-working directory (ie. without specifying the `./` in front):
-
-```
-dry_console
-```
+By default, this script uses `sudo` to install the binary to your
+chosen `INSTALL_DIR` (`/usr/local/bin` by default). It may prompt you
+to enter your password as it does this. If you don't need to use
+`sudo`, set `USE_SUDO=false`.
 
 # Development
 ## Dependencies
