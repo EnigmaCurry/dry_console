@@ -1,9 +1,8 @@
+use super::test_route;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
 };
-
-use super::test_route;
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
@@ -113,8 +112,36 @@ impl AtomicCounter {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// SharedState
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Clone)]
+struct SharedState {
+    map: Arc<Mutex<DashMap<String, String>>>,
+}
+
+impl SharedState {
+    pub fn new() -> Self {
+        Self {
+            map: Arc::new(Mutex::new(DashMap::new())),
+        }
+    }
+
+    pub async fn get(&self, key: &str) -> Option<String> {
+        let map = self.map.lock().await;
+        map.get(key).map(|v| v.value().clone())
+    }
+
+    pub async fn set(&self, key: &str, value: String) {
+        let mut map = self.map.lock().await;
+        map.insert(key.to_string(), value);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
+
 pub fn main() -> AppRouter {
     Router::new().merge(get_counter()).merge(update_counter())
 }
@@ -125,11 +152,11 @@ fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
 
 fn get_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
-        let map = state.lock().await;
-        let c = match map.get("test::counter") {
-            Some(counter) => serde_json::from_str(counter.value()).unwrap_or_default(),
-            None => AtomicCounter::default(),
-        };
+        let counter_str = state
+            .get("test::counter")
+            .await
+            .unwrap_or_else(|| "0".to_string());
+        let c = serde_json::from_str(&counter_str).unwrap_or_default();
         Ok(AppJson(c))
     }
     route("/", get(handler))
@@ -137,16 +164,14 @@ fn get_counter() -> AppRouter {
 
 fn update_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<AtomicCounter> {
-        let mut map = state.lock().await;
-
-        let counter_str = map
+        let counter_str = state
             .get("test::counter")
-            .map(|v| v.clone())
+            .await
             .unwrap_or_else(|| "0".to_string());
         let c = serde_json::from_str(&counter_str).unwrap_or_default();
         let c2 = c.apply(&c.add(1))?;
-
-        map.insert("test::counter".to_string(), serde_json::to_string(&c2)?);
+        let counter_json = serde_json::to_string(&c2)?;
+        state.set("test::counter", counter_json).await;
         Ok(AppJson(c2))
     }
     route("/", post(handler))

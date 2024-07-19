@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 // Global app state
 ////////////////////////////////////////////////////////////////////////////////
 pub trait AppState {
-    fn cache_set(&self, key: &str, value: &Bytes);
+    async fn cache_set(&self, key: &str, value: &Bytes) -> Option<()>;
     fn cache_set_string(&self, key: &str, value: &str);
     fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
     fn cache_get_string(&self, key: &str, default: &str) -> String;
@@ -20,8 +20,9 @@ pub trait AppState {
     ) -> Result<T, String>;
 }
 impl AppState for SharedState {
-    fn cache_set(&self, key: &str, value: &Bytes) {
-        self.insert(key.to_string(), value.clone());
+    async fn cache_set(&self, key: &str, value: &Bytes) -> Option<()> {
+        self.lock().await.insert(key.to_string(), value.clone());
+        Some(())
     }
     fn cache_set_string(&self, key: &str, value: &str) {
         self.cache_set(key, &Bytes::from(value.to_string()));
