@@ -1,12 +1,11 @@
 # dry_console
 
-This is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). It was created from a [cargo-generate](https://cargo-generate.github.io/cargo-generate/) template: `cargo generate rksm/axum-yew-template`.
+This is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). 
 
-It's purpose has not been fully defined, but it's gonna be a docker helper tool for [d.rymcg.tech](d.rymcg.tech)
+It's purpose has not yet been fully defined, but it's gonna be a
+docker helper tool for [d.rymcg.tech](d.rymcg.tech)
 
-# Install
-
-[Download the latest release for your platform.](https://github.com/EnigmaCurry/dry_console/releases)
+# Platforms
 
 This tool is built for the following platforms:
 
@@ -15,32 +14,58 @@ This tool is built for the following platforms:
  * MacOS x86_64 (AMD64)
  * MacOS aarch64 (ARM64)
 
-For MS Windows, use the Linux version in WSL2.
+[Download the latest release for your platform.](https://github.com/EnigmaCurry/dry_console/releases)
+
+For MS Windows, use the Linux version inside WSL2.
+
+# Install script
+
+To install, copy and paste this entire code block directly into your
+Bash shell. (Customize the variables at the top, if you wish):
 
 ```
+# Cross platform Bash install script for dry_console:
+
+# Configure the version to download:
 VERSION=v0.1.38
 PLATFORM=$(uname -s)-$(uname -m)
-INSTALL_PATH=~/dry_console
+TMP_DIR=$(mktemp -d)
 
+# Download and extract the release tarball:
 (set -e
-mkdir -p ${INSTALL_PATH}
-cd ${INSTALL_PATH}
+mkdir -p ${TMP_DIR}
+cd ${TMP_DIR}
 curl -LO https://github.com/EnigmaCurry/dry_console/releases/download/${VERSION}/dry_console-${VERSION}-${PLATFORM}.tar.gz
 tar xfv dry_console-${VERSION}-${PLATFORM}.tar.gz
 rm -f dry_console-${VERSION}-${PLATFORM}.tar.gz)
 
-cd ${INSTALL_PATH}
+# Change directory to TMP_DIR and show the extracted program:
+cd ${TMP_DIR}
 pwd
-ls
+ls -lh
 ```
 
-The script printed above will create a new directory (`INSTALL_PATH`)
-and it will download and extract the dry_console version specified
-(`VERSION`). To start the program, simply run `dry_console` from that
-directory.
+This script will create a temporary directory (`TMP_DIR`) and download
+and extract the release tarball specific to your platform. The program
+is a single, self-contained binary. To start the program, simply run
+`dry_console` from the temporary directory:
 
 ```
 ./dry_console
+```
+
+To install the program system wide, run:
+
+```
+sudo install ./dry_console /usr/local/bin
+```
+
+With the program installed in `/usr/local/bin` (which should already
+be included in your `PATH`), you may now run the program from any
+working directory (ie. without specifying the `./` in front):
+
+```
+dry_console
 ```
 
 # Development
