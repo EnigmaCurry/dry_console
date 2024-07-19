@@ -21,7 +21,7 @@ fn route(path: &str, method_router: MethodRouter<SharedState>) -> AppRouter {
 
 fn no_error() -> AppRouter {
     async fn handler() -> String {
-        return "No error.".to_string();
+        "No error.".to_string()
     }
     route("/", get(handler))
 }

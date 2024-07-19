@@ -77,7 +77,7 @@ fn get_counter() -> AppRouter {
                     Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
                     Err(e) => Err(AppError::Internal(e.to_string())),
                 },
-                j => Ok(AppJson(serde_json::from_str(&j)?)),
+                j => Ok(AppJson(serde_json::from_str(j)?)),
             },
             Err(e) => Err(AppError::SharedState(e.to_string())),
         }
@@ -88,10 +88,10 @@ fn get_counter() -> AppRouter {
 fn update_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
         fn from_json(c: &str) -> Result<Counter, serde_json::Error> {
-            Ok(serde_json::from_str(&c)?)
+            serde_json::from_str(c)
         }
         fn to_json(c: &Counter) -> Result<String, serde_json::Error> {
-            Ok(serde_json::to_string(&c)?)
+            serde_json::to_string(&c)
         }
         fn get_counter(
             state: &RwLockWriteGuard<'_, AppState>,

@@ -13,8 +13,8 @@ pub fn route(
         "" => {
             p = "/".to_string();
         }
-        p2 => p = format!("/{}/", p2.to_string()),
+        p2 => p = format!("/{}/", p2),
     }
-    let router = Router::new().route(&p, method_router);
-    router
+    
+    Router::new().route(&p, method_router)
 }

@@ -1,10 +1,7 @@
 use super::test_route;
 
-use crate::app_state::SharedState;
 use crate::{AppMethodRouter, AppRouter};
-use axum::extract::{Path, State};
-use axum::{routing::get, Router};
-use regex::Regex;
+use axum::{Router};
 
 const HELLO_NAME_CACHE: &str = "test::hello::name";
 

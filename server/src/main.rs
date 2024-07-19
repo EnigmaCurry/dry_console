@@ -108,7 +108,7 @@ async fn main() {
     tracing::debug!("{:#?}", app);
     let listener = tokio::net::TcpListener::bind(&sock_addr)
         .await
-        .expect(&format!("Error: unable to bind socket: {sock_addr}"));
+        .unwrap_or_else(|_| panic!("Error: unable to bind socket: {sock_addr}"));
     if opt.open {
         open::that(format!("http://{sock_addr}")).expect("Couldn't open web browser.");
     }

@@ -19,12 +19,12 @@ impl AppState {
     pub fn cache_get(&self, key: &str, default: &Bytes) -> Bytes {
         self.cache
             .get(key)
-            .unwrap_or(&Bytes::from(default.clone()))
+            .unwrap_or(&default.clone())
             .clone()
     }
     pub fn cache_get_string(&self, key: &str, default: &str) -> String {
         std::str::from_utf8(&self.cache_get(key, &Bytes::from(default.to_string())))
-            .unwrap_or(&default)
+            .unwrap_or(default)
             .to_string()
     }
 }

@@ -1,13 +1,10 @@
-use crate::app_state::AppState;
-use aper::StateMachine;
 use axum::{
-    extract::{rejection::JsonRejection, FromRequest},
+    extract::{FromRequest},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
 use std::{io, sync::PoisonError};
-use thiserror;
 use ulid::Ulid;
 
 /// JSON response
