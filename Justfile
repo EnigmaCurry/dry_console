@@ -123,6 +123,10 @@ systemd-restart:
     systemctl --user restart --force dry_console
     systemctl --user status dry_console --no-pager
 
+# Run clippy linter and paginate results with less
+clippy:
+    cargo clippy --color=always --bin dry_console 2>&1 | less -R
+
 # Run clippy linter and apply fixes
 clippy-fix:
-    cargo clippy --fix --bin dry_console
+    cargo clippy --fix --color=always --bin dry_console 2>&1 | less -R
