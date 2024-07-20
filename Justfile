@@ -2,6 +2,7 @@ set export
 
 HTTP_PORT := "8090"
 TRUNK_BRANCH := "master"
+GIT_REMOTE := "origin"
 
 # Help
 list: 
@@ -80,21 +81,19 @@ bump-version:
     echo "Created new branch: release-v${VERSION}"; \
     echo "You should push this branch and create a PR for it."
 
-# # self-hosted release (non-github actions)
-# release: clean-dist build-release
-#     rm -rf release; \
-#     TMP_DIR=$(mktemp -d); \
-#     VERSION=$(cd server; cargo read-manifest | jq -r .version); \
-#     PACKAGE=dry_console-v${VERSION}; \
-#     PACKAGE_DIR=${TMP_DIR}/${PACKAGE}; \
-#     PACKAGE_PATH=${TMP_DIR}/${PACKAGE}.tar.gz; \
-#     mkdir ${PACKAGE_DIR}; \
-#     cp -r ./target/release/dry_console ${PACKAGE_DIR}; \
-#     (cd ${TMP_DIR}; tar cfz ${PACKAGE}.tar.gz ${PACKAGE}); \
-#     mkdir -p release; \
-#     cp ${PACKAGE_PATH} release/; \
-#     (cd release; tar xfvz ${PACKAGE}.tar.gz); \
-#     rm -rf ${TMP_DIR};
+release:
+    @if [ -n "$(git status --porcelain)" ]; then echo "## Git status is not clean. Commit your changes before bumping version."; exit 1; fi
+    @if [ "$(git symbolic-ref --short HEAD)" != "${TRUNK_BRANCH}" ]; then echo "## You may only release the ${TRUNK_BRANCH} branch."; exit 1; fi
+    git remote update;
+    @if [[ "$(git status -uno)" != *"Your branch is up to date"* ]]; then echo "## Git branch is not in sync with git remote ${GIT_REMOTE}."; exit 1; fi;
+    @set -eo pipefail; \
+    source ./funcs.sh; \
+    CURRENT_VERSION=$(grep -Po '^version = \K.*' Cargo.toml | sed -e 's/"//g' | head -1); \
+    if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then echo "Tag already exists: v${CURRENT_VERSION}"; exit 1; fi; \
+    if (git ls-remote --tags "${GIT_REMOTE}" | grep -q "refs/tags/v${CURRENT_VERSION}" >/dev/null 2>&1); then echo "Tag already exists on remote ${GIT_REMOTE}: v${CURRENT_VERSION}"; exit 1; fi; \
+    confirm yes "New tag will be \"v${VERSION}\"" " -- Proceed?"; \
+    git tag "v${VERSION}"; \
+    git push "${GIT_REMOTE}" tag "v${VERSION}";
 
 # cleans ./dist
 clean-dist:
