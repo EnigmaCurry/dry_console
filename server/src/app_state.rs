@@ -31,8 +31,10 @@ impl AppState {
 pub type SharedState = Arc<RwLock<AppState>>;
 
 pub trait ShareableState {
+    #[allow(dead_code)]
     fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError>;
     fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError>;
+    #[allow(dead_code)]
     fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
     fn cache_get_string(&self, key: &str, default: &str) -> String;
 }
@@ -43,7 +45,7 @@ impl ShareableState for SharedState {
             Ok(mut state) => {
                 state.cache_set(key, value);
                 Ok(())
-            },
+            }
             Err(e) => Err(AppError::from(e)),
         }
     }
@@ -54,7 +56,7 @@ impl ShareableState for SharedState {
             Ok(mut state) => {
                 state.cache_set_string(key, value);
                 Ok(())
-            },
+            }
             Err(e) => Err(AppError::from(e)),
         }
     }
