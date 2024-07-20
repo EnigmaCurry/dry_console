@@ -20,9 +20,10 @@ For MS Windows, use the Linux version inside WSL2.
 
 # Install script
 
-To install, copy and paste this *entire* code block directly into your
-Bash shell. (Customize the variables at the top, beforehand, if you
-wish):
+The release is self-contained in a single binary, so you may install it however you like.
+To automate the install system wide, you may copy and paste this *entire* code block 
+directly into your Bash shell. (Customize the variables at the top, beforehand, 
+if you wish):
 
 ```
 # Cross platform Bash install script for dry_console:
