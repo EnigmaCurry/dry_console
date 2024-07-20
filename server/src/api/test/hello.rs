@@ -1,25 +1,31 @@
 use super::test_route;
-use crate::SharedState;
-use axum::body::Bytes;
-use axum::extract::{Path, State};
-use axum::{routing::get, routing::MethodRouter, Router};
+
+use crate::{
+    app_state::{ShareableState, SharedState},
+    response::AppError,
+    AppMethodRouter, AppRouter,
+};
+use axum::{
+    extract::{Path, State},
+    routing::get,
+    Router,
+};
 use regex::Regex;
 
-pub fn main() -> Router<SharedState> {
+const HELLO_NAME_CACHE: &str = "test::hello::name";
+
+pub fn main() -> AppRouter {
     Router::new().merge(hello()).merge(hello_name())
 }
 
-fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
+fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
     test_route(super::TestModule::Hello, path, method_router)
 }
 
-fn hello() -> Router<SharedState> {
+fn hello() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> String {
-        let cache = &state.read().unwrap().cache;
         let default = "World";
-        let default_bytes = Bytes::from(default.as_bytes());
-        let name = std::str::from_utf8(cache.get("test::hello::name").unwrap_or(&default_bytes))
-            .unwrap_or(&default);
+        let name = state.cache_get_string(HELLO_NAME_CACHE, default);
         if name == default {
             format!("Hello, {default}!")
         } else {
@@ -29,18 +35,17 @@ fn hello() -> Router<SharedState> {
     route("/", get(handler))
 }
 
-fn hello_name() -> Router<SharedState> {
-    async fn handler(Path(name): Path<String>, State(state): State<SharedState>) -> String {
+fn hello_name() -> AppRouter {
+    async fn handler(Path(name): Path<String>, State(mut state): State<SharedState>) -> String {
         let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9]+$").unwrap();
         if re.is_match(&name) {
-            state
-                .write()
-                .unwrap()
-                .cache
-                .insert("test::hello::name".to_string(), Bytes::from(name.clone()));
+            match state.cache_set_string(HELLO_NAME_CACHE, &name) {
+                Ok(_) => {}
+                Err(_) => return AppError::Internal("Error caching name".to_string()).to_string(),
+            }
             format!("Hello, {}!\n", name)
         } else {
-            format!("Sorry, names must be alphanumeric only.")
+            "Sorry, names must be alphanumeric only.".to_string()
         }
     }
     route("/:name", get(handler))

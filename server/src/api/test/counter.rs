@@ -1,12 +1,18 @@
-use std::sync::{Arc, RwLock};
+use std::sync::RwLockWriteGuard;
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
-    routing::{get, MethodRouter},
+    extract::State,
+    routing::{get, post},
     Router,
 };
+use serde_json;
 
-use crate::SharedState;
+use crate::{
+    app_state::{AppState, SharedState},
+    response::{AppError, AppJson, JsonResult},
+    AppMethodRouter, AppRouter,
+};
 
 use super::test_route;
 use serde::{Deserialize, Serialize};
@@ -39,6 +45,7 @@ impl StateMachine for Counter {
         }
     }
 }
+#[allow(dead_code)]
 impl Counter {
     pub fn add(&self, i: i64) -> CounterTransition {
         CounterTransition::Add(i)
@@ -54,17 +61,52 @@ impl Counter {
 ////////////////////////////////////////////////////////////////////////////////
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
-pub fn main() -> Router<SharedState> {
-    Router::new().merge(router())
+pub fn main() -> AppRouter {
+    Router::new().merge(get_counter()).merge(update_counter())
 }
 
-fn route(path: &str, method_router: MethodRouter<SharedState>) -> Router<SharedState> {
+fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
     test_route(super::TestModule::Counter, path, method_router)
 }
 
-fn router() -> Router<SharedState> {
-    async fn handler() -> &'static str {
-        "Hello, World!\n"
+fn get_counter() -> AppRouter {
+    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
+        match state.read() {
+            Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
+                "" => match serde_json::to_string(&Counter::default()) {
+                    Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
+                    Err(e) => Err(AppError::Internal(e.to_string())),
+                },
+                j => Ok(AppJson(serde_json::from_str(j)?)),
+            },
+            Err(e) => Err(AppError::SharedState(e.to_string())),
+        }
     }
     route("/", get(handler))
+}
+
+fn update_counter() -> AppRouter {
+    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
+        fn from_json(c: &str) -> Result<Counter, serde_json::Error> {
+            serde_json::from_str(c)
+        }
+        fn to_json(c: &Counter) -> Result<String, serde_json::Error> {
+            serde_json::to_string(&c)
+        }
+        fn get_counter(
+            state: &RwLockWriteGuard<'_, AppState>,
+        ) -> Result<Counter, serde_json::Error> {
+            match state.cache_get_string("test::counter", "").as_str() {
+                "" => Ok(Counter::default()),
+                j => Ok(from_json(j)?),
+            }
+        }
+        let mut state = state.write()?;
+        let c = get_counter(&state)?;
+        let c = c.apply(&c.add(1))?;
+        let j = to_json(&c)?;
+        state.cache_set_string("test::counter", &j);
+        Ok(AppJson(c))
+    }
+    route("/", post(handler))
 }

@@ -1,12 +1,11 @@
 # dry_console
 
-This is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). It was created from a [cargo-generate](https://cargo-generate.github.io/cargo-generate/) template: `cargo generate rksm/axum-yew-template`.
+This is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). 
 
-It's purpose has not been fully defined, but it's gonna be a docker helper tool for [d.rymcg.tech](d.rymcg.tech)
+It's purpose has not yet been fully defined, but it's gonna be a
+docker helper tool for [d.rymcg.tech](d.rymcg.tech)
 
-# Install
-
-[Download the latest release for your platform.](https://github.com/EnigmaCurry/dry_console/releases)
+# Platforms
 
 This tool is built for the following platforms:
 
@@ -15,33 +14,50 @@ This tool is built for the following platforms:
  * MacOS x86_64 (AMD64)
  * MacOS aarch64 (ARM64)
 
-For MS Windows, use the Linux version in WSL2.
+[Download the latest release for your platform.](https://github.com/EnigmaCurry/dry_console/releases)
+
+For MS Windows, use the Linux version inside WSL2.
+
+# Install script
+
+To install, copy and paste this *entire* code block directly into your
+Bash shell. (Customize the variables at the top, beforehand, if you
+wish):
 
 ```
+# Cross platform Bash install script for dry_console:
+(set -ex
+
+# Configure these variables if you wish:
 VERSION=v0.1.38
+INSTALL_DIR=/usr/local/bin
+REPO_DOWNLOAD=https://github.com/EnigmaCurry/dry_console/releases/download
+USE_SUDO=true
+
+# Download and extract the platform specific release tarball:
 PLATFORM=$(uname -s)-$(uname -m)
-INSTALL_PATH=~/dry_console
-
-(set -e
-mkdir -p ${INSTALL_PATH}
-cd ${INSTALL_PATH}
-curl -LO https://github.com/EnigmaCurry/dry_console/releases/download/${VERSION}/dry_console-${VERSION}-${PLATFORM}.tar.gz
-tar xfv dry_console-${VERSION}-${PLATFORM}.tar.gz
-rm -f dry_console-${VERSION}-${PLATFORM}.tar.gz)
-
-cd ${INSTALL_PATH}
-pwd
-ls
+PROGRAM=dry_console
+TMP_DIR=$(mktemp -d)
+if [[ "${USE_SUDO}" == "true" ]]; then
+    SUDO_PREFIX="sudo"
+else
+    SUDO_PREFIX=""
+fi
+mkdir -p ${TMP_DIR}
+pushd ${TMP_DIR}
+curl -L ${REPO_DOWNLOAD}/${VERSION}/${PROGRAM}-${VERSION}-${PLATFORM}.tar.gz \
+     -o release.tar.gz
+tar xfv release.tar.gz
+${SUDO_PREFIX} install ${TMP_DIR}/${PROGRAM} ${INSTALL_DIR}
+popd
+rm -rf ${TMP_DIR}
+ls -lh ${INSTALL_DIR}/${PROGRAM})
 ```
 
-The script printed above will create a new directory (`INSTALL_PATH`)
-and it will download and extract the dry_console version specified
-(`VERSION`). To start the program, simply run `dry_console` from that
-directory.
-
-```
-./dry_console
-```
+By default, this script uses `sudo` to install the binary to your
+chosen `INSTALL_DIR` (`/usr/local/bin` by default). It may prompt you
+to enter your password as it does this. If you don't need to use
+`sudo`, set `USE_SUDO=false`.
 
 # Development
 ## Dependencies
@@ -75,29 +91,31 @@ added to your shell's `PATH` variable.)
 just run
 ```
 
-## Production
+## Release (Github actions)
 
-Build and run the production binary:
+### Bump release version
 
-```
-just static-run
-```
-
-Clean build and release a new package:
-
-```
-## release is a minimal release target for self-hosting:
-## (This is not what github actions uses)
-just release
-```
-
-A wild tarball appears in `./release`.
-
-## Bump release version
-
-Do this before releasing a new version, it will update Cargo.toml,
-Cargo.lock, and README.md with the new version suggested by git-cliff:
+Update the version number in Cargo.toml, Cargo.lock, and README.md as
+suggested by git-cliff:
 
 ```
 just bump-version
 ```
+
+### Make PR with the changeset
+
+Branch protection is enabled, all changesets must come in the form of
+a Pull Request.
+
+### Merge PR and tag release
+
+Once the PR is merged, tag the release `vX.X.X` and push it to the
+`master` branch.
+
+```
+git checkout master
+git pull origin master
+git tag vX.X.X
+git push origin tag vX.X.X
+```
+

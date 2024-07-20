@@ -1,3 +1,7 @@
+set export
+
+HTTP_PORT := "8090"
+
 # Help
 list: 
     just --list
@@ -18,8 +22,12 @@ bin-deps:
 
 # Run (development)
 run:
-    cargo watch -s 'just build && cargo run --bin dry_console -- --port 8080 --live-reload'
+    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT}"
 
+# Open web browser to app URL
+open:
+    xdg-open http://localhost:${HTTP_PORT}
+    
 # Build frontend WASM (debug)
 build-frontend: clean-dist
     cd frontend; trunk build ${RELEASE_BUILD_ARGS:-} --filehash false
@@ -67,43 +75,58 @@ bump-version:
     git commit -m "release: ${VERSION}"; \
     echo "Bumped version: ${VERSION}"; \
 
-# self-hosted release (non-github actions)
-release: clean-dist build-release
-    rm -rf release; \
-    TMP_DIR=$(mktemp -d); \
-    VERSION=$(cd server; cargo read-manifest | jq -r .version); \
-    PACKAGE=dry_console-v${VERSION}; \
-    PACKAGE_DIR=${TMP_DIR}/${PACKAGE}; \
-    PACKAGE_PATH=${TMP_DIR}/${PACKAGE}.tar.gz; \
-    mkdir ${PACKAGE_DIR}; \
-    cp -r ./target/release/dry_console ${PACKAGE_DIR}; \
-    (cd ${TMP_DIR}; tar cfz ${PACKAGE}.tar.gz ${PACKAGE}); \
-    mkdir -p release; \
-    cp ${PACKAGE_PATH} release/; \
-    (cd release; tar xfvz ${PACKAGE}.tar.gz); \
-    rm -rf ${TMP_DIR};
+# # self-hosted release (non-github actions)
+# release: clean-dist build-release
+#     rm -rf release; \
+#     TMP_DIR=$(mktemp -d); \
+#     VERSION=$(cd server; cargo read-manifest | jq -r .version); \
+#     PACKAGE=dry_console-v${VERSION}; \
+#     PACKAGE_DIR=${TMP_DIR}/${PACKAGE}; \
+#     PACKAGE_PATH=${TMP_DIR}/${PACKAGE}.tar.gz; \
+#     mkdir ${PACKAGE_DIR}; \
+#     cp -r ./target/release/dry_console ${PACKAGE_DIR}; \
+#     (cd ${TMP_DIR}; tar cfz ${PACKAGE}.tar.gz ${PACKAGE}); \
+#     mkdir -p release; \
+#     cp ${PACKAGE_PATH} release/; \
+#     (cd release; tar xfvz ${PACKAGE}.tar.gz); \
+#     rm -rf ${TMP_DIR};
 
+# cleans ./dist
 clean-dist:
     rm -rf dist
 
+# cleans ./release
 clean-release:
     rm -rf release
-    
+
+# clean all artifacts
 clean: clean-dist clean-release
     cargo clean
 
+# Install dry_console as a systemd service
 systemd-install: install
     mkdir -p ${HOME}/.config/systemd/user
     cp systemd.service ${HOME}/.config/systemd/user/dry_console.service
 
+# Enable dry_console systemd service
 systemd-enable: systemd-install
     systemctl --user enable --now dry_console
     systemctl --user status dry_console --no-pager
 
+# Disable dry_console systemd service
 systemd-disable: 
     systemctl --user disable --now dry_console --no-pager
     systemctl --user status dry_console --no-pager
 
+# Restart dry_console systemd service
 systemd-restart: 
     systemctl --user restart --force dry_console
     systemctl --user status dry_console --no-pager
+
+# Run clippy linter and paginate results with less
+clippy:
+    cargo clippy --color=always --bin dry_console 2>&1 | less -R
+
+# Run clippy linter and apply fixes
+clippy-fix:
+    cargo clippy --fix --color=always --bin dry_console 2>&1 | less -R
