@@ -67,13 +67,16 @@ bump-version:
      fi \
     ); \
     echo "## Current $(grep '^version =' Cargo.toml | head -1)"; \
-    confirm yes "New version would be \"${VERSION}\"" " -- Proceed?"; \
+    confirm yes "New version would be \"v${VERSION}\"" " -- Proceed?"; \
+    git checkout -B release-v${VERSION}; \
     cargo set-version ${VERSION}; \
     sed -i "s/^VERSION=v.*$/VERSION=v${VERSION}/" README.md; \
     cargo update; \
     git add Cargo.toml Cargo.lock README.md; \
-    git commit -m "release: ${VERSION}"; \
-    echo "Bumped version: ${VERSION}"; \
+    git commit -m "release: v${VERSION}"; \
+    echo "Bumped version: v${VERSION}"; \
+    echo "Created new branch: release-v${VERSION}"; \
+    echo "You should push this branch and create a PR for it."
 
 # # self-hosted release (non-github actions)
 # release: clean-dist build-release
