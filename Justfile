@@ -1,6 +1,7 @@
 set export
 
 HTTP_PORT := "8090"
+TRUNK_BRANCH := "master"
 
 # Help
 list: 
@@ -55,6 +56,7 @@ static-run: build-release
 # bump release version
 bump-version:
     @if [ -n "$(git status --porcelain)" ]; then echo "## Git status is not clean. Commit your changes before bumping version."; exit 1; fi
+    @if [ "$(git symbolic-ref --short HEAD)" != "${TRUNK_BRANCH}" ]; then echo "## You may only bump the version from the ${TRUNK_BRANCH} branch."; exit 1; fi
     source ./funcs.sh; \
     set -eo pipefail; \
     CURRENT_VERSION=$(grep -Po '^version = \K.*' Cargo.toml | sed -e 's/"//g' | head -1); \
@@ -67,13 +69,16 @@ bump-version:
      fi \
     ); \
     echo "## Current $(grep '^version =' Cargo.toml | head -1)"; \
-    confirm yes "New version would be \"${VERSION}\"" " -- Proceed?"; \
+    confirm yes "New version would be \"v${VERSION}\"" " -- Proceed?"; \
+    git checkout -B release-v${VERSION}; \
     cargo set-version ${VERSION}; \
     sed -i "s/^VERSION=v.*$/VERSION=v${VERSION}/" README.md; \
     cargo update; \
     git add Cargo.toml Cargo.lock README.md; \
-    git commit -m "release: ${VERSION}"; \
-    echo "Bumped version: ${VERSION}"; \
+    git commit -m "release: v${VERSION}"; \
+    echo "Bumped version: v${VERSION}"; \
+    echo "Created new branch: release-v${VERSION}"; \
+    echo "You should push this branch and create a PR for it."
 
 # # self-hosted release (non-github actions)
 # release: clean-dist build-release
