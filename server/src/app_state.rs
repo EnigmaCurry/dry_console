@@ -40,7 +40,10 @@ impl ShareableState for SharedState {
     fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError> {
         //Locks the entire hashmap to do a single atomic write:
         match self.write() {
-            Ok(mut state) => Ok(state.cache_set(key, value)),
+            Ok(mut state) => {
+                state.cache_set(key, value);
+                Ok(())
+            },
             Err(e) => Err(AppError::from(e)),
         }
     }
@@ -48,7 +51,10 @@ impl ShareableState for SharedState {
     fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError> {
         //Locks the entire hashmap to do a single atomic write:
         match self.write() {
-            Ok(mut state) => Ok(state.cache_set_string(key, value)),
+            Ok(mut state) => {
+                state.cache_set_string(key, value);
+                Ok(())
+            },
             Err(e) => Err(AppError::from(e)),
         }
     }

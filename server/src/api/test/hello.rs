@@ -2,6 +2,7 @@ use super::test_route;
 
 use crate::{
     app_state::{ShareableState, SharedState},
+    response::AppError,
     AppMethodRouter, AppRouter,
 };
 use axum::{
@@ -14,7 +15,7 @@ use regex::Regex;
 const HELLO_NAME_CACHE: &str = "test::hello::name";
 
 pub fn main() -> AppRouter {
-    Router::new() //.merge(hello()).merge(hello_name())
+    Router::new().merge(hello()).merge(hello_name())
 }
 
 fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
@@ -38,10 +39,13 @@ fn hello_name() -> AppRouter {
     async fn handler(Path(name): Path<String>, State(mut state): State<SharedState>) -> String {
         let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9]+$").unwrap();
         if re.is_match(&name) {
-            state.cache_set_string(HELLO_NAME_CACHE, &name);
+            match state.cache_set_string(HELLO_NAME_CACHE, &name) {
+                Ok(_) => {}
+                Err(_) => return AppError::Internal("Error caching name".to_string()).to_string(),
+            }
             format!("Hello, {}!\n", name)
         } else {
-            format!("Sorry, names must be alphanumeric only.")
+            "Sorry, names must be alphanumeric only.".to_string()
         }
     }
     route("/:name", get(handler))
