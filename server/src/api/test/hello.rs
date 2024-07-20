@@ -1,7 +1,15 @@
 use super::test_route;
 
-use crate::{AppMethodRouter, AppRouter};
-use axum::Router;
+use crate::{
+    app_state::{ShareableState, SharedState},
+    AppMethodRouter, AppRouter,
+};
+use axum::{
+    extract::{Path, State},
+    routing::get,
+    Router,
+};
+use regex::Regex;
 
 const HELLO_NAME_CACHE: &str = "test::hello::name";
 
@@ -16,10 +24,7 @@ fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
 fn hello() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> String {
         let default = "World";
-        let name = match state.cache_get_string(HELLO_NAME_CACHE, default) {
-            Ok(s) => s,
-            Err(_) => default.to_string(),
-        };
+        let name = state.cache_get_string(HELLO_NAME_CACHE, default);
         if name == default {
             format!("Hello, {default}!")
         } else {
@@ -33,10 +38,7 @@ fn hello_name() -> AppRouter {
     async fn handler(Path(name): Path<String>, State(mut state): State<SharedState>) -> String {
         let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9]+$").unwrap();
         if re.is_match(&name) {
-            match state.cache_set_string(HELLO_NAME_CACHE, &name) {
-                Ok(_) => {}
-                Err(e) => {}
-            }
+            state.cache_set_string(HELLO_NAME_CACHE, &name);
             format!("Hello, {}!\n", name)
         } else {
             format!("Sorry, names must be alphanumeric only.")
