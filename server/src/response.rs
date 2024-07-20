@@ -1,5 +1,5 @@
 use axum::{
-    extract::{FromRequest},
+    extract::FromRequest,
     http::StatusCode,
     response::{IntoResponse, Response},
 };

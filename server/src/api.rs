@@ -4,6 +4,7 @@ use axum::routing::any;
 use axum::Router;
 use enum_iterator::{all, Sequence};
 
+mod session;
 mod test;
 mod workstation;
 
@@ -35,8 +36,6 @@ impl ApiModule for APIModule {
                 // Redirect module URL missing final forward-slash /
                 .route(format!("/{}", m.to_string()).as_str(), m.redirect());
         }
-        // Return merge router with a final fallback for 404:
-        // app.route("/*else")
         app
     }
     fn router(&self) -> AppRouter {

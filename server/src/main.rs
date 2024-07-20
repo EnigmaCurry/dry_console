@@ -1,5 +1,6 @@
 mod api;
 mod app_state;
+mod auth;
 mod response;
 mod routing;
 
