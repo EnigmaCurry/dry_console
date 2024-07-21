@@ -1,8 +1,8 @@
 use crate::{
     api::{route, APIModule},
-    app_state::{AppState, SharedState},
+    app_state::{SharedState},
 };
-use axum::{http::Method, routing::get, Json, Router};
+use axum::{routing::get, Json, Router};
 //use serde_json::json;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -12,7 +12,7 @@ use utoipa_swagger_ui::SwaggerUi;
 struct ApiDoc;
 
 pub fn router() -> Router<SharedState> {
-    let mut doc = ApiDoc::openapi();
+    let doc = ApiDoc::openapi();
     Router::new()
         .merge(SwaggerUi::new("/ui").url("/api/docs/openapi.json", doc))
         .merge(docs())

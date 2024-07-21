@@ -1,6 +1,4 @@
 use axum::{
-    handler::Handler,
-    http::Method,
     response::Redirect,
     routing::{any, get},
     Router,

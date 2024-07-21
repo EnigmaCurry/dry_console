@@ -3,7 +3,6 @@ use std::sync::RwLockWriteGuard;
 use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
-    http::Method,
     routing::{get, post},
     Router,
 };

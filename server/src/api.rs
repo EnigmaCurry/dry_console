@@ -1,6 +1,6 @@
 use axum::http::StatusCode;
 use axum::response::Redirect;
-use axum::routing::{any, get};
+use axum::routing::{any};
 use axum::Router;
 use enum_iterator::{all, Sequence};
 mod docs;

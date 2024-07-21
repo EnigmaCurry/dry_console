@@ -1,10 +1,6 @@
 use crate::api::APIModule;
 use crate::app_state::SharedState;
 use crate::AppMethodRouter;
-use axum::handler::Handler;
-use axum::http::Method;
-use axum::response::Redirect;
-use axum::routing::{any, get, post, MethodRouter};
 use axum::Router;
 
 pub fn route(
