@@ -5,13 +5,15 @@ mod response;
 mod routing;
 
 use app_state::SharedState;
-use axum::http::{header, StatusCode};
+use axum::handler::Handler;
+use axum::http::{header, Method, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use axum_login::tower_sessions::{MemoryStore, SessionManagerLayer};
 use axum_login::AuthManagerLayerBuilder;
 use clap::Parser;
+use std::collections::HashSet;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;

@@ -1,6 +1,8 @@
+use std::convert::Infallible;
+
 use axum::http::StatusCode;
 use axum::response::Redirect;
-use axum::routing::{any};
+use axum::routing::{any, MethodRouter};
 use axum::Router;
 use enum_iterator::{all, Sequence};
 mod docs;
@@ -8,6 +10,7 @@ mod session;
 mod test;
 mod workstation;
 
+use crate::app_state::SharedState;
 use crate::routing::route;
 use crate::{AppMethodRouter, AppRouter};
 
@@ -17,7 +20,7 @@ pub trait ApiModule {
     fn to_string(&self) -> String;
     fn router(&self) -> AppRouter;
     #[allow(dead_code)]
-    fn redirect(&self) -> AppMethodRouter;
+    fn redirect(&self) -> MethodRouter<SharedState, Infallible>;
 }
 
 /// Enumeration of all top-level modules:
@@ -34,10 +37,9 @@ impl ApiModule for APIModule {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<APIModule>() {
-            app = app
-                .nest(format!("/{}/", m.to_string()).as_str(), m.router())
-                // Redirect module URL missing final forward-slash /
-                .route(format!("/{}", m.to_string()).as_str(), m.redirect());
+            app = app.nest(format!("/{}/", m.to_string()).as_str(), m.router())
+            // Redirect module URL missing final forward-slash /
+            //.route(format!("/{}", m.to_string()).as_str(), m.redirect());
         }
         app
     }
@@ -52,7 +54,7 @@ impl ApiModule for APIModule {
     fn to_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
     }
-    fn redirect(&self) -> AppMethodRouter {
+    fn redirect(&self) -> MethodRouter<SharedState, Infallible> {
         let r = format!("/{}/", self.to_string());
         any(move || async move { Redirect::permanent(&r) })
     }

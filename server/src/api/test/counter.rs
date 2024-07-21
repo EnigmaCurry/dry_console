@@ -1,9 +1,9 @@
-use std::sync::RwLockWriteGuard;
+use std::{convert::Infallible, sync::RwLockWriteGuard};
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
-    routing::{get, post},
+    routing::{get, post, MethodRouter},
     Router,
 };
 use serde_json;
@@ -11,7 +11,7 @@ use serde_json;
 use crate::{
     app_state::{AppState, SharedState},
     response::{AppError, AppJson, JsonResult},
-    AppMethodRouter, AppRouter,
+    AppRouter,
 };
 
 use super::test_route;
@@ -65,7 +65,7 @@ pub fn main() -> AppRouter {
     Router::new().merge(get_counter()).merge(update_counter())
 }
 
-fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
+fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> AppRouter {
     test_route(super::TestModule::Counter, path, method_router)
 }
 

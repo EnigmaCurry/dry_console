@@ -1,13 +1,15 @@
+use std::convert::Infallible;
+
 use super::test_route;
 
 use crate::{
     app_state::{ShareableState, SharedState},
     response::AppError,
-    AppMethodRouter, AppRouter,
+    AppRouter,
 };
 use axum::{
     extract::{Path, State},
-    routing::get,
+    routing::{get, MethodRouter},
     Router,
 };
 use regex::Regex;
@@ -18,7 +20,7 @@ pub fn main() -> AppRouter {
     Router::new().merge(hello()).merge(hello_name())
 }
 
-fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
+fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> AppRouter {
     test_route(super::TestModule::Hello, path, method_router)
 }
 

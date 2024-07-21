@@ -4,7 +4,7 @@ use crate::{
     response::{AppJson, JsonResult},
 };
 use axum::{
-    extract::{Form},
+    extract::Form,
     http::StatusCode,
     response::{IntoResponse, Redirect},
     routing::{get, post},

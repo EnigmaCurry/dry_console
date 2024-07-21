@@ -1,12 +1,14 @@
+use std::convert::Infallible;
+
 use axum::{
     response::Redirect,
-    routing::{any, get},
+    routing::{any, get, MethodRouter},
     Router,
 };
 use enum_iterator::{all, Sequence};
 
 use super::{route, APIModule, ApiModule};
-use crate::{AppMethodRouter, AppRouter, API_PREFIX};
+use crate::{app_state::SharedState, AppMethodRouter, AppRouter, API_PREFIX};
 
 pub mod counter;
 pub mod error;
@@ -37,7 +39,7 @@ impl ApiModule for TestModule {
     fn to_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
     }
-    fn redirect(&self) -> AppMethodRouter {
+    fn redirect(&self) -> MethodRouter<SharedState, Infallible> {
         let r = format!(
             "{API_PREFIX}/{}{}/",
             APIModule::Test.to_string(),
@@ -51,7 +53,11 @@ pub fn router() -> AppRouter {
     TestModule::main().route("/", get(|| async { "Test" }))
 }
 
-fn test_route(module: TestModule, path: &str, method_router: AppMethodRouter) -> AppRouter {
+fn test_route(
+    module: TestModule,
+    path: &str,
+    method_router: MethodRouter<SharedState, Infallible>,
+) -> AppRouter {
     route(
         super::APIModule::Test,
         format!("{}{path}", module.to_string()).as_str(),
