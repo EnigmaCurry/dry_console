@@ -8,7 +8,7 @@ use axum::{
 use enum_iterator::{all, Sequence};
 
 use super::{route, APIModule, ApiModule};
-use crate::{app_state::SharedState, AppMethodRouter, AppRouter, API_PREFIX};
+use crate::{app_state::SharedState, AppRouter, API_PREFIX};
 
 pub mod counter;
 pub mod error;

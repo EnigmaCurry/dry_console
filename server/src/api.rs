@@ -12,7 +12,7 @@ mod workstation;
 
 use crate::app_state::SharedState;
 use crate::routing::route;
-use crate::{AppMethodRouter, AppRouter};
+use crate::{AppRouter};
 
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
