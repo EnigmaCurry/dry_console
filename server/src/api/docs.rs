@@ -1,6 +1,6 @@
 use crate::{
     api::{route, APIModule},
-    app_state::SharedState,
+    app_state::{AppState, SharedState},
 };
 use axum::{http::Method, routing::get, Json, Router};
 //use serde_json::json;
@@ -31,12 +31,5 @@ async fn handler() -> Json<utoipa::openapi::OpenApi> {
 }
 
 fn docs() -> Router<SharedState> {
-    route(APIModule::Docs, "/openapi.json", Method::GET, get(handler))
+    route(APIModule::Docs, "/openapi.json", get(handler))
 }
-
-// fn workstation_dependencies() -> Router<SharedState> {
-//     async fn handler() -> &'static str {
-//         "Workstation foo"
-//     }
-//     route(APIModule::Workstation, "/dependencies", get(handler))
-// }
