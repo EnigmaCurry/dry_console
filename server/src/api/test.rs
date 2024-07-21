@@ -1,4 +1,6 @@
 use axum::{
+    handler::Handler,
+    http::Method,
     response::Redirect,
     routing::{any, get},
     Router,
@@ -51,10 +53,16 @@ pub fn router() -> AppRouter {
     TestModule::main().route("/", get(|| async { "Test" }))
 }
 
-fn test_route(module: TestModule, path: &str, method_router: AppMethodRouter) -> AppRouter {
+fn test_route<H, T, S>(module: TestModule, path: &str, method: Method, handler: H) -> AppRouter
+where
+    H: Handler<T, S> + Clone + Send + 'static,
+    H::Future: Send,
+    S: Send + Sync + Clone + 'static,
+{
     route(
         super::APIModule::Test,
         format!("{}{path}", module.to_string()).as_str(),
-        method_router,
+        method,
+        handler,
     )
 }

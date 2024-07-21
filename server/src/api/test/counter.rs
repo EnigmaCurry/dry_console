@@ -3,6 +3,7 @@ use std::sync::RwLockWriteGuard;
 use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
+    http::Method,
     routing::{get, post},
     Router,
 };
@@ -65,8 +66,8 @@ pub fn main() -> AppRouter {
     Router::new().merge(get_counter()).merge(update_counter())
 }
 
-fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
-    test_route(super::TestModule::Counter, path, method_router)
+fn route<H>(path: &str, method: Method, handler: H) -> AppRouter {
+    test_route(super::TestModule::Counter, path, handler)
 }
 
 fn get_counter() -> AppRouter {
@@ -108,5 +109,5 @@ fn update_counter() -> AppRouter {
         state.cache_set_string("test::counter", &j);
         Ok(AppJson(c))
     }
-    route("/", post(handler))
+    route("/", Method::POST, handler)
 }

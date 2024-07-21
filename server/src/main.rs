@@ -9,6 +9,8 @@ use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
+use axum_login::tower_sessions::{MemoryStore, SessionManagerLayer};
+use axum_login::AuthManagerLayerBuilder;
 use clap::Parser;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
@@ -91,7 +93,11 @@ async fn main() {
     ));
 
     info!("listening on http://{sock_addr}");
-    let state = app_state::SharedState::default();
+    let session_store = MemoryStore::default();
+    let session_layer = SessionManagerLayer::new(session_store);
+    let shared_state = app_state::SharedState::default();
+    let auth_backend = auth::Backend::default();
+    let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer).build();
 
     let mut app = Router::new()
         .nest(API_PREFIX, api::router())
@@ -99,14 +105,15 @@ async fn main() {
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm))
         .route("/*else", get(client_index_html))
+        .layer(auth_layer)
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .with_state(shared_state);
 
     if cfg!(debug_assertions) {
         info!("Live-Reload is enabled.");
         app = app.layer(LiveReloadLayer::new());
     }
-    tracing::debug!("{:#?}", app);
+    //tracing::debug!("{:#?}", app);
     let listener = tokio::net::TcpListener::bind(&sock_addr)
         .await
         .unwrap_or_else(|_| panic!("Error: unable to bind socket: {sock_addr}"));

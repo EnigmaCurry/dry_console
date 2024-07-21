@@ -1,20 +1,34 @@
 use crate::{
-    api::{route, APIModule},
     app_state::SharedState,
     auth::{Backend, Credentials},
+    response::{AppJson, JsonResult},
 };
 use axum::{
+    extract::{Form, State},
     http::StatusCode,
     response::{IntoResponse, Redirect},
-    routing::get,
-    Form, Json, Router,
+    routing::{get, post},
+    Router,
 };
 use axum_login::AuthSession;
-use serde_json::json;
+use serde::Serialize;
 use tracing::debug;
 
 pub fn router() -> Router<SharedState> {
-    Router::new().with_state(SharedState::default())
+    Router::new()
+        .route("/", get(session))
+        .route("/login", post(login))
+        .with_state(SharedState::default())
+}
+
+#[derive(Default, Serialize)]
+struct SessionState {
+    logged_in: bool,
+}
+
+async fn session() -> JsonResult<SessionState> {
+    let s = SessionState::default();
+    Ok(AppJson(s))
 }
 
 async fn login(

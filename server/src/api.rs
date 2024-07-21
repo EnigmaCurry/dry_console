@@ -1,9 +1,9 @@
 use axum::http::StatusCode;
 use axum::response::Redirect;
-use axum::routing::any;
+use axum::routing::{any, get};
 use axum::Router;
 use enum_iterator::{all, Sequence};
-
+mod docs;
 mod session;
 mod test;
 mod workstation;
@@ -25,7 +25,10 @@ pub trait ApiModule {
 pub enum APIModule {
     Test,
     Workstation,
+    Session,
+    Docs,
 }
+
 impl ApiModule for APIModule {
     fn main() -> AppRouter {
         // Adds all routes for all modules in APIModule:
@@ -42,6 +45,8 @@ impl ApiModule for APIModule {
         match self {
             APIModule::Test => test::router(),
             APIModule::Workstation => workstation::router(),
+            APIModule::Session => session::router(),
+            APIModule::Docs => docs::router(),
         }
     }
     fn to_string(&self) -> String {

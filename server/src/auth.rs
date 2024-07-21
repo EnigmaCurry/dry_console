@@ -1,13 +1,9 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Redirect},
-    Form,
-};
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use tracing::debug;
+use serde::Deserialize;
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -32,7 +28,7 @@ pub struct Backend {
     users: HashMap<i64, User>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Debug, ToSchema)]
 pub struct Credentials {
     user_id: i64,
 }
