@@ -62,27 +62,26 @@ impl Counter {
 // Routes:
 ////////////////////////////////////////////////////////////////////////////////
 pub fn main() -> AppRouter {
-    Router::new().merge(get_counter()).merge(update_counter())
+    Router::new()
+        .merge(route("/", get(get_counter)))
+        .merge(update_counter())
 }
 
 fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> AppRouter {
     test_route(super::TestModule::Counter, path, method_router)
 }
 
-fn get_counter() -> AppRouter {
-    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
-        match state.read() {
-            Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
-                "" => match serde_json::to_string(&Counter::default()) {
-                    Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
-                    Err(e) => Err(AppError::Internal(e.to_string())),
-                },
-                j => Ok(AppJson(serde_json::from_str(j)?)),
+async fn get_counter(State(state): State<SharedState>) -> JsonResult<Counter> {
+    match state.read() {
+        Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
+            "" => match serde_json::to_string(&Counter::default()) {
+                Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
+                Err(e) => Err(AppError::Internal(e.to_string())),
             },
-            Err(e) => Err(AppError::SharedState(e.to_string())),
-        }
+            j => Ok(AppJson(serde_json::from_str(j)?)),
+        },
+        Err(e) => Err(AppError::SharedState(e.to_string())),
     }
-    route("/", get(handler))
 }
 
 fn update_counter() -> AppRouter {

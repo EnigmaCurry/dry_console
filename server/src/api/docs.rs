@@ -6,9 +6,11 @@ use axum::{response::Redirect, routing::get, Json, Router};
 //use serde_json::json;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use utoipauto::utoipauto;
 
+#[utoipauto(paths = "./server/src")]
 #[derive(OpenApi)]
-#[openapi(paths(handler))]
+#[openapi()]
 struct ApiDoc;
 
 pub fn router() -> Router<SharedState> {

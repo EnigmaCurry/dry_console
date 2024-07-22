@@ -24,6 +24,13 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
     test_route(super::TestModule::Hello, path, method_router)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/test/hello/",
+    responses(
+        (status = OK, description = "Hello", body = str)
+    )
+)]
 fn hello() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> String {
         let default = "World";
@@ -37,6 +44,16 @@ fn hello() -> AppRouter {
     route("/", get(handler))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/test/hello/{name}",
+    responses(
+        (status = OK, description = "Hello name", body = str)
+    ),
+    params(
+        ("name" = str, Path, description="Your name"),
+    )
+)]
 fn hello_name() -> AppRouter {
     async fn handler(Path(name): Path<String>, State(mut state): State<SharedState>) -> String {
         let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9]+$").unwrap();
