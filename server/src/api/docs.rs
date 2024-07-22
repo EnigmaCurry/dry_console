@@ -26,7 +26,7 @@ pub fn router() -> Router<SharedState> {
     get,
     path = "/api/docs/openapi.json/",
     responses(
-        (status = 200, description = "JSON file", body = ())
+        (status = 200, description = "OpenAPI spec JSON file", body = ())
     )
 )]
 async fn handler() -> Json<utoipa::openapi::OpenApi> {
