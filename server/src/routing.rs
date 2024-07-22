@@ -7,10 +7,8 @@ use crate::app_state::SharedState;
 
 use axum::body::Body;
 use axum::http::{Request, Response, StatusCode};
-use axum::middleware::Next;
-use axum::response::IntoResponse;
 use axum::routing::MethodRouter;
-use axum::{async_trait, Router};
+use axum::{Router};
 use tower::{Layer, Service};
 use tracing::debug;
 
@@ -58,7 +56,7 @@ where
             Box::pin(async move { Ok(response) })
         } else {
             let fut = self.inner.call(req);
-            Box::pin(async move { fut.await })
+            Box::pin(fut)
         }
     }
 }
