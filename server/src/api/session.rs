@@ -40,7 +40,7 @@ pub struct SessionMessages {
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = "/api/session/",
     responses(
         (status = OK, description = "Session state", body = str)
@@ -72,7 +72,7 @@ fn login() -> AppRouter {
             Ok(Some(user)) => user,
             Ok(None) => {
                 messages.error("Invalid credentials");
-                let mut login_url = "/login".to_string();
+                let mut login_url = "/api/session/messages/".to_string();
                 if let Some(next) = creds.next {
                     login_url = format!("{}?next={}", login_url, next);
                 };
@@ -92,7 +92,7 @@ fn login() -> AppRouter {
 }
 
 #[utoipa::path(
-    post,
+    get,
     path = "/api/session/messages/",
     responses(
         (status = OK, description = "Read messages", body = str)
