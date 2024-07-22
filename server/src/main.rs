@@ -101,6 +101,7 @@ async fn main() {
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer).build();
 
     let mut app = Router::new()
+        .layer(routing::SlashRedirectLayer)
         .nest(API_PREFIX, api::router())
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
