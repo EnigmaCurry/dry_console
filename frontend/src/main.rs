@@ -1,3 +1,6 @@
+mod login;
+mod notification;
+use crate::notification::NotificationComponent;
 use gloo_net::http::Request;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -9,10 +12,13 @@ enum Route {
     Home,
     #[at("/hello")]
     HelloServer,
+    #[at("/login")]
+    Login,
 }
 
 fn switch(routes: Route) -> Html {
     match routes {
+        Route::Login => html! { <login::LoginForm /> },
         Route::Home => html! { <h1>{ "Hello Frontend" }</h1> },
         Route::HelloServer => html! { <HelloServer /> },
     }
@@ -22,6 +28,7 @@ fn switch(routes: Route) -> Html {
 fn app() -> Html {
     html! {
         <BrowserRouter>
+            <NotificationComponent />
             <Switch<Route> render={switch} />
         </BrowserRouter>
     }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
 use serde::Deserialize;
+use tracing::debug;
 use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
@@ -58,6 +59,7 @@ impl AuthnBackend for Backend {
             next,
         }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
+        debug!("ZZZ USERNAME {username}");
         Ok(self.users.get(&username).cloned())
     }
 

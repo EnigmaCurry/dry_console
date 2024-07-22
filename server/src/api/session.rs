@@ -72,7 +72,7 @@ fn login() -> AppRouter {
             Ok(Some(user)) => user,
             Ok(None) => {
                 messages.error("Invalid credentials");
-                let mut login_url = "/api/session/messages/".to_string();
+                let mut login_url = "/login".to_string();
                 if let Some(next) = creds.next {
                     login_url = format!("{}?next={}", login_url, next);
                 };
