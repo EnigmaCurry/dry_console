@@ -62,7 +62,6 @@ where
 }
 
 pub fn route(
-    _module: APIModule,
     path: &str,
     method_router: MethodRouter<SharedState, Infallible>,
 ) -> Router<SharedState> {

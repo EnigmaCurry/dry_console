@@ -59,7 +59,6 @@ fn test_route(
     method_router: MethodRouter<SharedState, Infallible>,
 ) -> AppRouter {
     route(
-        super::APIModule::Test,
         format!("{}{path}", module.to_string()).as_str(),
         method_router,
     )

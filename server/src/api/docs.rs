@@ -34,13 +34,9 @@ async fn handler() -> Json<utoipa::openapi::OpenApi> {
 }
 
 fn docs() -> Router<SharedState> {
-    route(APIModule::Docs, "/openapi.json", get(handler))
+    route("/openapi.json", get(handler))
 }
 
 fn ui() -> Router<SharedState> {
-    route(
-        APIModule::Docs,
-        "/",
-        get(|| async { Redirect::permanent("/api/docs/ui/") }),
-    )
+    route("/", get(|| async { Redirect::permanent("/api/docs/ui/") }))
 }

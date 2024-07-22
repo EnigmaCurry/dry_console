@@ -23,12 +23,12 @@ fn workstation() -> Router<SharedState> {
             "user": {"uid":uid,"name":username},
         } }))
     }
-    route(APIModule::Workstation, "/", get(handler))
+    route("/", get(handler))
 }
 
 fn workstation_dependencies() -> Router<SharedState> {
     async fn handler() -> &'static str {
         "Workstation foo"
     }
-    route(APIModule::Workstation, "/dependencies", get(handler))
+    route("/dependencies", get(handler))
 }

@@ -8,24 +8,24 @@ use axum::{
 };
 use serde_json;
 
+use super::test_route;
 use crate::{
     app_state::{AppState, SharedState},
     response::{AppError, AppJson, JsonResult},
     AppRouter,
 };
-
-use super::test_route;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Counter
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-struct Counter {
+#[derive(Serialize, Deserialize, Debug, Clone, Default, ToSchema)]
+pub struct Counter {
     value: i64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-enum CounterTransition {
+pub enum CounterTransition {
     Add(i64),
     Subtract(i64),
     Reset,
@@ -73,7 +73,7 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
     get,
     path = "/api/test/counter/",
     responses(
-        (status = OK, description = "Get counter value", body = str)
+        (status = OK, description = "Get counter value", body = Counter)
     )
 )]
 fn get_counter() -> AppRouter {
@@ -96,7 +96,7 @@ fn get_counter() -> AppRouter {
     post,
     path = "/api/test/counter/",
     responses(
-        (status = OK, description = "Increment counter value", body = str)
+        (status = OK, description = "Increment counter value", body = Counter)
     )
 )]
 fn update_counter() -> AppRouter {

@@ -7,15 +7,15 @@ use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct User {
-    id: i64,
+    username: String,
     pw_hash: Vec<u8>,
 }
 
 impl AuthUser for User {
-    type Id = i64;
+    type Id = String;
 
     fn id(&self) -> Self::Id {
-        self.id
+        self.username.clone()
     }
 
     fn session_auth_hash(&self) -> &[u8] {
@@ -25,12 +25,23 @@ impl AuthUser for User {
 
 #[derive(Clone, Default)]
 pub struct Backend {
-    users: HashMap<i64, User>,
+    users: HashMap<String, User>,
+}
+impl Backend {
+    pub fn add_user(&mut self, username: &str, pw_hash: Vec<u8>) {
+        let user = User {
+            username: username.to_string(),
+            pw_hash,
+        };
+        self.users.insert(username.to_string(), user);
+    }
 }
 
 #[derive(Clone, Deserialize, Debug, ToSchema)]
 pub struct Credentials {
-    user_id: i64,
+    pub username: String,
+    pub password: String,
+    pub next: Option<String>,
 }
 
 #[async_trait]
@@ -41,9 +52,13 @@ impl AuthnBackend for Backend {
 
     async fn authenticate(
         &self,
-        Credentials { user_id }: Self::Credentials,
+        Credentials {
+            username,
+            password,
+            next,
+        }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        Ok(self.users.get(&user_id).cloned())
+        Ok(self.users.get(&username).cloned())
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
