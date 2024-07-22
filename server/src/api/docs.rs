@@ -2,7 +2,7 @@ use crate::{
     api::{route, APIModule},
     app_state::SharedState,
 };
-use axum::{routing::get, Json, Router};
+use axum::{response::Redirect, routing::get, Json, Router};
 //use serde_json::json;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -14,8 +14,9 @@ struct ApiDoc;
 pub fn router() -> Router<SharedState> {
     let doc = ApiDoc::openapi();
     Router::new()
-        .merge(SwaggerUi::new("/ui").url("/api/docs/openapi.json", doc))
+        .merge(SwaggerUi::new("/ui").url("/api/docs/openapi.json/", doc))
         .merge(docs())
+        .merge(ui())
         .with_state(SharedState::default())
 }
 
@@ -32,4 +33,12 @@ async fn handler() -> Json<utoipa::openapi::OpenApi> {
 
 fn docs() -> Router<SharedState> {
     route(APIModule::Docs, "/openapi.json", get(handler))
+}
+
+fn ui() -> Router<SharedState> {
+    route(
+        APIModule::Docs,
+        "/",
+        get(|| async { Redirect::permanent("/api/docs/ui/") }),
+    )
 }
