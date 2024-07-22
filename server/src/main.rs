@@ -5,7 +5,6 @@ mod response;
 mod routing;
 
 use app_state::SharedState;
-use axum::handler::Handler;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
