@@ -5,6 +5,7 @@ use axum::{
 };
 use serde::Serialize;
 use std::{io, sync::PoisonError};
+use tracing::debug;
 use ulid::Ulid;
 
 /// JSON response

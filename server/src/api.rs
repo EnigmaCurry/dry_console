@@ -68,7 +68,7 @@ pub fn router() -> AppRouter {
         //.with_expiry(Expiry::OnInactivity(Duration::days(1)))
         .with_signed(key);
     let mut auth_backend = auth::Backend::default();
-    auth_backend.add_user("admin", "TODO: remove weak passphrase".as_bytes().to_vec());
+    auth_backend.add_user("admin", "TODO: remove weak passphrase");
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer).build();
     APIModule::main()
         .route(

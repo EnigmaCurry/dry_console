@@ -4,7 +4,7 @@ use crate::{
         APIModule,
     },
     app_state::SharedState,
-    response::{AppJson, JsonResult},
+    response::{AppError, AppJson, JsonResult},
     routing::route,
     AppRouter,
 };
@@ -65,18 +65,12 @@ fn session() -> AppRouter {
 fn login() -> AppRouter {
     async fn handler(
         mut auth_session: AuthSession<Backend>,
-        messages: Messages,
         Json(creds): Json<Credentials>,
     ) -> impl IntoResponse {
         let user = match auth_session.authenticate(creds.clone()).await {
             Ok(Some(user)) => user,
             Ok(None) => {
-                messages.error("Invalid credentials");
-                let mut login_url = "/login".to_string();
-                if let Some(next) = creds.next {
-                    login_url = format!("{}?next={}", login_url, next);
-                };
-                return Redirect::to(&login_url).into_response();
+                return StatusCode::UNAUTHORIZED.into_response();
             }
             Err(e) => {
                 debug!("{:?}", e);
