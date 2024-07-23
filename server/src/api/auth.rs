@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::response::AppError;
 use argon2::{
     password_hash::{
         rand_core::OsRng, Encoding, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
@@ -8,16 +9,14 @@ use argon2::{
 };
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use rand::Rng;
+use jiff::{Timestamp, Zoned};
 use serde::Deserialize;
 use tracing::debug;
 use utoipa::ToSchema;
 
-use crate::response::AppError;
-
 #[derive(Debug, Clone)]
 pub struct User {
-    username: String,
+    pub username: String,
     pw_hash: Vec<u8>,
 }
 
@@ -56,6 +55,14 @@ impl Backend {
     pub fn verify_password(&self, username: &str, password: &str) -> bool {
         let argon2 = Argon2::default();
         if let Some(user) = self.users.get(username) {
+            debug!("{:?}", user);
+
+            // if user.one_time_login {
+            //     if let Some(_) = user.login_date {
+            //         // User is only allowed to login one time.
+            //         return false;
+            //     }
+            // }
             let pw_hash = String::from_utf8_lossy(&user.pw_hash);
             match argon2.verify_password(
                 password.as_bytes(),

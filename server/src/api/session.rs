@@ -9,7 +9,7 @@ use crate::{
     AppRouter,
 };
 use axum::{
-    extract::Form,
+    extract::{Form, State},
     http::StatusCode,
     response::{IntoResponse, Redirect},
     routing::{get, post},
@@ -64,11 +64,35 @@ fn session() -> AppRouter {
 )]
 fn login() -> AppRouter {
     async fn handler(
+        State(state): State<SharedState>,
         mut auth_session: AuthSession<Backend>,
         Json(creds): Json<Credentials>,
     ) -> impl IntoResponse {
+        match state.read() {
+            Ok(s) => {
+                if !s.is_login_enabled() {
+                    return StatusCode::UNAUTHORIZED.into_response();
+                }
+            }
+            Err(e) => {
+                debug!("{:?}", e);
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        }
         let user = match auth_session.authenticate(creds.clone()).await {
-            Ok(Some(user)) => user,
+            Ok(Some(user)) => {
+                match state.write() {
+                    Ok(mut s) => {
+                        // User login is only allowed a single time:
+                        s.disable_login();
+                    }
+                    Err(e) => {
+                        debug!("{:?}", e);
+                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+                    }
+                }
+                user
+            }
             Ok(None) => {
                 return StatusCode::UNAUTHORIZED.into_response();
             }

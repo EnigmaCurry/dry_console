@@ -8,9 +8,17 @@ use crate::response::AppError;
 ////////////////////////////////////////////////////////////////////////////////
 // Global app state
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Default)]
 pub struct AppState {
     cache: HashMap<String, Bytes>,
+    login_enabled: bool,
+}
+impl Default for AppState {
+    fn default() -> Self {
+        AppState {
+            cache: HashMap::new(),
+            login_enabled: true,
+        }
+    }
 }
 impl AppState {
     pub fn cache_set(&mut self, key: &str, value: &Bytes) {
@@ -26,6 +34,12 @@ impl AppState {
         std::str::from_utf8(&self.cache_get(key, &Bytes::from(default.to_string())))
             .unwrap_or(default)
             .to_string()
+    }
+    pub fn is_login_enabled(&self) -> bool {
+        self.login_enabled
+    }
+    pub fn disable_login(&mut self) {
+        self.login_enabled = false;
     }
 }
 pub type SharedState = Arc<RwLock<AppState>>;
