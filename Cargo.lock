@@ -605,6 +605,7 @@ dependencies = [
  "axum-typed-websockets",
  "base64 0.22.1",
  "clap",
+ "cookie",
  "enum-iterator",
  "hostname",
  "jiff",

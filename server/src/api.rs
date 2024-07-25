@@ -4,12 +4,11 @@ use axum::http::StatusCode;
 use axum::response::Redirect;
 use axum::routing::{any, get, MethodRouter};
 use axum::Router;
-use axum_login::tower_sessions::cookie::time::Duration;
+//use axum_login::tower_sessions::cookie::time::Duration;
 use axum_login::tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 use axum_login::{login_required, AuthManagerLayerBuilder};
 use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};
-use tower_sessions::cookie::Key;
 mod auth;
 mod docs;
 mod session;
@@ -61,7 +60,7 @@ impl ApiModule for APIModule {
 
 ///Adds all routes for all API modules
 pub fn router() -> AppRouter {
-    let key = Key::generate();
+    let key = cookie::Key::generate();
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
@@ -69,7 +68,7 @@ pub fn router() -> AppRouter {
         .with_signed(key);
     let mut auth_backend = auth::Backend::default();
     auth_backend.add_user("admin", "TODO: remove weak passphrase");
-    let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer).build();
+    let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
     APIModule::main()
         .route(
             "/protected",
@@ -83,6 +82,7 @@ pub fn router() -> AppRouter {
         .nest("/session/", session::router())
         .layer(MessagesManagerLayer)
         .layer(auth_layer)
+        .layer(session_layer)
         .nest("/docs/", docs::router())
         .route(
             "/unprotected",
