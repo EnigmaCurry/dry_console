@@ -73,7 +73,7 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
     get,
     path = "/api/test/counter/",
     responses(
-        (status = OK, description = "Get counter value", body = Counter)
+        (status = OK, description = "Get counter value", body = TestCounter)
     )
 )]
 fn get_counter() -> AppRouter {
