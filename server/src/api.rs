@@ -5,7 +5,7 @@ use axum::response::Redirect;
 use axum::routing::{any, get, MethodRouter};
 use axum::Router;
 //use axum_login::tower_sessions::cookie::time::Duration;
-use axum_login::tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
+use axum_login::tower_sessions::{MemoryStore, SessionManagerLayer};
 use axum_login::{login_required, AuthManagerLayerBuilder};
 use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};

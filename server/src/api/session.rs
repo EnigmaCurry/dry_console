@@ -1,17 +1,16 @@
 use crate::{
     api::{
         auth::{Backend, Credentials},
-        APIModule,
     },
     app_state::SharedState,
-    response::{AppError, AppJson, JsonResult},
+    response::{AppJson, JsonResult},
     routing::route,
     AppRouter,
 };
 use axum::{
-    extract::{Form, State},
+    extract::{State},
     http::{header, HeaderValue, StatusCode},
-    response::{IntoResponse, Redirect},
+    response::{IntoResponse},
     routing::{get, post},
     Json, Router,
 };

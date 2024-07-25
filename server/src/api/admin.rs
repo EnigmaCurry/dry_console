@@ -1,16 +1,15 @@
 use std::sync::Arc;
 
 use crate::{
-    api::{route, APIModule},
+    api::{route},
     app_state::SharedState,
 };
 use axum::{
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
-    Extension, Json, Router,
+    routing::{post},
+    Extension, Router,
 };
-use serde_json::json;
 use tokio::sync::{oneshot, Mutex};
 
 pub fn router() -> Router<SharedState> {

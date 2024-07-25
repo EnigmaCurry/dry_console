@@ -1,5 +1,5 @@
 use crate::{
-    api::{route, APIModule},
+    api::{route},
     app_state::SharedState,
 };
 use axum::{routing::get, Json, Router};

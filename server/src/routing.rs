@@ -2,7 +2,6 @@ use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::api::APIModule;
 use crate::app_state::SharedState;
 
 use axum::body::Body;

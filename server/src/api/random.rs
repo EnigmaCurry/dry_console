@@ -1,6 +1,4 @@
 use rand::distributions::Alphanumeric;
-use rand::distributions::Uniform;
-use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 
 pub fn generate_secure_passphrase(length: usize) -> String {
