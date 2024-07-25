@@ -72,20 +72,9 @@ pub fn router() -> AppRouter {
 
     let admin_password = random::generate_secure_passphrase(16);
     auth_backend.add_user("admin", admin_password.as_str());
-    info!(
-        "Login credentials::\nUsername: admin\nPassword: {}",
-        admin_password
-    );
+    info!("Login credentials::\nPassword: {}", admin_password);
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
     APIModule::main()
-        .route(
-            "/protected",
-            get(|| async { "Gotta be logged in to see me!" }),
-        )
-        .route(
-            "/also-protected",
-            get(|| async { "Gotta be logged in to see me!" }),
-        )
         .route_layer(login_required!(Backend))
         .nest("/session/", session::router())
         .layer(MessagesManagerLayer)
