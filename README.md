@@ -129,3 +129,9 @@ git tag vX.X.X
 git push origin tag vX.X.X
 ```
 
+## Credits
+
+This project was initialized from a starter project:
+[rksm/axum-yew-setup](https://github.com/rksm/axum-yew-setup), used by
+permission, see [LICENSE](LICENSE).
+

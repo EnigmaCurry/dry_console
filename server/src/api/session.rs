@@ -76,7 +76,7 @@ fn login() -> AppRouter {
     ) -> impl IntoResponse {
         if is_logged_in(session.clone()).await {
             info!("User already logged in");
-            return AppJson(SessionState { logged_in: false }).into_response();
+            return AppJson(SessionState { logged_in: true }).into_response();
         }
         match state.read() {
             Ok(s) => {

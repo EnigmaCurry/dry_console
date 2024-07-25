@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::fmt;
-
 use crate::response::AppError;
 use argon2::{
     password_hash::{
@@ -10,6 +7,8 @@ use argon2::{
 };
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
+use std::collections::HashMap;
+use std::fmt;
 //use jiff::{Timestamp, Zoned};
 use serde::Deserialize;
 use tracing::debug;
@@ -81,7 +80,11 @@ impl Backend {
 #[derive(Clone, Deserialize, ToSchema)]
 pub struct Credentials {
     #[serde(default = "default_username")]
+    /// Username for login
+    #[schema(example = "admin")]
     pub username: String,
+    /// Password for login
+    #[schema(example = "")]
     pub password: String,
 }
 fn default_username() -> String {

@@ -9,9 +9,16 @@ use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use clap::Parser;
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::{oneshot, Mutex};
+use tower::ServiceExt;
+use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::info;
@@ -84,6 +91,9 @@ async fn main() {
     // enable console logging
     tracing_subscriber::fmt::init();
 
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+    let shutdown_tx = Arc::new(Mutex::new(Some(shutdown_tx)));
+
     let sock_addr = SocketAddr::from((
         IpAddr::from_str(opt.addr.as_str()).unwrap_or(IpAddr::V6(Ipv6Addr::LOCALHOST)),
         opt.port,
@@ -99,6 +109,7 @@ async fn main() {
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm))
         .route("/*else", get(client_index_html))
+        .layer(AddExtensionLayer::new(shutdown_tx.clone()))
         .layer(TraceLayer::new_for_http())
         .with_state(shared_state);
 
@@ -112,6 +123,38 @@ async fn main() {
         .unwrap_or_else(|_| panic!("Error: unable to bind socket: {sock_addr}"));
     if opt.open {
         open::that(format!("http://{sock_addr}")).expect("Couldn't open web browser.");
+    }
+    let serve_future = async {
+        loop {
+            let (stream, _) = match listener.accept().await {
+                Ok(pair) => pair,
+                Err(e) => {
+                    eprintln!("Error accepting connection: {}", e);
+                    continue;
+                }
+            };
+
+            let app = app.clone();
+            tokio::spawn(async move {
+                let io = TokioIo::new(stream);
+                if let Err(err) = http1::Builder::new()
+                    .serve_connection(
+                        io,
+                        service_fn(|req| <Router as Clone>::clone(&app).oneshot(req)),
+                    )
+                    .await
+                {
+                    eprintln!("Error serving connection: {}", err);
+                }
+            });
+        }
+    };
+
+    tokio::select! {
+        _ = serve_future => {},
+        _ = shutdown_rx => {
+            println!("Shutdown signal received");
+        },
     }
     axum::serve(listener, app)
         .await

@@ -10,6 +10,7 @@ use axum_login::{login_required, AuthManagerLayerBuilder};
 use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};
 use tracing::info;
+mod admin;
 mod auth;
 mod docs;
 mod random;
@@ -33,6 +34,7 @@ pub trait ApiModule {
 /// Enumeration of all top-level modules:
 #[derive(Debug, PartialEq, Sequence, Clone)]
 pub enum APIModule {
+    Admin,
     Test,
     Workstation,
 }
@@ -47,6 +49,7 @@ impl ApiModule for APIModule {
     }
     fn router(&self) -> AppRouter {
         match self {
+            APIModule::Admin => admin::router(),
             APIModule::Test => test::router(),
             APIModule::Workstation => workstation::router(),
         }
