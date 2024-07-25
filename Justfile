@@ -77,6 +77,7 @@ bump-version:
     cargo update; \
     git add Cargo.toml Cargo.lock README.md; \
     git commit -m "release: v${VERSION}"; \
+    git push --set-upstream origin "release-v${VERSION}"; \
     echo "Bumped version: v${VERSION}"; \
     echo "Created new branch: release-v${VERSION}"; \
     echo "You should push this branch and create a PR for it."
