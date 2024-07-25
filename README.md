@@ -36,7 +36,7 @@ if you wish):
 (set -ex
 
 # Configure these variables if you wish:
-VERSION=v0.1.39
+VERSION=v0.2.0
 INSTALL_DIR=/usr/local/bin
 REPO_DOWNLOAD=https://github.com/EnigmaCurry/dry_console/releases/download
 USE_SUDO=true
