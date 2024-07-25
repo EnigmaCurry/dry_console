@@ -1,14 +1,26 @@
+use std::convert::Infallible;
+
 use axum::http::StatusCode;
 use axum::response::Redirect;
-use axum::routing::any;
+use axum::routing::{any, get, MethodRouter};
 use axum::Router;
+//use axum_login::tower_sessions::cookie::time::Duration;
+use axum_login::tower_sessions::{MemoryStore, SessionManagerLayer};
+use axum_login::{login_required, AuthManagerLayerBuilder};
+use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};
-
+use tracing::info;
+mod admin;
+mod auth;
+mod docs;
+mod random;
+mod session;
 mod test;
 mod workstation;
-
+use crate::api::auth::Backend;
+use crate::app_state::SharedState;
 use crate::routing::route;
-use crate::{AppMethodRouter, AppRouter};
+use crate::AppRouter;
 
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
@@ -16,12 +28,13 @@ pub trait ApiModule {
     fn to_string(&self) -> String;
     fn router(&self) -> AppRouter;
     #[allow(dead_code)]
-    fn redirect(&self) -> AppMethodRouter;
+    fn redirect(&self) -> MethodRouter<SharedState, Infallible>;
 }
 
 /// Enumeration of all top-level modules:
 #[derive(Debug, PartialEq, Sequence, Clone)]
 pub enum APIModule {
+    Admin,
     Test,
     Workstation,
 }
@@ -30,17 +43,13 @@ impl ApiModule for APIModule {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<APIModule>() {
-            app = app
-                .nest(format!("/{}/", m.to_string()).as_str(), m.router())
-                // Redirect module URL missing final forward-slash /
-                .route(format!("/{}", m.to_string()).as_str(), m.redirect());
+            app = app.nest(format!("/{}/", m.to_string()).as_str(), m.router())
         }
-        // Return merge router with a final fallback for 404:
-        // app.route("/*else")
         app
     }
     fn router(&self) -> AppRouter {
         match self {
+            APIModule::Admin => admin::router(),
             APIModule::Test => test::router(),
             APIModule::Workstation => workstation::router(),
         }
@@ -48,16 +57,39 @@ impl ApiModule for APIModule {
     fn to_string(&self) -> String {
         format!("{:?}", self).to_lowercase()
     }
-    fn redirect(&self) -> AppMethodRouter {
+    fn redirect(&self) -> MethodRouter<SharedState, Infallible> {
         let r = format!("/{}/", self.to_string());
         any(move || async move { Redirect::permanent(&r) })
     }
 }
 
+///Adds all routes for all API modules
 pub fn router() -> AppRouter {
-    // Adds all routes for all modules, and a catch-all for remaining API 404s.
-    APIModule::main().route(
-        "/*else",
-        any(|| async { (StatusCode::NOT_FOUND, "API Not Found") }),
-    )
+    let key = cookie::Key::generate();
+    let session_store = MemoryStore::default();
+    let session_layer = SessionManagerLayer::new(session_store)
+        .with_secure(false)
+        //.with_expiry(Expiry::OnInactivity(Duration::days(1)))
+        .with_signed(key);
+    let mut auth_backend = auth::Backend::default();
+
+    let admin_password = random::generate_secure_passphrase(16);
+    auth_backend.add_user("admin", admin_password.as_str());
+    info!("Login credentials::\nPassword: {}", admin_password);
+    let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
+    APIModule::main()
+        .route_layer(login_required!(Backend))
+        .nest("/session/", session::router())
+        .layer(MessagesManagerLayer)
+        .layer(auth_layer)
+        .layer(session_layer)
+        .nest("/docs/", docs::router())
+        .route(
+            "/unprotected",
+            get(|| async { "Hi there, this page is unprotected!" }),
+        )
+        .route(
+            "/*else",
+            any(|| async { (StatusCode::NOT_FOUND, "API Not Found") }),
+        )
 }

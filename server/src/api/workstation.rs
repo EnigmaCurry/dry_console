@@ -1,26 +1,34 @@
 use crate::{
-    api::{route, APIModule},
+    api::{route},
     app_state::SharedState,
 };
-use axum::{routing::get, Router};
+use axum::{routing::get, Json, Router};
+use serde_json::json;
 
 pub fn router() -> Router<SharedState> {
     Router::new()
         .merge(workstation())
-        .merge(workstation_foo())
+        .merge(workstation_dependencies())
         .with_state(SharedState::default())
 }
 
 fn workstation() -> Router<SharedState> {
-    async fn handler() -> &'static str {
-        "Workstation"
+    async fn handler() -> Json<serde_json::Value> {
+        let host = hostname::get().unwrap_or_else(|_| "Unknown".into());
+        let uid = users::get_current_uid();
+        let user = users::get_user_by_uid(users::get_current_uid()).unwrap();
+        let username = user.name().to_string_lossy();
+        Json(json!({ "workstation": {
+            "hostname": host.to_string_lossy(),
+            "user": {"uid":uid,"name":username},
+        } }))
     }
-    route(APIModule::Workstation, "/", get(handler))
+    route("/", get(handler))
 }
 
-fn workstation_foo() -> Router<SharedState> {
+fn workstation_dependencies() -> Router<SharedState> {
     async fn handler() -> &'static str {
         "Workstation foo"
     }
-    route(APIModule::Workstation, "/foo", get(handler))
+    route("/dependencies", get(handler))
 }

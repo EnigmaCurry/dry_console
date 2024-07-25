@@ -1,52 +1,52 @@
-use std::sync::RwLockWriteGuard;
+use std::{convert::Infallible, sync::RwLockWriteGuard};
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
     extract::State,
-    routing::{get, post},
+    routing::{get, post, MethodRouter},
     Router,
 };
 use serde_json;
 
+use super::test_route;
 use crate::{
     app_state::{AppState, SharedState},
     response::{AppError, AppJson, JsonResult},
-    AppMethodRouter, AppRouter,
+    AppRouter,
 };
-
-use super::test_route;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Counter
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-struct Counter {
+#[derive(Serialize, Deserialize, Debug, Clone, Default, ToSchema)]
+pub struct TestCounter {
     value: i64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-enum CounterTransition {
+pub enum CounterTransition {
     Add(i64),
     Subtract(i64),
     Reset,
 }
-impl StateMachine for Counter {
+impl StateMachine for TestCounter {
     type Transition = CounterTransition;
     type Conflict = NeverConflict;
-    fn apply(&self, event: &CounterTransition) -> Result<Counter, NeverConflict> {
+    fn apply(&self, event: &CounterTransition) -> Result<TestCounter, NeverConflict> {
         match event {
-            CounterTransition::Add(i) => Ok(Counter {
+            CounterTransition::Add(i) => Ok(TestCounter {
                 value: self.value + i,
             }),
-            CounterTransition::Subtract(i) => Ok(Counter {
+            CounterTransition::Subtract(i) => Ok(TestCounter {
                 value: self.value - i,
             }),
-            CounterTransition::Reset => Ok(Counter { value: 0 }),
+            CounterTransition::Reset => Ok(TestCounter { value: 0 }),
         }
     }
 }
 #[allow(dead_code)]
-impl Counter {
+impl TestCounter {
     pub fn add(&self, i: i64) -> CounterTransition {
         CounterTransition::Add(i)
     }
@@ -65,15 +65,22 @@ pub fn main() -> AppRouter {
     Router::new().merge(get_counter()).merge(update_counter())
 }
 
-fn route(path: &str, method_router: AppMethodRouter) -> AppRouter {
+fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> AppRouter {
     test_route(super::TestModule::Counter, path, method_router)
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/test/counter/",
+    responses(
+        (status = OK, description = "Get counter value", body = TestCounter)
+    )
+)]
 fn get_counter() -> AppRouter {
-    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
+    async fn handler(State(state): State<SharedState>) -> JsonResult<TestCounter> {
         match state.read() {
             Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
-                "" => match serde_json::to_string(&Counter::default()) {
+                "" => match serde_json::to_string(&TestCounter::default()) {
                     Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
                     Err(e) => Err(AppError::Internal(e.to_string())),
                 },
@@ -85,19 +92,26 @@ fn get_counter() -> AppRouter {
     route("/", get(handler))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/test/counter/",
+    responses(
+        (status = OK, description = "Increment counter value", body = TestCounter)
+    )
+)]
 fn update_counter() -> AppRouter {
-    async fn handler(State(state): State<SharedState>) -> JsonResult<Counter> {
-        fn from_json(c: &str) -> Result<Counter, serde_json::Error> {
+    async fn handler(State(state): State<SharedState>) -> JsonResult<TestCounter> {
+        fn from_json(c: &str) -> Result<TestCounter, serde_json::Error> {
             serde_json::from_str(c)
         }
-        fn to_json(c: &Counter) -> Result<String, serde_json::Error> {
+        fn to_json(c: &TestCounter) -> Result<String, serde_json::Error> {
             serde_json::to_string(&c)
         }
         fn get_counter(
             state: &RwLockWriteGuard<'_, AppState>,
-        ) -> Result<Counter, serde_json::Error> {
+        ) -> Result<TestCounter, serde_json::Error> {
             match state.cache_get_string("test::counter", "").as_str() {
-                "" => Ok(Counter::default()),
+                "" => Ok(TestCounter::default()),
                 j => Ok(from_json(j)?),
             }
         }
