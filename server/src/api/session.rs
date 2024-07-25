@@ -10,7 +10,7 @@ use crate::{
 };
 use axum::{
     extract::{Form, State},
-    http::StatusCode,
+    http::{header, HeaderValue, StatusCode},
     response::{IntoResponse, Redirect},
     routing::{get, post},
     Json, Router,
@@ -28,6 +28,7 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .merge(session())
         .merge(login())
+        .merge(logout())
         .merge(read_messages())
         .with_state(SharedState::default())
 }
@@ -73,6 +74,10 @@ fn login() -> AppRouter {
         mut auth_session: AuthSession<Backend>,
         Json(creds): Json<Credentials>,
     ) -> impl IntoResponse {
+        if is_logged_in(session.clone()).await {
+            info!("User already logged in");
+            return AppJson(SessionState { logged_in: false }).into_response();
+        }
         match state.read() {
             Ok(s) => {
                 if !s.is_login_enabled() {
@@ -125,6 +130,37 @@ fn login() -> AppRouter {
         .into_response()
     }
     route("/login", post(handler))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/session/logout/",
+    responses(
+        (status = OK, description = "Logged out", body = SessionState)
+    )
+)]
+fn logout() -> AppRouter {
+    async fn handler(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
+        let status_code = match auth_session.logout().await {
+            Ok(_) => StatusCode::OK,
+            Err(e) => {
+                debug!("{:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
+        };
+        // Set cookie to expire:
+        let headers = [(
+            header::SET_COOKIE,
+            HeaderValue::from_str("id=; Max-Age=0; Path=/; HttpOnly").unwrap(),
+        )];
+        (
+            status_code,
+            headers,
+            AppJson(SessionState { logged_in: false }),
+        )
+            .into_response()
+    }
+    route("/logout", post(handler))
 }
 
 async fn is_logged_in(session: Session) -> bool {
