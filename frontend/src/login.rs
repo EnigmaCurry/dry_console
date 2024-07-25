@@ -8,7 +8,6 @@ pub struct LoginForm {
     username: String,
     password: String,
     next_url: String,
-    input_ref: NodeRef,
 }
 
 pub enum Msg {
@@ -34,7 +33,6 @@ impl Component for LoginForm {
             username: String::new(),
             password: String::new(),
             next_url: String::new(),
-            input_ref: NodeRef::default(),
         }
     }
 
