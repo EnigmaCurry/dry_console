@@ -14,9 +14,8 @@ use utoipauto::utoipauto;
 struct ApiDoc;
 
 pub fn router() -> Router<SharedState> {
-    let doc = ApiDoc::openapi();
     Router::new()
-        .merge(SwaggerUi::new("/ui").url("/api/docs/openapi.json/", doc))
+        .merge(SwaggerUi::new("/ui").url("/api/docs/openapi.json/", ApiDoc::openapi()))
         .merge(docs())
         .merge(ui())
         .with_state(SharedState::default())

@@ -1,9 +1,15 @@
 # dry_console
 
-This is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). 
+A workstation tool for managing remote Docker instances and
+applications, deployed by [d.rymcg.tech](d.rymcg.tech).
 
-It's purpose has not yet been fully defined, but it's gonna be a
-docker helper tool for [d.rymcg.tech](d.rymcg.tech)
+This application is implemented as a local web service, which opens
+automatically in your preferred web browser. Security of the
+application relies upon a one-time password, which is randomized on
+each startup, and then it disables the login service to prevent future
+attempts. Therefore, the cookie assigned to your web browser becomes
+the only authorized client key. To login again, you need to restart
+the service.
 
 # Platforms
 
@@ -61,6 +67,9 @@ to enter your password as it does this. If you don't need to use
 `sudo`, set `USE_SUDO=false`.
 
 # Development
+
+dry_console is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). 
+
 ## Dependencies
 
  * Rust and Cargo installed via [rustup](https://rustup.rs/).

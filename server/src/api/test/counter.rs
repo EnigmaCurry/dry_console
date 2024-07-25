@@ -96,7 +96,10 @@ fn get_counter() -> AppRouter {
     post,
     path = "/api/test/counter/",
     responses(
-        (status = OK, description = "Increment counter value", body = Counter)
+        (status = OK, description = "Increment counter value", body = TestCounter)
+    ),
+    security(
+        ("bearer_token" = [])
     )
 )]
 fn update_counter() -> AppRouter {

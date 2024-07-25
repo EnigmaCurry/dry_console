@@ -9,8 +9,10 @@ use axum_login::tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 use axum_login::{login_required, AuthManagerLayerBuilder};
 use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};
+use tracing::info;
 mod auth;
 mod docs;
+mod random;
 mod session;
 mod test;
 mod workstation;
@@ -67,7 +69,13 @@ pub fn router() -> AppRouter {
         //.with_expiry(Expiry::OnInactivity(Duration::days(1)))
         .with_signed(key);
     let mut auth_backend = auth::Backend::default();
-    auth_backend.add_user("admin", "TODO: remove weak passphrase");
+
+    let admin_password = random::generate_secure_passphrase(16);
+    auth_backend.add_user("admin", admin_password.as_str());
+    info!(
+        "Login credentials::\nUsername: admin\nPassword: {}",
+        admin_password
+    );
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
     APIModule::main()
         .route(

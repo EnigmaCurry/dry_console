@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use crate::response::AppError;
 use argon2::{
@@ -9,15 +10,23 @@ use argon2::{
 };
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use jiff::{Timestamp, Zoned};
+//use jiff::{Timestamp, Zoned};
 use serde::Deserialize;
 use tracing::debug;
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct User {
     pub username: String,
     pw_hash: Vec<u8>,
+}
+impl fmt::Debug for User {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("User")
+            .field("username", &self.username)
+            .field("pw_hash", &"REDACTED")
+            .finish()
+    }
 }
 
 impl AuthUser for User {
@@ -56,13 +65,6 @@ impl Backend {
         let argon2 = Argon2::default();
         if let Some(user) = self.users.get(username) {
             debug!("{:?}", user);
-
-            // if user.one_time_login {
-            //     if let Some(_) = user.login_date {
-            //         // User is only allowed to login one time.
-            //         return false;
-            //     }
-            // }
             let pw_hash = String::from_utf8_lossy(&user.pw_hash);
             match argon2.verify_password(
                 password.as_bytes(),
@@ -76,11 +78,22 @@ impl Backend {
     }
 }
 
-#[derive(Clone, Deserialize, Debug, ToSchema)]
+#[derive(Clone, Deserialize, ToSchema)]
 pub struct Credentials {
+    #[serde(default = "default_username")]
     pub username: String,
     pub password: String,
-    pub next: Option<String>,
+}
+fn default_username() -> String {
+    "admin".to_string()
+}
+impl fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Credentials")
+            .field("username", &self.username)
+            .field("password", &"REDACTED")
+            .finish()
+    }
 }
 
 #[async_trait]
@@ -92,9 +105,7 @@ impl AuthnBackend for Backend {
     async fn authenticate(
         &self,
         Credentials {
-            username,
-            password,
-            next: _,
+            username, password, ..
         }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
         match self.users.get(&username) {
