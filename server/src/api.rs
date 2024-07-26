@@ -4,7 +4,6 @@ use axum::http::StatusCode;
 use axum::response::Redirect;
 use axum::routing::{any, get, MethodRouter};
 use axum::Router;
-//use axum_login::tower_sessions::cookie::time::Duration;
 use axum_login::tower_sessions::{MemoryStore, SessionManagerLayer};
 use axum_login::{login_required, AuthManagerLayerBuilder};
 use axum_messages::MessagesManagerLayer;
@@ -69,11 +68,10 @@ pub fn router() -> AppRouter {
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        //.with_expiry(Expiry::OnInactivity(Duration::days(1)))
         .with_signed(key);
     let mut auth_backend = auth::Backend::default();
 
-    let admin_password = random::generate_secure_passphrase(16);
+    let admin_password = random::generate_secure_passphrase(32);
     auth_backend.add_user("admin", admin_password.as_str());
     info!("Login credentials::\nPassword: {}", admin_password);
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
@@ -82,6 +80,8 @@ pub fn router() -> AppRouter {
         .nest("/session/", session::router())
         .layer(MessagesManagerLayer)
         .layer(auth_layer)
+        // everything above auth_layer is private and requires authentication
+        // everything after auth_layer is public and requires no authentication
         .layer(session_layer)
         .nest("/docs/", docs::router())
         .route(

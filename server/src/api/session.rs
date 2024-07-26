@@ -1,16 +1,14 @@
 use crate::{
-    api::{
-        auth::{Backend, Credentials},
-    },
+    api::auth::{Backend, Credentials},
     app_state::SharedState,
     response::{AppJson, JsonResult},
     routing::route,
     AppRouter,
 };
 use axum::{
-    extract::{State},
+    extract::State,
     http::{header, HeaderValue, StatusCode},
-    response::{IntoResponse},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -34,6 +32,7 @@ pub fn router() -> Router<SharedState> {
 
 #[derive(Default, Serialize, ToSchema)]
 pub struct SessionState {
+    /// Is the current user logged in?
     logged_in: bool,
 }
 
@@ -51,9 +50,8 @@ pub struct SessionMessages {
 )]
 fn session() -> AppRouter {
     async fn handler(session: Session) -> JsonResult<SessionState> {
-        Ok(AppJson(SessionState {
-            logged_in: is_logged_in(session).await,
-        }))
+        let logged_in = is_logged_in(session).await;
+        Ok(AppJson(SessionState { logged_in }))
     }
     route("/", get(handler))
 }
@@ -79,7 +77,7 @@ fn login() -> AppRouter {
         }
         match state.read() {
             Ok(s) => {
-                if !s.is_login_enabled() {
+                if !s.is_login_allowed() {
                     warn!("Prevented login attempt - the login service is disabled.");
                     return (
                         StatusCode::SERVICE_UNAVAILABLE,
@@ -139,7 +137,10 @@ fn login() -> AppRouter {
     )
 )]
 fn logout() -> AppRouter {
-    async fn handler(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
+    async fn handler(
+        mut auth_session: AuthSession<Backend>,
+        State(state): State<SharedState>,
+    ) -> impl IntoResponse {
         let status_code = match auth_session.logout().await {
             Ok(_) => StatusCode::OK,
             Err(e) => {

@@ -1,7 +1,4 @@
-use crate::{
-    api::{route},
-    app_state::SharedState,
-};
+use crate::{api::route, app_state::SharedState};
 use axum::{routing::get, Json, Router};
 use serde_json::json;
 

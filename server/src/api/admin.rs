@@ -1,15 +1,7 @@
 use std::sync::Arc;
 
-use crate::{
-    api::{route},
-    app_state::SharedState,
-};
-use axum::{
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{post},
-    Extension, Router,
-};
+use crate::{api::route, app_state::SharedState};
+use axum::{http::StatusCode, response::IntoResponse, routing::post, Extension, Router};
 use tokio::sync::{oneshot, Mutex};
 
 pub fn router() -> Router<SharedState> {

@@ -10,13 +10,13 @@ use crate::response::AppError;
 ////////////////////////////////////////////////////////////////////////////////
 pub struct AppState {
     cache: HashMap<String, Bytes>,
-    login_enabled: bool,
+    login_allowed: bool,
 }
 impl Default for AppState {
     fn default() -> Self {
         AppState {
             cache: HashMap::new(),
-            login_enabled: true,
+            login_allowed: true,
         }
     }
 }
@@ -35,11 +35,11 @@ impl AppState {
             .unwrap_or(default)
             .to_string()
     }
-    pub fn is_login_enabled(&self) -> bool {
-        self.login_enabled
+    pub fn is_login_allowed(&self) -> bool {
+        self.login_allowed
     }
     pub fn disable_login(&mut self) {
-        self.login_enabled = false;
+        self.login_allowed = false;
     }
 }
 pub type SharedState = Arc<RwLock<AppState>>;
