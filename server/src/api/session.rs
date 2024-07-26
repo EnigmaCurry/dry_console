@@ -1,16 +1,14 @@
 use crate::{
-    api::{
-        auth::{Backend, Credentials},
-    },
+    api::auth::{Backend, Credentials},
     app_state::SharedState,
     response::{AppJson, JsonResult},
     routing::route,
     AppRouter,
 };
 use axum::{
-    extract::{State},
+    extract::State,
     http::{header, HeaderValue, StatusCode},
-    response::{IntoResponse},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
@@ -34,6 +32,7 @@ pub fn router() -> Router<SharedState> {
 
 #[derive(Default, Serialize, ToSchema)]
 pub struct SessionState {
+    /// Is the current user logged in?
     logged_in: bool,
 }
 
@@ -46,14 +45,13 @@ pub struct SessionMessages {
     get,
     path = "/api/session/",
     responses(
-        (status = OK, description = "Session state", body = str)
+        (status = OK, description = "Session state", body = SessionState)
     ),
 )]
 fn session() -> AppRouter {
     async fn handler(session: Session) -> JsonResult<SessionState> {
-        Ok(AppJson(SessionState {
-            logged_in: is_logged_in(session).await,
-        }))
+        let logged_in = is_logged_in(session).await;
+        Ok(AppJson(SessionState { logged_in }))
     }
     route("/", get(handler))
 }
@@ -74,16 +72,16 @@ fn login() -> AppRouter {
         Json(creds): Json<Credentials>,
     ) -> impl IntoResponse {
         if is_logged_in(session.clone()).await {
-            info!("User already logged in");
+            info!("User already logged in.");
             return AppJson(SessionState { logged_in: true }).into_response();
         }
         match state.read() {
             Ok(s) => {
-                if !s.is_login_enabled() {
+                if !s.is_login_allowed() {
                     warn!("Prevented login attempt - the login service is disabled.");
                     return (
                         StatusCode::SERVICE_UNAVAILABLE,
-                        "The login service has been disabled. To login again, this service must be restarted.",
+                        "The login service is currently disabled.",
                     )
                         .into_response();
                 }
@@ -98,7 +96,8 @@ fn login() -> AppRouter {
             Ok(Some(user)) => {
                 match state.write() {
                     Ok(mut s) => {
-                        // User login is only allowed a single time:
+                        // User login is disallowed a second time
+                        // Until admin re-enables login service:
                         s.disable_login();
                         user
                     }
@@ -109,7 +108,7 @@ fn login() -> AppRouter {
                 }
             }
             Ok(None) => {
-                warn!("Attempted login with invalid username or password");
+                warn!("Attempted login with invalid username or password.");
                 return StatusCode::UNAUTHORIZED.into_response();
             }
             Err(e) => {
@@ -139,7 +138,10 @@ fn login() -> AppRouter {
     )
 )]
 fn logout() -> AppRouter {
-    async fn handler(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
+    async fn handler(
+        mut auth_session: AuthSession<Backend>,
+        State(state): State<SharedState>,
+    ) -> impl IntoResponse {
         let status_code = match auth_session.logout().await {
             Ok(_) => StatusCode::OK,
             Err(e) => {

@@ -1,6 +1,4 @@
 mod login;
-mod notification;
-use crate::notification::NotificationComponent;
 use gloo_net::http::Request;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -28,7 +26,6 @@ fn switch(routes: Route) -> Html {
 fn app() -> Html {
     html! {
         <BrowserRouter>
-            <NotificationComponent />
             <Switch<Route> render={switch} />
         </BrowserRouter>
     }
@@ -44,7 +41,7 @@ fn hello_server() -> Html {
         use_effect(move || {
             if data.is_none() {
                 spawn_local(async move {
-                    let resp = Request::get("/api/test/hello/").send().await.unwrap();
+                    let resp = Request::get("/api/session/").send().await.unwrap();
                     let result = {
                         if !resp.ok() {
                             Err(format!(

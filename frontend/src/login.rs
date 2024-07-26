@@ -5,23 +5,18 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 pub struct LoginForm {
-    username: String,
-    password: String,
-    next_url: String,
+    token: String,
 }
 
 pub enum Msg {
-    UpdateUsername(String),
-    UpdatePassword(String),
+    UpdateToken(String),
     Submit,
     Response(Result<String, Error>),
 }
 
 #[derive(Serialize)]
 struct LoginRequest {
-    username: String,
-    password: String,
-    next: String,
+    token: String,
 }
 
 impl Component for LoginForm {
@@ -30,27 +25,19 @@ impl Component for LoginForm {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            username: String::new(),
-            password: String::new(),
-            next_url: String::new(),
+            token: String::new(),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            Msg::UpdateUsername(username) => {
-                self.username = username;
-                true
-            }
-            Msg::UpdatePassword(password) => {
-                self.password = password;
+            Msg::UpdateToken(token) => {
+                self.token = token;
                 true
             }
             Msg::Submit => {
                 let request = LoginRequest {
-                    username: self.username.clone(),
-                    password: self.password.clone(),
-                    next: self.next_url.clone(),
+                    token: self.token.clone(),
                 };
 
                 let callback = ctx
@@ -96,26 +83,16 @@ impl Component for LoginForm {
                 Msg::Submit
             })}>
                 <div>
-                    <label for="username">{ "Username: " }</label>
+                    <label for="token">{ "Token: " }</label>
                     <input
+                        id="token"
                         type="text"
-                        id="username"
-                        value={self.username.clone()}
+                        name="token"
+                        autocomplete="one-time-code"
+                        value={self.token.clone()}
                         oninput={ctx.link().callback(|e: InputEvent| {
                             let input: HtmlInputElement = e.target_unchecked_into();
-                            Msg::UpdateUsername(input.value())
-                        })}
-                    />
-                </div>
-                <div>
-                    <label for="password">{ "Password: " }</label>
-                    <input
-                        type="password"
-                        id="password"
-                        value={self.password.clone()}
-                        oninput={ctx.link().callback(|e: InputEvent| {
-                            let input: HtmlInputElement = e.target_unchecked_into();
-                            Msg::UpdatePassword(input.value())
+                            Msg::UpdateToken(input.value())
                         })}
                     />
                 </div>
