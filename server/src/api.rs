@@ -65,12 +65,11 @@ impl ApiModule for APIModule {
 ///Adds all routes for all API modules
 pub fn router() -> AppRouter {
     let key = cookie::Key::generate();
-    let auth_secret = auth::derive_key(key.master());
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_signed(key.clone());
-    let mut auth_backend = auth::Backend::new(key.master());
+    let mut auth_backend = auth::Backend::new(&auth::derive_key(key.master()));
 
     let token = auth_backend
         .reset_token()
