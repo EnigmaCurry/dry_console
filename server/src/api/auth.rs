@@ -45,11 +45,11 @@ pub struct Backend {
     users: HashMap<String, User>,
 }
 impl Backend {
-    pub fn add_user(&mut self, username: &str, password: &str) {
+    pub fn add_user(&mut self, username: &str, token: &str) {
         let salt = SaltString::generate(&mut OsRng);
         let argon2 = Argon2::default();
         let pw_hash = argon2
-            .hash_password(password.as_bytes(), &salt)
+            .hash_password(token.as_bytes(), &salt)
             .unwrap()
             .to_string()
             .as_bytes()
@@ -60,13 +60,13 @@ impl Backend {
         };
         self.users.insert(username.to_string(), user);
     }
-    pub fn verify_password(&self, username: &str, password: &str) -> bool {
+    pub fn verify_token(&self, username: &str, token: &str) -> bool {
         let argon2 = Argon2::default();
         if let Some(user) = self.users.get(username) {
             debug!("{:?}", user);
             let pw_hash = String::from_utf8_lossy(&user.pw_hash);
             match argon2.verify_password(
-                password.as_bytes(),
+                token.as_bytes(),
                 &PasswordHash::parse(&pw_hash, Encoding::B64).unwrap(),
             ) {
                 Ok(()) => return true,
@@ -83,9 +83,9 @@ pub struct Credentials {
     /// Username for login
     #[schema(example = "admin")]
     pub username: String,
-    /// Password for login
+    /// One time token for login
     #[schema(example = "")]
-    pub password: String,
+    pub token: String,
 }
 fn default_username() -> String {
     "admin".to_string()
@@ -94,7 +94,7 @@ impl fmt::Debug for Credentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Credentials")
             .field("username", &self.username)
-            .field("password", &"REDACTED")
+            .field("token", &"REDACTED")
             .finish()
     }
 }
@@ -107,13 +107,11 @@ impl AuthnBackend for Backend {
 
     async fn authenticate(
         &self,
-        Credentials {
-            username, password, ..
-        }: Self::Credentials,
+        Credentials { username, token }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
         match self.users.get(&username) {
             Some(user) => {
-                if self.verify_password(&username, &password) {
+                if self.verify_token(&username, &token) {
                     Ok(Some(user).cloned())
                 } else {
                     Ok(None)
