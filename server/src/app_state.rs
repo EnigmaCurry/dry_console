@@ -41,6 +41,9 @@ impl AppState {
     pub fn disable_login(&mut self) {
         self.login_allowed = false;
     }
+    pub fn enable_login(&mut self) {
+        self.login_allowed = true;
+    }
 }
 pub type SharedState = Arc<RwLock<AppState>>;
 

@@ -1,99 +1,69 @@
 use crate::response::AppError;
-use argon2::{
-    password_hash::{
-        rand_core::OsRng, Encoding, PasswordHash, PasswordHasher, PasswordVerifier, SaltString,
-    },
-    Argon2,
-};
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use std::collections::HashMap;
+use sha2::{Digest, Sha256};
 use std::fmt;
 //use jiff::{Timestamp, Zoned};
 use serde::Deserialize;
-use tracing::debug;
+//use tracing::debug;
 use utoipa::ToSchema;
 
-#[derive(Clone)]
+use super::token::{self, generate_token};
+
+const ADMIN_USER: &str = "admin";
+const TOKEN_EXPIRATION_MINUTES: i64 = 60;
+const PLACEHOLDER_SALT: &str = "default";
+
+#[derive(Clone, Debug, Default)]
 pub struct User {
-    pub username: String,
-    pw_hash: Vec<u8>,
-}
-impl fmt::Debug for User {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("User")
-            .field("username", &self.username)
-            .field("pw_hash", &"REDACTED")
-            .finish()
-    }
+    //There is only one user (ADMIN_USER) so this needs no data.
 }
 
 impl AuthUser for User {
     type Id = String;
 
     fn id(&self) -> Self::Id {
-        self.username.clone()
+        // single static id: admin
+        ADMIN_USER.to_string()
     }
 
     fn session_auth_hash(&self) -> &[u8] {
-        &self.pw_hash
+        // Single session for the admin user:
+        ADMIN_USER.as_bytes()
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Backend {
-    users: HashMap<String, User>,
+    user: User,
+    secret: Vec<u8>,
 }
 impl Backend {
-    pub fn add_user(&mut self, username: &str, token: &str) {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        let pw_hash = argon2
-            .hash_password(token.as_bytes(), &salt)
-            .unwrap()
-            .to_string()
-            .as_bytes()
-            .to_vec();
-        let user = User {
-            username: username.to_string(),
-            pw_hash,
+    pub fn new(secret: &[u8]) -> Self {
+        return Self {
+            user: User::default(),
+            secret: secret[..32].to_vec(),
         };
-        self.users.insert(username.to_string(), user);
     }
-    pub fn verify_token(&self, username: &str, token: &str) -> bool {
-        let argon2 = Argon2::default();
-        if let Some(user) = self.users.get(username) {
-            debug!("{:?}", user);
-            let pw_hash = String::from_utf8_lossy(&user.pw_hash);
-            match argon2.verify_password(
-                token.as_bytes(),
-                &PasswordHash::parse(&pw_hash, Encoding::B64).unwrap(),
-            ) {
-                Ok(()) => return true,
-                Err(_) => return false,
-            }
-        }
-        false
+    pub fn reset_token(&mut self) -> Result<String, Box<dyn std::error::Error>> {
+        self.user = User {};
+        generate_token(&self.secret, TOKEN_EXPIRATION_MINUTES)
+    }
+    pub fn verify_token(&self, token: &str) -> bool {
+        token::validate_token(&token, &self.secret).unwrap_or(false)
     }
 }
 
 #[derive(Clone, Deserialize, ToSchema)]
 pub struct Credentials {
-    #[serde(default = "default_username")]
-    /// Username for login
-    #[schema(example = "admin")]
-    pub username: String,
     /// One time token for login
     #[schema(example = "")]
     pub token: String,
 }
-fn default_username() -> String {
-    "admin".to_string()
-}
+
 impl fmt::Debug for Credentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Credentials")
-            .field("username", &self.username)
             .field("token", &"REDACTED")
             .finish()
     }
@@ -107,23 +77,29 @@ impl AuthnBackend for Backend {
 
     async fn authenticate(
         &self,
-        Credentials { username, token }: Self::Credentials,
+        Credentials { token }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        match self.users.get(&username) {
-            Some(user) => {
-                if self.verify_token(&username, &token) {
-                    Ok(Some(user).cloned())
-                } else {
-                    Ok(None)
-                }
-            }
-            None => Ok(None),
+        if self.verify_token(&token) {
+            Ok(Some(self.user.clone()))
+        } else {
+            Ok(None)
         }
     }
 
-    async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        Ok(self.users.get(user_id).cloned())
+    async fn get_user(&self, _user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
+        Ok(Some(self.user.clone()))
     }
 }
 
-//pub type AuthSession = axum_login::AuthSession<Backend>;
+pub fn derive_key(input: &[u8]) -> [u8; 32] {
+    fn derive_key_with_salt(input: &[u8], salt: &[u8]) -> [u8; 32] {
+        let mut hasher = Sha256::new();
+        hasher.update(input);
+        hasher.update(salt);
+        let result = hasher.finalize();
+        let mut secret = [0u8; 32];
+        secret.copy_from_slice(&result);
+        secret
+    }
+    derive_key_with_salt(input, PLACEHOLDER_SALT.as_bytes())
+}

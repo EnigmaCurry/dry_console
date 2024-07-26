@@ -45,7 +45,7 @@ pub struct SessionMessages {
     get,
     path = "/api/session/",
     responses(
-        (status = OK, description = "Session state", body = str)
+        (status = OK, description = "Session state", body = SessionState)
     ),
 )]
 fn session() -> AppRouter {
@@ -72,7 +72,7 @@ fn login() -> AppRouter {
         Json(creds): Json<Credentials>,
     ) -> impl IntoResponse {
         if is_logged_in(session.clone()).await {
-            info!("User already logged in");
+            info!("User already logged in.");
             return AppJson(SessionState { logged_in: true }).into_response();
         }
         match state.read() {
@@ -81,7 +81,7 @@ fn login() -> AppRouter {
                     warn!("Prevented login attempt - the login service is disabled.");
                     return (
                         StatusCode::SERVICE_UNAVAILABLE,
-                        "The login service has been disabled. To login again, this service must be restarted.",
+                        "The login service is currently disabled.",
                     )
                         .into_response();
                 }
@@ -96,7 +96,8 @@ fn login() -> AppRouter {
             Ok(Some(user)) => {
                 match state.write() {
                     Ok(mut s) => {
-                        // User login is only allowed a single time:
+                        // User login is disallowed a second time
+                        // Until admin re-enables login service:
                         s.disable_login();
                         user
                     }
@@ -107,7 +108,7 @@ fn login() -> AppRouter {
                 }
             }
             Ok(None) => {
-                warn!("Attempted login with invalid username or password");
+                warn!("Attempted login with invalid username or password.");
                 return StatusCode::UNAUTHORIZED.into_response();
             }
             Err(e) => {

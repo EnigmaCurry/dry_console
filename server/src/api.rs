@@ -12,9 +12,9 @@ use tracing::info;
 mod admin;
 mod auth;
 mod docs;
-mod random;
 mod session;
 mod test;
+mod token;
 mod workstation;
 use crate::api::auth::Backend;
 use crate::app_state::SharedState;
@@ -65,15 +65,17 @@ impl ApiModule for APIModule {
 ///Adds all routes for all API modules
 pub fn router() -> AppRouter {
     let key = cookie::Key::generate();
+    let auth_secret = auth::derive_key(key.master());
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
-        .with_signed(key);
-    let mut auth_backend = auth::Backend::default();
+        .with_signed(key.clone());
+    let mut auth_backend = auth::Backend::new(key.master());
 
-    let admin_password = random::generate_secure_passphrase(32);
-    auth_backend.add_user("admin", admin_password.as_str());
-    info!("Login credentials::\nPassword: {}", admin_password);
+    let token = auth_backend
+        .reset_token()
+        .expect("Failed to generate token");
+    info!("Login credentials::\nToken: {}", token);
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
     APIModule::main()
         .route_layer(login_required!(Backend))
