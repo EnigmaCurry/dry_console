@@ -1,87 +1,40 @@
+mod app;
+mod hello;
+mod index;
 mod login;
-use gloo_net::http::Request;
-use wasm_bindgen_futures::spawn_local;
-use yew::prelude::*;
-use yew_router::prelude::*;
+use browser_panic_hook::{CustomBody, IntoPanicHook};
 
-#[derive(Clone, Routable, PartialEq)]
-enum Route {
-    #[at("/")]
-    Home,
-    #[at("/hello")]
-    HelloServer,
-    #[at("/login")]
-    Login,
-}
-
-fn switch(routes: Route) -> Html {
-    match routes {
-        Route::Login => html! { <login::LoginForm /> },
-        Route::Home => html! { <h1>{ "Hello Frontend" }</h1> },
-        Route::HelloServer => html! { <HelloServer /> },
-    }
-}
-
-#[function_component(App)]
-fn app() -> Html {
-    html! {
-        <BrowserRouter>
-            <Switch<Route> render={switch} />
-        </BrowserRouter>
-    }
-}
-
-#[function_component(HelloServer)]
-fn hello_server() -> Html {
-    let data = use_state(|| None);
-
-    // Request `/api/hello` once
-    {
-        let data = data.clone();
-        use_effect(move || {
-            if data.is_none() {
-                spawn_local(async move {
-                    let resp = Request::get("/api/session/").send().await.unwrap();
-                    let result = {
-                        if !resp.ok() {
-                            Err(format!(
-                                "Error fetching data {} ({})",
-                                resp.status(),
-                                resp.status_text()
-                            ))
-                        } else {
-                            resp.text().await.map_err(|err| err.to_string())
-                        }
-                    };
-                    data.set(Some(result));
-                });
-            }
-
-            || {}
-        });
-    }
-
-    match data.as_ref() {
-        None => {
-            html! {
-                <div>{"No server response"}</div>
-            }
-        }
-        Some(Ok(data)) => {
-            html! {
-                <div>{"Got server response: "}{data}</div>
-            }
-        }
-        Some(Err(err)) => {
-            html! {
-                <div>{"Error requesting data from server: "}{err}</div>
-            }
-        }
-    }
-}
+#[cfg(not(debug_assertions))]
+const LOG_LEVEL: log::Level = log::Level::Info;
+#[cfg(debug_assertions)]
+const LOG_LEVEL: log::Level = log::Level::Trace;
 
 fn main() {
-    wasm_logger::init(wasm_logger::Config::new(log::Level::Trace));
-    console_error_panic_hook::set_once();
-    yew::Renderer::<App>::new().render();
+    wasm_logger::init(wasm_logger::Config::new(LOG_LEVEL));
+    yew::set_custom_panic_hook(
+        CustomBody(Box::new(|details| {
+            format!(
+                r#"
+<div class="pf-v5-l-bullseye">
+  <div class="pf-v5-l-bullseye__item">
+    <div class="pf-v5-c-alert pf-m-danger" aria-label="Frontend application panicked">
+      <div class="pf-v5-c-alert__icon">
+        <i class="fas fa-fw fa-exclamation-circle" aria-hidden="true"></i>
+      </div>
+      <p class="pf-v5-c-alert__title">
+        <span class="pf-v5-screen-reader">Frontend application crashed:</span>
+      </p>
+      <div class="pf-v5-c-alert__description">
+        <p>Reason: <pre>{message}</pre></p>
+      </div>
+    </div>
+  </div>
+</div>
+"#,
+                message = details.message()
+            )
+        }))
+        .into_panic_hook(),
+    );
+    yew::Renderer::<app::Application>::new().render();
 }
