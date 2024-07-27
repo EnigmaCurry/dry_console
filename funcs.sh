@@ -103,3 +103,17 @@ confirm() {
         return 1
     fi
 }
+check_deps() {
+    missing=""
+    for var in "$@"; do
+        echo -n "Looking for ${var} ... " >/dev/stderr
+        if ! command -v "${var}" >/dev/null 2>&1; then
+            echo "Missing! No ${var} found in PATH." >/dev/stderr
+            missing="${missing} ${var}"
+        else
+            echo found $(which "${var}")
+        fi
+    done
+
+    if [[ -n "${missing}" ]]; then fault "Missing dependencies: ${missing}"; fi
+}

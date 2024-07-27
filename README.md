@@ -79,6 +79,8 @@ dry_console is a full stack Rust web app using [axum](https://github.com/tokio-r
 
  * Rust and Cargo installed via [rustup](https://rustup.rs/).
 
+ * `npm` (NodeJS) installed via your OS package manager.
+
  * [Just](https://github.com/casey/just?tab=readme-ov-file#readme)
  
 ```

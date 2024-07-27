@@ -3,6 +3,7 @@ set export
 HTTP_PORT := "8090"
 TRUNK_BRANCH := "master"
 GIT_REMOTE := "origin"
+NODEJS_PACKAGE_MANAGER := "npm"
 
 # Help
 list: 
@@ -10,11 +11,15 @@ list:
 
 # Install rust dependencies
 deps:
-    rustup target add wasm32-unknown-unknown
-    cargo install --locked cargo-watch
-    cargo install --locked trunk
-    cargo install --locked git-cliff
-    cargo install --locked cargo-edit
+    set -e; \
+    source ./funcs.sh; \
+    check_deps ${NODEJS_PACKAGE_MANAGER}; \
+    rustup target add wasm32-unknown-unknown; \
+    cargo install --locked cargo-watch; \
+    cargo install --locked trunk; \
+    cargo install --locked git-cliff; \
+    cargo install --locked cargo-edit; \
+    
     
 # Install rust depdencies (precompiled)
 bin-deps:
@@ -32,7 +37,7 @@ open:
     
 # Build frontend WASM (debug)
 build-frontend: clean-dist
-    cd frontend; trunk build ${RELEASE_BUILD_ARGS:-} --filehash false
+    cd frontend; npm ci; trunk build ${RELEASE_BUILD_ARGS:-} --filehash false
 
 # Build frontend WASM (release)
 build-release-frontend:
