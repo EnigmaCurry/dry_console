@@ -3,6 +3,7 @@ mod app_state;
 mod response;
 mod routing;
 
+use crate::api::auth::Backend;
 use app_state::SharedState;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
@@ -101,10 +102,11 @@ async fn main() {
 
     info!("listening on http://{sock_addr}");
     let shared_state = app_state::SharedState::default();
+    let auth_backend = Backend::new(&shared_state);
 
     let mut app = Router::new()
         .layer(routing::SlashRedirectLayer)
-        .nest(API_PREFIX, api::router())
+        .nest(API_PREFIX, api::router(auth_backend))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm))

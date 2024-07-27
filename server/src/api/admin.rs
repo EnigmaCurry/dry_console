@@ -21,10 +21,7 @@ pub struct NewLoginToken {
 }
 
 pub fn router() -> AppRouter {
-    Router::new()
-        .merge(shutdown())
-        .merge(enable_login())
-        .with_state(SharedState::default())
+    Router::new().merge(shutdown()).merge(enable_login())
 }
 
 #[utoipa::path(
@@ -67,7 +64,7 @@ fn enable_login() -> AppRouter {
             Ok(mut state) => {
                 state.enable_login();
                 Ok(AppJson(NewLoginToken {
-                    token: auth_session.backend.get_token(),
+                    token: auth_session.backend.get_token(State(state.clone())),
                 }))
             }
             Err(e) => Err(AppError::Internal(e.to_string())),

@@ -10,11 +10,11 @@ use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};
 use tracing::info;
 mod admin;
-mod auth;
+pub mod auth;
 mod docs;
 mod session;
 mod test;
-mod token;
+pub mod token;
 mod workstation;
 use crate::api::auth::Backend;
 use crate::app_state::SharedState;
@@ -63,20 +63,17 @@ impl ApiModule for APIModule {
 }
 
 ///Adds all routes for all API modules
-pub fn router() -> AppRouter {
+pub fn router(auth_backend: Backend) -> AppRouter {
     let key = cookie::Key::generate();
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_signed(key.clone());
-    let mut auth_backend = auth::Backend::new();
-
-    let token = auth_backend.reset_token();
-    info!("Login credentials::\nToken: {}", token);
-    let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
+    let auth_layer =
+        AuthManagerLayerBuilder::new(auth_backend.clone(), session_layer.clone()).build();
     APIModule::main()
         .route_layer(login_required!(Backend))
-        .nest("/session/", session::router())
+        .nest("/session/", session::router(auth_backend))
         .layer(MessagesManagerLayer)
         .layer(auth_layer)
         // everything above auth_layer is private and requires authentication

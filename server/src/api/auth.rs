@@ -1,7 +1,12 @@
-use crate::response::AppError;
+use crate::{
+    app_state::{AppState, SharedState},
+    response::AppError,
+};
 use async_trait::async_trait;
+use axum::extract::State;
 use axum_login::{AuthUser, AuthnBackend, UserId};
 use std::fmt;
+use tracing::debug;
 //use jiff::{Timestamp, Zoned};
 use serde::Deserialize;
 //use tracing::debug;
@@ -9,6 +14,7 @@ use utoipa::ToSchema;
 
 use super::token::generate_token;
 
+pub const TOKEN_CACHE_NAME: &str = "token";
 const ADMIN_USER: &str = "admin";
 
 #[derive(Clone, Debug, Default)]
@@ -32,25 +38,41 @@ impl AuthUser for User {
 
 #[derive(Clone)]
 pub struct Backend {
+    state: State<SharedState>,
     user: User,
-    token: String,
 }
 impl Backend {
-    pub fn new() -> Self {
+    pub fn new(state: &SharedState) -> Self {
         Self {
             user: User::default(),
-            token: generate_token(),
+            state: State(state.clone()),
         }
     }
-    pub fn reset_token(&mut self) -> String {
-        self.token = generate_token();
-        self.token.clone()
+    pub fn reset_token(&mut self, State(state): State<SharedState>) -> String {
+        debug!("reset_token() ...");
+        match state.write() {
+            Ok(mut s) => {
+                s.cache_set_string(TOKEN_CACHE_NAME, &generate_token());
+                match s.cache_get_string(TOKEN_CACHE_NAME, "").as_str() {
+                    "" => panic!("Could not retrieve the token cache entry just set?!"),
+                    q => q.to_string(),
+                }
+            }
+            Err(e) => panic!("Failed to reset token: {:?}", e),
+        }
     }
-    pub fn verify_token(&self, token: &str) -> bool {
-        token == self.token
+    pub fn verify_token(&self, token: &str, State(state): State<SharedState>) -> bool {
+        token
+            == state
+                .read()
+                .expect("Could not read state")
+                .cache_get_string(TOKEN_CACHE_NAME, &generate_token())
     }
-    pub fn get_token(&self) -> String {
-        self.token.clone()
+    pub fn get_token(&self, State(state): State<AppState>) -> String {
+        state.cache_get_string(TOKEN_CACHE_NAME, &generate_token())
+    }
+    pub fn get_state(&self) -> State<SharedState> {
+        self.state.clone()
     }
 }
 
@@ -79,7 +101,7 @@ impl AuthnBackend for Backend {
         &self,
         Credentials { token }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        if self.verify_token(&token) {
+        if self.verify_token(&token, self.state.clone()) {
             Ok(Some(self.user.clone()))
         } else {
             Ok(None)

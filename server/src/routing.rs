@@ -68,6 +68,6 @@ pub fn route(
         "" => "/".to_string(),
         p2 => format!("/{}/", p2),
     };
-    debug!("{:?}", p);
+    //debug!("{:?}", p);
     Router::new().route(&p, method_router)
 }
