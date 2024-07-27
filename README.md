@@ -1,15 +1,20 @@
 # dry_console
 
-A workstation tool for managing remote Docker instances and
-applications, deployed by [d.rymcg.tech](d.rymcg.tech).
+A workstation tool for managing remote Docker servers/VMs, and for
+deploying containers with [d.rymcg.tech](d.rymcg.tech).
 
-This application is implemented as a local web service, which opens
-automatically in your preferred web browser. Security of the
-application relies upon a one-time password, which is randomized on
-each startup, and then it disables the login service to prevent future
-attempts. Therefore, the cookie assigned to your web browser becomes
-the only authorized client key. To login again, you need to restart
-the service.
+`dry_console` is implemented as a local web service, and it opens
+automatically in your preferred web browser. Security of this powerful
+application is a top concern. Authentication relies upon a
+one-time-use token, which is randomized on each startup of
+`dry_console`. The client must provide this token in the URL (which it
+does automatically, when the browser is opened via `dry_console`), and
+after the first successful login, the login service is disabled to
+prevent all future login attempts. Therefore, the cookie assigned to
+the first authenticated web browser becomes the only authorized client
+key. To allow multiple sessions, this client may reset the token in
+the admin interface, otherwise you can simply restart `dry_console` to
+create a new session (invalidating all others).
 
 # Platforms
 

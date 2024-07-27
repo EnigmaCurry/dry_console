@@ -15,7 +15,6 @@ pub fn router() -> Router<SharedState> {
         .merge(SwaggerUi::new("/ui").url("/api/docs/openapi.json/", ApiDoc::openapi()))
         .merge(docs())
         .merge(ui())
-        .with_state(SharedState::default())
 }
 
 #[utoipa::path(

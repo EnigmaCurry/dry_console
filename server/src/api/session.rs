@@ -1,6 +1,6 @@
 use crate::{
     api::auth::{Backend, Credentials},
-    app_state::SharedState,
+    app_state::{SharedState},
     response::{AppJson, JsonResult},
     routing::route,
     AppRouter,
@@ -21,13 +21,14 @@ use utoipa::ToSchema;
 
 const LOGGED_IN_KEY: &str = "logged_in";
 
-pub fn router() -> Router<SharedState> {
+pub fn router(backend: Backend) -> Router<SharedState> {
+    let s = backend.get_state();
     Router::new()
         .merge(session())
         .merge(login())
         .merge(logout())
         .merge(read_messages())
-        .with_state(SharedState::default())
+        .with_state(s.0)
 }
 
 #[derive(Default, Serialize, ToSchema)]
@@ -49,8 +50,22 @@ pub struct SessionMessages {
     ),
 )]
 fn session() -> AppRouter {
-    async fn handler(session: Session) -> JsonResult<SessionState> {
+    async fn handler(
+        session: Session,
+        state: State<SharedState>,
+        auth_session: AuthSession<Backend>,
+    ) -> JsonResult<SessionState> {
         let logged_in = is_logged_in(session).await;
+        match state.read() {
+            Ok(s) => {
+                println!(
+                    "session token: {}",
+                    auth_session.backend.get_token(State(s.clone()))
+                );
+            }
+            Err(e) => panic!("{}", e),
+        }
+
         Ok(AppJson(SessionState { logged_in }))
     }
     route("/", get(handler))
@@ -91,21 +106,25 @@ fn login() -> AppRouter {
                 return StatusCode::INTERNAL_SERVER_ERROR.into_response();
             }
         }
-        debug!("{:?}", creds);
+        //debug!("{:?}", creds);
         let user = match auth_session.authenticate(creds.clone()).await {
             Ok(Some(user)) => {
                 match state.write() {
                     Ok(mut s) => {
+                        // Successful login.
                         // User login is disallowed a second time
                         // Until admin re-enables login service:
                         s.disable_login();
-                        user
                     }
                     Err(e) => {
                         debug!("{:?}", e);
                         return StatusCode::INTERNAL_SERVER_ERROR.into_response();
                     }
                 }
+                // Tokens are one-time passwords, reset it now:
+                let _token = auth_session.backend.reset_token(State(state.clone()));
+                //info!("\n\nNew login credentials::\nToken: {}\n", token);
+                user
             }
             Ok(None) => {
                 warn!("Attempted login with invalid username or password.");
@@ -138,10 +157,7 @@ fn login() -> AppRouter {
     )
 )]
 fn logout() -> AppRouter {
-    async fn handler(
-        mut auth_session: AuthSession<Backend>,
-        State(state): State<SharedState>,
-    ) -> impl IntoResponse {
+    async fn handler(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
         let status_code = match auth_session.logout().await {
             Ok(_) => StatusCode::OK,
             Err(e) => {

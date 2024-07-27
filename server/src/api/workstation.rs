@@ -6,7 +6,6 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .merge(workstation())
         .merge(workstation_dependencies())
-        .with_state(SharedState::default())
 }
 
 fn workstation() -> Router<SharedState> {

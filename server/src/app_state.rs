@@ -1,23 +1,28 @@
+use crate::api::auth::TOKEN_CACHE_NAME;
+use crate::api::token::generate_token;
+use crate::response::AppError;
 use axum::body::Bytes;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use tracing::debug;
-
-use crate::response::AppError;
+use tracing::{debug, info};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Global app state
 ////////////////////////////////////////////////////////////////////////////////
+#[derive(Clone, Debug)]
 pub struct AppState {
     cache: HashMap<String, Bytes>,
     login_allowed: bool,
 }
 impl Default for AppState {
     fn default() -> Self {
-        AppState {
-            cache: HashMap::new(),
+        let token = generate_token();
+        let s = AppState {
+            cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token.clone()))]),
             login_allowed: true,
-        }
+        };
+        info!("\n\nLogin credential generated:\nToken: {}\n", token);
+        s
     }
 }
 impl AppState {
