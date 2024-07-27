@@ -698,6 +698,7 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",
+ "walkdir",
 ]
 
 [[package]]

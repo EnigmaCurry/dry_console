@@ -22,7 +22,7 @@ use tower::ServiceExt;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::info;
+use tracing::{debug, info};
 
 const API_PREFIX: &str = "/api";
 
@@ -32,7 +32,7 @@ pub type AppMethodRouter = MethodRouter<SharedState, Infallible>;
 ////////////////////////////////////////////////////////////////////////////////
 // static assets
 ////////////////////////////////////////////////////////////////////////////////
-
+include!(concat!(env!("OUT_DIR"), "/generated_includes.rs"));
 const CLIENT_INDEX_HTML: &[u8] = include_bytes!("../../dist/index.html");
 const CLIENT_JS: &[u8] = include_bytes!("../../dist/frontend.js");
 const CLIENT_WASM: &[u8] = include_bytes!("../../dist/frontend_bg.wasm");
@@ -55,6 +55,14 @@ async fn client_wasm() -> impl IntoResponse {
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/wasm")],
         CLIENT_WASM,
+    )
+}
+
+async fn serve_inline_js_file(content: &'static [u8]) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/javascript")],
+        content,
     )
 }
 
@@ -103,13 +111,17 @@ async fn main() {
     info!("listening on http://{sock_addr}");
     let shared_state = app_state::SharedState::default();
     let auth_backend = Backend::new(&shared_state);
-
+    let inline_js_files = get_inline_js_files();
     let mut app = Router::new()
         .layer(routing::SlashRedirectLayer)
         .nest(API_PREFIX, api::router(auth_backend))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
-        .route("/frontend_bg.wasm", get(client_wasm))
+        .route("/frontend_bg.wasm", get(client_wasm));
+    for (name, content) in inline_js_files {
+        app = app.route(name, get(move || serve_inline_js_file(content)));
+    }
+    let mut app = app
         .route("/*else", get(client_index_html))
         .layer(AddExtensionLayer::new(shutdown_tx.clone()))
         .layer(TraceLayer::new_for_http())

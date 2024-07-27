@@ -47,3 +47,6 @@ utoipauto = "0.1.12"
 
 # [[package]]
 # path = ../
+
+[build-dependencies]
+walkdir = "2.5.0"
