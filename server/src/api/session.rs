@@ -1,6 +1,6 @@
 use crate::{
     api::auth::{Backend, Credentials},
-    app_state::{AppState, SharedState},
+    app_state::{SharedState},
     response::{AppJson, JsonResult},
     routing::route,
     AppRouter,

@@ -8,7 +8,6 @@ use axum_login::tower_sessions::{MemoryStore, SessionManagerLayer};
 use axum_login::{login_required, AuthManagerLayerBuilder};
 use axum_messages::MessagesManagerLayer;
 use enum_iterator::{all, Sequence};
-use tracing::info;
 mod admin;
 pub mod auth;
 mod docs;
