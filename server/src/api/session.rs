@@ -49,8 +49,12 @@ pub struct SessionMessages {
     ),
 )]
 fn session() -> AppRouter {
-    async fn handler(session: Session) -> JsonResult<SessionState> {
+    async fn handler(
+        session: Session,
+        auth_session: AuthSession<Backend>,
+    ) -> JsonResult<SessionState> {
         let logged_in = is_logged_in(session).await;
+        println!("session token: {}", auth_session.backend.get_token());
         Ok(AppJson(SessionState { logged_in }))
     }
     route("/", get(handler))
@@ -96,9 +100,16 @@ fn login() -> AppRouter {
             Ok(Some(user)) => {
                 match state.write() {
                     Ok(mut s) => {
+                        // Successful login.
                         // User login is disallowed a second time
                         // Until admin re-enables login service:
                         s.disable_login();
+                        // Tokens are one-time passwords, reset it now:
+                        println!("Initial token: {}", auth_session.backend.get_token());
+                        println!("\n\nreset");
+                        let token = auth_session.backend.reset_token();
+                        info!("Login credentials::\nToken: {}", token);
+                        println!("Token after reset: {}", auth_session.backend.get_token());
                         user
                     }
                     Err(e) => {

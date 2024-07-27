@@ -1,18 +1,15 @@
 use crate::response::AppError;
 use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use sha2::{Digest, Sha256};
 use std::fmt;
 //use jiff::{Timestamp, Zoned};
 use serde::Deserialize;
 //use tracing::debug;
 use utoipa::ToSchema;
 
-use super::token::{self, generate_token};
+use super::token::generate_token;
 
 const ADMIN_USER: &str = "admin";
-const TOKEN_EXPIRATION_MINUTES: i64 = 60;
-const PLACEHOLDER_SALT: &str = "default";
 
 #[derive(Clone, Debug, Default)]
 pub struct User {
@@ -36,21 +33,24 @@ impl AuthUser for User {
 #[derive(Clone)]
 pub struct Backend {
     user: User,
-    secret: Vec<u8>,
+    token: String,
 }
 impl Backend {
-    pub fn new(secret: &[u8]) -> Self {
-        return Self {
+    pub fn new() -> Self {
+        Self {
             user: User::default(),
-            secret: secret[..32].to_vec(),
-        };
+            token: generate_token(),
+        }
     }
-    pub fn reset_token(&mut self) -> Result<String, Box<dyn std::error::Error>> {
-        self.user = User {};
-        generate_token(&self.secret, TOKEN_EXPIRATION_MINUTES)
+    pub fn reset_token(&mut self) -> String {
+        self.token = generate_token();
+        self.token.clone()
     }
     pub fn verify_token(&self, token: &str) -> bool {
-        token::validate_token(&token, &self.secret).unwrap_or(false)
+        token == self.token
+    }
+    pub fn get_token(&self) -> String {
+        self.token.clone()
     }
 }
 
@@ -89,17 +89,4 @@ impl AuthnBackend for Backend {
     async fn get_user(&self, _user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         Ok(Some(self.user.clone()))
     }
-}
-
-pub fn derive_key(input: &[u8]) -> [u8; 32] {
-    fn derive_key_with_salt(input: &[u8], salt: &[u8]) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        hasher.update(input);
-        hasher.update(salt);
-        let result = hasher.finalize();
-        let mut secret = [0u8; 32];
-        secret.copy_from_slice(&result);
-        secret
-    }
-    derive_key_with_salt(input, PLACEHOLDER_SALT.as_bytes())
 }

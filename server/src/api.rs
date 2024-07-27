@@ -69,11 +69,9 @@ pub fn router() -> AppRouter {
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_signed(key.clone());
-    let mut auth_backend = auth::Backend::new(&auth::derive_key(key.master()));
+    let mut auth_backend = auth::Backend::new();
 
-    let token = auth_backend
-        .reset_token()
-        .expect("Failed to generate token");
+    let token = auth_backend.reset_token();
     info!("Login credentials::\nToken: {}", token);
     let auth_layer = AuthManagerLayerBuilder::new(auth_backend, session_layer.clone()).build();
     APIModule::main()
