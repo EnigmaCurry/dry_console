@@ -31,10 +31,22 @@ pub struct PageProps {
 
 #[function_component(AppPage)]
 fn page(props: &PageProps) -> Html {
-    let tools = html!();
-    let brand = html!();
+    let tools = html! { "tools!" };
+    let brand = html! { "brand!" };
+    let sidebar = html_nested! {
+    <PageSidebar>
+      <Nav>
+        <NavList>
+          <NavExpandable>
+            <NavRouterItem<AppRoute> to={AppRoute::Index}>
+              {"Index"}
+            </NavRouterItem<AppRoute>>
+          </NavExpandable>
+        </NavList>
+       </Nav>
+     </PageSidebar> };
     html! (
-        <Page {brand} {tools}>
+        <Page {tools} {brand} {sidebar} >
             { for props.children.iter() }
         </Page>
     )
