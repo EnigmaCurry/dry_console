@@ -58,10 +58,13 @@ async fn client_wasm() -> impl IntoResponse {
     )
 }
 
-async fn serve_inline_js_file(content: &'static [u8]) -> impl IntoResponse {
+async fn serve_inline_file(
+    content: &'static [u8],
+    content_type: &'static str,
+) -> impl IntoResponse {
     (
         StatusCode::OK,
-        [(header::CONTENT_TYPE, "application/javascript")],
+        [(header::CONTENT_TYPE, content_type)],
         content,
     )
 }
@@ -111,15 +114,15 @@ async fn main() {
     info!("listening on http://{sock_addr}");
     let shared_state = app_state::SharedState::default();
     let auth_backend = Backend::new(&shared_state);
-    let inline_js_files = get_inline_js_files();
+    let inline_files = get_inline_files();
     let mut app = Router::new()
         .layer(routing::SlashRedirectLayer)
         .nest(API_PREFIX, api::router(auth_backend))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
-    for (name, content) in inline_js_files {
-        app = app.route(name, get(move || serve_inline_js_file(content)));
+    for (name, content, content_type) in inline_files {
+        app = app.route(name, get(move || serve_inline_file(content, content_type)));
     }
     let mut app = app
         .route("/*else", get(client_index_html))

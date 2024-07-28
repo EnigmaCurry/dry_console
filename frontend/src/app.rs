@@ -12,9 +12,13 @@ pub enum AppRoute {
 #[function_component(Application)]
 pub fn app() -> Html {
     html! {
-        <Router<AppRoute> default={AppRoute::Index}>
-            <RouterSwitch<AppRoute> render={switch_app_route} />
-        </Router<AppRoute>>
+        <BackdropViewer>
+          <ToastViewer>
+            <Router<AppRoute> default={AppRoute::Index}>
+              <RouterSwitch<AppRoute> render={switch_app_route} />
+            </Router<AppRoute>>
+          </ToastViewer>
+        </BackdropViewer>
     }
 }
 

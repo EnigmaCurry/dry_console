@@ -16,7 +16,7 @@ fn main() {
     // Write the start of the function definition to the generated file
     writeln!(
         file,
-        "pub fn get_inline_js_files() -> Vec<(&'static str, &'static [u8])> {{"
+        "pub fn get_inline_files() -> Vec<(&'static str, &'static [u8], &'static str)> {{"
     )
     .unwrap();
     writeln!(file, "    vec![").unwrap();
@@ -30,27 +30,28 @@ fn main() {
                 .map_or(false, |f| f.ends_with(".js"))
         {
             let relative_path = entry.path().strip_prefix("..").unwrap();
-            let parent_dir = entry
-                .path()
-                .parent()
-                .unwrap()
-                .file_name()
-                .unwrap()
-                .to_string_lossy();
-            let parent_dir_name = parent_dir;
 
             writeln!(
                 file,
-                "        (\"{}\", include_bytes!(\"../../../../../{}\")),",
+                "        (\"{}\", include_bytes!(\"../../../../../{}\"), \"{}\"),",
                 relative_path
                     .to_string_lossy()
                     .strip_prefix("dist")
                     .unwrap(),
-                relative_path.to_string_lossy()
+                relative_path.to_string_lossy(),
+                "application/javascript"
             )
             .unwrap();
         }
     }
+
+    // Patternfly CSS
+    // TODO: Tree shake this 1.5MB
+    writeln!(
+        file,
+        "        (\"/patternfly.min.css\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css\"), \"text/css\"),",
+    )
+    .unwrap();
 
     // Write the end of the function definition
     writeln!(file, "    ]").unwrap();
