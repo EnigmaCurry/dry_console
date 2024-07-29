@@ -52,6 +52,18 @@ fn main() {
     )
     .unwrap();
 
+    // Patternfly fonts
+    writeln!(
+        file,
+        "        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"../../../../../frontend/node_modules/@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),",
+    )
+    .unwrap();
+    writeln!(
+        file,
+        "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
+    )
+    .unwrap();
+
     // Write the end of the function definition
     writeln!(file, "    ]").unwrap();
     writeln!(file, "}}").unwrap();
