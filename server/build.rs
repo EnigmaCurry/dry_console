@@ -33,13 +33,12 @@ fn main() {
 
             writeln!(
                 file,
-                "        (\"{}\", include_bytes!(\"../../../../../{}\"), \"{}\"),",
+                "        (\"{}\", include_bytes!(\"../../../../../{}\"), \"application/javascript\"),",
                 relative_path
                     .to_string_lossy()
                     .strip_prefix("dist")
                     .unwrap(),
-                relative_path.to_string_lossy(),
-                "application/javascript"
+                relative_path.to_string_lossy()
             )
             .unwrap();
         }

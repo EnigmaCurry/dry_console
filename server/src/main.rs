@@ -22,7 +22,7 @@ use tower::ServiceExt;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::{debug, info};
+use tracing::{info};
 
 const API_PREFIX: &str = "/api";
 
