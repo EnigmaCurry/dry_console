@@ -44,6 +44,13 @@ fn main() {
         }
     }
 
+    // App CSS
+    writeln!(
+        file,
+        "        (\"/style.css\", include_bytes!(\"../../../../../frontend/style.css\"), \"text/css\"),",
+    )
+    .unwrap();
+
     // Patternfly CSS
     // TODO: Tree shake this 1.5MB
     writeln!(
