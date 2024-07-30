@@ -1,5 +1,5 @@
 use crate::index::*;
-use log::debug;
+use log::info;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 use yew_nested_router::prelude::{Switch as RouterSwitch, *};
@@ -12,57 +12,26 @@ pub enum AppRoute {
 
 #[function_component(Application)]
 pub fn app() -> Html {
-    let sidebar_open = use_state(|| false);
-    let toggle_sidebar = {
-        let sidebar_open = sidebar_open.clone();
-        Callback::from(move |_: MouseEvent| {
-            sidebar_open.set(!*sidebar_open);
-            debug!("sidebar_open: {:?}", *sidebar_open);
-        })
-    };
-    let close_sidebar = {
-        let sidebar_open = sidebar_open.clone();
-        Callback::from(move |_: MouseEvent| {
-            sidebar_open.set(false);
-            debug!("sidebar_open: {:?}", *sidebar_open);
-        })
-    };
-
-    let close_sidebar = {
-        let sidebar_open = sidebar_open.clone();
-        Callback::from(move |_| {
-            sidebar_open.set(false);
-        })
-    };
-
     html! {
         <BackdropViewer>
           <ToastViewer>
             <Router<AppRoute> default={AppRoute::Index}>
-              <RouterSwitch<AppRoute> render={move |target| switch_app_route(target, sidebar_open.clone(), close_sidebar.clone())} />
+              <RouterSwitch<AppRoute> render={switch_app_route} />
             </Router<AppRoute>>
           </ToastViewer>
         </BackdropViewer>
     }
 }
 
-fn switch_app_route(
-    target: AppRoute,
-    sidebar_open: UseStateHandle<bool>,
-    close_sidebar: Callback<()>,
-) -> Html {
+fn switch_app_route(target: AppRoute) -> Html {
     match target {
-        AppRoute::Index => {
-            html! {<AppPage sidebar_open={sidebar_open} close_sidebar={close_sidebar}><Index/></AppPage>}
-        }
+        AppRoute::Index => html! {<AppPage><Index/></AppPage>},
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub struct PageProps {
     pub children: Children,
-    pub sidebar_open: UseStateHandle<bool>,
-    pub close_sidebar: Callback<()>,
 }
 
 #[function_component(AppPage)]
@@ -75,9 +44,11 @@ fn page(props: &PageProps) -> Html {
             <Nav>
                 <NavList>
                     <NavExpandable>
-                        <NavRouterItem<AppRoute> to={AppRoute::Index}>
-                            {"Index"}
-                        </NavRouterItem<AppRoute>>
+                        <NavItem>
+                            <NavRouterItem<AppRoute> to={AppRoute::Index}>
+                                {"Index"}
+                            </NavRouterItem<AppRoute>>
+                        </NavItem>
                     </NavExpandable>
                 </NavList>
             </Nav>
@@ -85,7 +56,7 @@ fn page(props: &PageProps) -> Html {
     };
 
     html! {
-        <Page {tools} {brand} {sidebar} open={*props.sidebar_open}>
+        <Page {brand} {sidebar} {tools} open={false}>
             { for props.children.iter() }
         </Page>
     }
