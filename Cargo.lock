@@ -767,6 +767,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "browser-panic-hook",
+ "gloo-events 0.2.0",
  "gloo-net 0.4.0",
  "gloo-utils 0.2.0",
  "log",

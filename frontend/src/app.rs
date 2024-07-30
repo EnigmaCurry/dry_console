@@ -1,6 +1,7 @@
 use crate::index::*;
-use log::info;
+use gloo_events::EventListener;
 use patternfly_yew::prelude::*;
+use web_sys::window;
 use yew::prelude::*;
 use yew_nested_router::prelude::{Switch as RouterSwitch, *};
 
@@ -36,6 +37,7 @@ pub struct PageProps {
 
 #[function_component(AppPage)]
 fn page(props: &PageProps) -> Html {
+    log::debug!("rendering page");
     let brand = html! { "brand!" };
 
     let sidebar = html_nested! {
@@ -73,6 +75,38 @@ fn page(props: &PageProps) -> Html {
     // toggle dark mode
     let onthemeswitch = use_callback(darkmode.setter(), |state, setter| setter.set(state));
 
+    // track window width
+    let window_width = use_state(|| {
+        window()
+            .expect("Unable to get window object")
+            .inner_width()
+            .expect("Unable to get window width")
+            .as_f64()
+            .expect("Should be a number") as f64
+    });
+
+    {
+        let window_width = window_width.clone();
+        use_effect_with((), move |_| {
+            let window_width = window_width.clone();
+            let listener = EventListener::new(&window().unwrap(), "resize", move |_| {
+                let new_width = window()
+                    .expect("Unable to get window object")
+                    .inner_width()
+                    .expect("Unable to get window width")
+                    .as_f64()
+                    .expect("Should be a number");
+                window_width.set(new_width);
+            });
+
+            || drop(listener)
+        });
+    }
+
+    let open_sidebar = match *window_width {
+        width if width < 1200.0 => false,
+        _ => true,
+    };
     let tools = html!(
         <Toolbar full_height=true>
             <ToolbarContent>
@@ -88,8 +122,9 @@ fn page(props: &PageProps) -> Html {
         </Toolbar>
     );
 
+    log::debug!("open_sidebar: {:?}", open_sidebar);
     html! {
-        <Page {brand} {sidebar} {tools} open={false}>
+        <Page {brand} {sidebar} {tools} open={open_sidebar}>
             { for props.children.iter() }
         </Page>
     }

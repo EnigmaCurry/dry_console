@@ -12,6 +12,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 browser-panic-hook = "0.2.0"
+gloo-events = "0.2.0"
 gloo-net = "0.4"
 gloo-utils = "0.2.0"
 log = "0.4.17"

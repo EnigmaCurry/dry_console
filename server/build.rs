@@ -58,6 +58,11 @@ fn main() {
         "        (\"/patternfly.min.css\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css\"), \"text/css\"),",
     )
     .unwrap();
+    writeln!(
+        file,
+        "        (\"/patternfly.min.css.map\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css.map\"), \"application/octet-stream\"),",
+    )
+    .unwrap();
 
     // Patternfly fonts
     writeln!(
