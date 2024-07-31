@@ -21,6 +21,7 @@ pub struct LoginProps {
 
 #[function_component(Login)]
 pub fn login(props: &LoginProps) -> Html {
+    let toaster = use_toaster().expect("Must be nested inside a ToastViewer");
     let token_state = use_state(|| None::<String>);
     let loading_state = use_state(|| false);
 
@@ -68,14 +69,15 @@ pub fn login(props: &LoginProps) -> Html {
     }
 
     let login_submit = {
-        let token_state = token_state.clone();
-        let loading_state = loading_state.clone();
-        let logged_in = logged_in.clone();
+        let token_state = Rc::new(token_state.clone());
+        let loading_state = Rc::new(loading_state.clone());
+        let logged_in = Rc::new(logged_in.clone());
         let router = router.clone();
         Callback::from(move |e: SubmitEvent| {
             e.prevent_default();
-            match token_state.as_ref() {
+            match &**Rc::clone(&token_state).as_ref() {
                 None => {
+                    toaster.toast("A toast");
                     log::info!("You must enter the token before logging in.");
                 }
                 Some(token) => {
@@ -109,7 +111,7 @@ pub fn login(props: &LoginProps) -> Html {
                     });
                 }
             }
-            if let Some(token) = token_state.as_ref() {}
+            if let Some(token) = &**Rc::clone(&token_state).as_ref() {}
         })
     };
     let logout_submit = {
