@@ -3,8 +3,8 @@ use gloo::utils::window;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Serialize;
-use std::cell::RefCell;
 use std::rc::Rc;
+use std::{cell::RefCell, time::Duration};
 use web_sys::{HtmlInputElement, SubmitEvent};
 use yew::prelude::*;
 use yew_nested_router::prelude::*;
@@ -27,6 +27,18 @@ pub fn login(props: &LoginProps) -> Html {
 
     let logged_in = props.logged_in.clone();
     let router = use_router().unwrap();
+
+    let toast_error = {
+        let toaster = toaster.clone();
+        move |msg: &str| {
+            toaster.toast(Toast {
+                title: msg.into(),
+                timeout: Some(Duration::from_secs(5)),
+                r#type: AlertType::Danger,
+                ..Default::default()
+            });
+        }
+    };
 
     {
         let logged_in = logged_in.clone();
@@ -77,8 +89,7 @@ pub fn login(props: &LoginProps) -> Html {
             e.prevent_default();
             match &**Rc::clone(&token_state).as_ref() {
                 None => {
-                    toaster.toast("A toast");
-                    log::info!("You must enter the token before logging in.");
+                    toast_error("You must enter a token before logging in.");
                 }
                 Some(token) => {
                     let token_clone = token.clone();
