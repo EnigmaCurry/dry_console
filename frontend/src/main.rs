@@ -1,7 +1,5 @@
 mod app;
-mod hello;
-mod index;
-mod login;
+mod pages;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 
 #[cfg(not(debug_assertions))]

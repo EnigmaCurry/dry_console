@@ -11,3 +11,7 @@ description = "dry_console"
 repository = "https://github.com/EnigmaCurry/dry_console"
 documentation = "https://docs.rs/dry_console"
 authors = ["EnigmaCurry <ryan@enigmacurry.com>"]
+
+
+[patch.crates-io]
+patternfly-yew = { path = "../../patternfly-yew/patternfly-yew" }

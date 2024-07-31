@@ -1,11 +1,11 @@
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
-#[function_component(Login)]
-pub fn login() -> Html {
+#[function_component(Index)]
+pub fn index() -> Html {
     html! {
         <PageSection>
-            <div><p>{"Login"}</p></div>
+            <div><p>{"Hello patternfly-yew"}</p></div>
         </PageSection>
     }
 }
