@@ -3,8 +3,7 @@ use gloo::utils::window;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Serialize;
-use std::rc::Rc;
-use std::{cell::RefCell, time::Duration};
+use std::{rc::Rc, sync::Arc, time::Duration};
 use web_sys::{HtmlInputElement, SubmitEvent};
 use yew::prelude::*;
 use yew_nested_router::prelude::*;
@@ -27,32 +26,34 @@ pub fn login(props: &LoginProps) -> Html {
 
     let logged_in = props.logged_in.clone();
     let router = use_router().unwrap();
-
-    let toast_error = {
+    let toast = Arc::new({
         let toaster = toaster.clone();
-        move |msg: &str| {
+        move |t: AlertType, msg: &str| {
             toaster.toast(Toast {
                 title: msg.into(),
                 timeout: Some(Duration::from_secs(5)),
-                r#type: AlertType::Danger,
+                r#type: t,
                 ..Default::default()
             });
         }
-    };
+    });
 
     {
         let logged_in = logged_in.clone();
         let loading_state = loading_state.clone();
         let router = router.clone();
+        let toast = toast.clone();
         use_effect_with((), move |_| {
             let location = window().location();
             if let Ok(hash) = location.hash() {
+                gloo::console::log!("Found hash: ", &hash); // Debug log
                 if hash.starts_with("#token:") {
                     let token = hash.trim_start_matches("#token:").to_string();
                     loading_state.set(true);
 
                     let logged_in = logged_in.clone();
                     let router = router.clone();
+                    let toast = toast.clone();
                     wasm_bindgen_futures::spawn_local(async move {
                         let login_data = LoginData { token };
                         let response = Request::post("/api/session/login/")
@@ -64,12 +65,12 @@ pub fn login(props: &LoginProps) -> Html {
 
                         match response {
                             Ok(res) if res.ok() => {
-                                gloo::console::log!("Login successful!");
                                 logged_in.set(true);
+                                toast(AlertType::Success, "Login successful!");
                                 router.push(AppRoute::Index); // Redirect to index after successful login
                             }
                             _ => {
-                                gloo::console::error!("Login failed.");
+                                toast(AlertType::Warning, "Login failed.");
                             }
                         }
                         loading_state.set(false);
@@ -79,17 +80,21 @@ pub fn login(props: &LoginProps) -> Html {
             || ()
         });
     }
-
     let login_submit = {
         let token_state = Rc::new(token_state.clone());
         let loading_state = Rc::new(loading_state.clone());
         let logged_in = Rc::new(logged_in.clone());
         let router = router.clone();
+        let toast = toast.clone();
         Callback::from(move |e: SubmitEvent| {
+            let toast = toast.clone();
             e.prevent_default();
             match &**Rc::clone(&token_state).as_ref() {
                 None => {
-                    toast_error("You must enter a token before logging in.");
+                    toast(
+                        AlertType::Warning,
+                        "You must enter a token before logging in.",
+                    );
                 }
                 Some(token) => {
                     let token_clone = token.clone();
@@ -110,12 +115,17 @@ pub fn login(props: &LoginProps) -> Html {
 
                         match response {
                             Ok(res) if res.ok() => {
-                                gloo::console::log!("Login successful!");
+                                toast(AlertType::Success, "Login successful!");
                                 logged_in_clone.set(true);
                                 router_clone.push(AppRoute::Index); // Redirect to index after successful login
                             }
-                            _ => {
-                                gloo::console::error!("Login failed.");
+                            Ok(r) => match r.status() {
+                                401 => toast(AlertType::Warning, "Invalid token!"),
+                                503 => toast(AlertType::Danger, "Login disabled!"),
+                                _ => toast(AlertType::Danger, "Login error!"),
+                            },
+                            Err(_) => {
+                                toast(AlertType::Danger, "Login failed!");
                             }
                         }
                         loading_state_clone.set(false);
@@ -130,6 +140,7 @@ pub fn login(props: &LoginProps) -> Html {
         let logged_in = Rc::new(logged_in.clone());
         let router = Rc::new(router);
         Callback::from(move |e: SubmitEvent| {
+            let toast = toast.clone();
             e.prevent_default();
 
             let loading_state = Rc::clone(&loading_state);
@@ -143,12 +154,12 @@ pub fn login(props: &LoginProps) -> Html {
 
                 match response {
                     Ok(res) if res.ok() => {
-                        gloo::console::log!("Logged out!");
+                        toast(AlertType::Success, "Logged out!");
                         logged_in.set(false); // Set logged_in to false on logout
                         router.push(AppRoute::Index); // Redirect to index
                     }
                     _ => {
-                        gloo::console::error!("Logout failed.");
+                        toast(AlertType::Danger, "Logout error!");
                     }
                 }
                 loading_state.set(false);

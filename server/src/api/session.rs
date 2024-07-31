@@ -50,22 +50,8 @@ pub struct SessionMessages {
     ),
 )]
 fn session() -> AppRouter {
-    async fn handler(
-        session: Session,
-        state: State<SharedState>,
-        auth_session: AuthSession<Backend>,
-    ) -> JsonResult<SessionState> {
+    async fn handler(session: Session) -> JsonResult<SessionState> {
         let logged_in = is_logged_in(session).await;
-        match state.read() {
-            Ok(s) => {
-                println!(
-                    "session token: {}",
-                    auth_session.backend.get_token(State(s.clone()))
-                );
-            }
-            Err(e) => panic!("{}", e),
-        }
-
         Ok(AppJson(SessionState { logged_in }))
     }
     route("/", get(handler))
