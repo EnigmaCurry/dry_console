@@ -49,6 +49,7 @@ build: build-frontend
 
 # Build (release)
 build-release:
+    cd frontend; npm ci;
     RUSTFLAGS="-D warnings" RELEASE_BUILD_ARGS="--release" just build
 
 # Install binary (to ~/.cargo/bin/)
