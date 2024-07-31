@@ -93,6 +93,10 @@ jobs:
         with:
           name: dist
           path: dist
+      - name: Install node-modules
+        run: |
+          cd frontend
+          npm ci
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v0
         with:
