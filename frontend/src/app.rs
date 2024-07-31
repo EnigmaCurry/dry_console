@@ -74,16 +74,20 @@ async fn check_logged_in() -> Result<bool, Error> {
 #[function_component(Application)]
 pub fn app() -> Html {
     let logged_in = use_state(|| false);
+    let checking_session = use_state(|| true);
 
     {
         let logged_in = logged_in.clone();
+        let checking_session = checking_session.clone();
         use_effect_with((), move |_| {
             let logged_in = logged_in.clone();
+            let checking_session = checking_session.clone();
             spawn_local(async move {
                 match check_logged_in().await {
                     Ok(status) => logged_in.set(status),
                     Err(_) => log::error!("Failed to fetch session status"),
                 }
+                checking_session.set(false); // Session check is complete
             });
             || ()
         });
@@ -94,8 +98,11 @@ pub fn app() -> Html {
             <ToastViewer>
                 <Router<AppRoute> default={AppRoute::Index}>
                     <RouterSwitch<AppRoute> render={move |route| {
-                        if *logged_in || matches!(route, AppRoute::Login) {
-                            switch_app_route(route)
+                        if *checking_session {
+                            // Optionally, you could return a loading indicator here while checking the session
+                            html! { <div>{"Checking session..."}</div> }
+                        } else if *logged_in || matches!(route, AppRoute::Login) {
+                            switch_app_route(route, logged_in.clone())
                         } else {
                             html! { <Redirect to={AppRoute::Login} /> }
                         }
@@ -106,10 +113,10 @@ pub fn app() -> Html {
     }
 }
 
-fn switch_app_route(target: AppRoute) -> Html {
+fn switch_app_route(target: AppRoute, logged_in: UseStateHandle<bool>) -> Html {
     match target {
         AppRoute::Index => html! {<AppPage><index::Index/></AppPage>},
-        AppRoute::Login => html! {<AppPage><login::Login/></AppPage>},
+        AppRoute::Login => html! {<AppPage><login::Login logged_in={logged_in}/></AppPage>},
     }
 }
 
