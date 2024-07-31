@@ -8,9 +8,9 @@ use crate::{
 use axum::{
     extract::State,
     http::{header, HeaderValue, StatusCode},
-    response::IntoResponse,
+    response::{IntoResponse, Json},
     routing::{get, post},
-    Json, Router,
+    Router,
 };
 use axum_login::tower_sessions::Session;
 use axum_login::AuthSession;
@@ -35,11 +35,26 @@ pub fn router(backend: Backend) -> Router<SharedState> {
 pub struct SessionState {
     /// Is the current user logged in?
     logged_in: bool,
+    /// Are new logins allowed?
+    new_login_allowed: bool,
 }
 
 #[derive(Default, Serialize, ToSchema)]
 pub struct SessionMessages {
     messages: Vec<String>,
+}
+
+fn is_new_login_allowed(state: SharedState) -> bool {
+    match state.read() {
+        Ok(s) => {
+            if !s.is_login_allowed() {
+                false
+            } else {
+                true
+            }
+        }
+        Err(_) => false,
+    }
 }
 
 #[utoipa::path(
@@ -50,9 +65,14 @@ pub struct SessionMessages {
     ),
 )]
 fn session() -> AppRouter {
-    async fn handler(session: Session) -> JsonResult<SessionState> {
+    async fn handler(session: Session, State(state): State<SharedState>) -> impl IntoResponse {
+        let new_login_allowed = is_new_login_allowed(state);
         let logged_in = is_logged_in(session).await;
-        Ok(AppJson(SessionState { logged_in }))
+        Json(SessionState {
+            logged_in,
+            new_login_allowed,
+        })
+        .into_response()
     }
     route("/", get(handler))
 }
@@ -74,7 +94,11 @@ fn login() -> AppRouter {
     ) -> impl IntoResponse {
         if is_logged_in(session.clone()).await {
             info!("User already logged in.");
-            return AppJson(SessionState { logged_in: true }).into_response();
+            return AppJson(SessionState {
+                logged_in: true,
+                new_login_allowed: is_new_login_allowed(state),
+            })
+            .into_response();
         }
         match state.read() {
             Ok(s) => {
@@ -129,6 +153,7 @@ fn login() -> AppRouter {
         info!("User successfully logged in - now disabling all future logins");
         AppJson(SessionState {
             logged_in: is_logged_in(session).await,
+            new_login_allowed: is_new_login_allowed(state),
         })
         .into_response()
     }
@@ -143,7 +168,10 @@ fn login() -> AppRouter {
     )
 )]
 fn logout() -> AppRouter {
-    async fn handler(mut auth_session: AuthSession<Backend>) -> impl IntoResponse {
+    async fn handler(
+        mut auth_session: AuthSession<Backend>,
+        State(state): State<SharedState>,
+    ) -> impl IntoResponse {
         let status_code = match auth_session.logout().await {
             Ok(_) => StatusCode::OK,
             Err(e) => {
@@ -159,7 +187,10 @@ fn logout() -> AppRouter {
         (
             status_code,
             headers,
-            AppJson(SessionState { logged_in: false }),
+            AppJson(SessionState {
+                logged_in: false,
+                new_login_allowed: is_new_login_allowed(state),
+            }),
         )
             .into_response()
     }

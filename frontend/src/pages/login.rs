@@ -1,4 +1,4 @@
-use crate::app::AppRoute;
+use crate::app::{AppRoute, SessionState};
 use gloo::utils::window;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
@@ -15,7 +15,7 @@ struct LoginData {
 
 #[derive(Properties, PartialEq)]
 pub struct LoginProps {
-    pub logged_in: UseStateHandle<bool>,
+    pub session_state: UseStateHandle<crate::app::SessionState>,
 }
 
 #[function_component(Login)]
@@ -24,7 +24,7 @@ pub fn login(props: &LoginProps) -> Html {
     let token_state = use_state(|| None::<String>);
     let loading_state = use_state(|| false);
 
-    let logged_in = props.logged_in.clone();
+    let session_state = props.session_state.clone();
     let router = use_router().unwrap();
     let toast = Arc::new({
         let toaster = toaster.clone();
@@ -39,7 +39,7 @@ pub fn login(props: &LoginProps) -> Html {
     });
 
     {
-        let logged_in = logged_in.clone();
+        let session_state = session_state.clone();
         let loading_state = loading_state.clone();
         let router = router.clone();
         let toast = toast.clone();
@@ -51,7 +51,7 @@ pub fn login(props: &LoginProps) -> Html {
                     let token = hash.trim_start_matches("#token:").to_string();
                     loading_state.set(true);
 
-                    let logged_in = logged_in.clone();
+                    let session_state = session_state.clone();
                     let router = router.clone();
                     let toast = toast.clone();
                     wasm_bindgen_futures::spawn_local(async move {
@@ -65,7 +65,10 @@ pub fn login(props: &LoginProps) -> Html {
 
                         match response {
                             Ok(res) if res.ok() => {
-                                logged_in.set(true);
+                                session_state.set(SessionState {
+                                    logged_in: true,
+                                    new_login_allowed: false,
+                                });
                                 toast(AlertType::Success, "Login successful!");
                                 router.push(AppRoute::Index); // Redirect to index after successful login
                             }
@@ -83,7 +86,7 @@ pub fn login(props: &LoginProps) -> Html {
     let login_submit = {
         let token_state = Rc::new(token_state.clone());
         let loading_state = Rc::new(loading_state.clone());
-        let logged_in = Rc::new(logged_in.clone());
+        let session_state = Rc::new(session_state.clone());
         let router = router.clone();
         let toast = toast.clone();
         Callback::from(move |e: SubmitEvent| {
@@ -99,7 +102,7 @@ pub fn login(props: &LoginProps) -> Html {
                 Some(token) => {
                     let token_clone = token.clone();
                     let loading_state_clone = loading_state.clone();
-                    let logged_in_clone = logged_in.clone();
+                    let session_state_clone = session_state.clone();
                     let router_clone = router.clone();
 
                     loading_state.set(true);
@@ -116,7 +119,10 @@ pub fn login(props: &LoginProps) -> Html {
                         match response {
                             Ok(res) if res.ok() => {
                                 toast(AlertType::Success, "Login successful!");
-                                logged_in_clone.set(true);
+                                session_state_clone.set(SessionState {
+                                    logged_in: true,
+                                    new_login_allowed: false,
+                                });
                                 router_clone.push(AppRoute::Index); // Redirect to index after successful login
                             }
                             Ok(r) => match r.status() {
@@ -137,7 +143,7 @@ pub fn login(props: &LoginProps) -> Html {
     };
     let logout_submit = {
         let loading_state = Rc::new(loading_state.clone());
-        let logged_in = Rc::new(logged_in.clone());
+        let session_state = Rc::new(session_state.clone());
         let router = Rc::new(router);
         Callback::from(move |e: SubmitEvent| {
             let toast = toast.clone();
@@ -146,7 +152,7 @@ pub fn login(props: &LoginProps) -> Html {
             let loading_state = Rc::clone(&loading_state);
             loading_state.set(true);
 
-            let logged_in = Rc::clone(&logged_in);
+            let session_state = Rc::clone(&session_state);
             let router = Rc::clone(&router);
 
             wasm_bindgen_futures::spawn_local(async move {
@@ -155,8 +161,11 @@ pub fn login(props: &LoginProps) -> Html {
                 match response {
                     Ok(res) if res.ok() => {
                         toast(AlertType::Success, "Logged out!");
-                        logged_in.set(false); // Set logged_in to false on logout
-                        router.push(AppRoute::Index); // Redirect to index
+                        session_state.set(SessionState {
+                            logged_in: false,
+                            new_login_allowed: false,
+                        });
+                        router.push(AppRoute::Index);
                     }
                     _ => {
                         toast(AlertType::Danger, "Logout error!");
@@ -181,13 +190,15 @@ pub fn login(props: &LoginProps) -> Html {
             if *loading_state {
                 <div>{"Logging in..."}</div>
             } else {
-                if *logged_in {
+                if (*session_state).logged_in {
                     <div>
                       <div>{"Already logged in."}</div>
                         <form onsubmit={logout_submit}>
                             <Button label="Logout" r#type={ButtonType::Submit} />
                         </form>
                     </div>
+                } else if ! (*session_state).new_login_allowed {
+                      <div>{"No new logins allowed (restart this service to create a new session)."}</div>
                 } else {
                     <div>
                         <p>{"Login"}</p>

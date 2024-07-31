@@ -1,6 +1,6 @@
 use crate::pages::index;
 use crate::pages::login;
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
@@ -28,9 +28,10 @@ impl Into<&'static str> for AppRoute {
     }
 }
 
-#[derive(Deserialize, Debug)]
-struct SessionState {
-    logged_in: bool,
+#[derive(Deserialize, Debug, Default, Clone, PartialEq)]
+pub struct SessionState {
+    pub logged_in: bool,
+    pub new_login_allowed: bool,
 }
 
 #[function_component(Redirect)]
@@ -60,31 +61,34 @@ struct RedirectProps {
     to: AppRoute,
 }
 
-async fn check_logged_in() -> Result<bool, Error> {
+async fn check_session_state() -> Result<SessionState, Error> {
     let response = Request::get("/api/session").send().await?;
 
-    if response.status() == 200 {
-        let session: SessionState = response.json().await?;
-        Ok(session.logged_in)
-    } else {
-        Ok(false)
+    match response.status() {
+        200 => {
+            let session: SessionState = response.json().await?;
+            Ok(session)
+        }
+        i => Err(anyhow!("Bad response code: {i}")),
     }
 }
 
 #[function_component(Application)]
 pub fn app() -> Html {
-    let logged_in = use_state(|| false);
+    let session_state = use_state(|| SessionState::default());
     let checking_session = use_state(|| true);
 
     {
-        let logged_in = logged_in.clone();
+        let session_state = session_state.clone();
         let checking_session = checking_session.clone();
         use_effect_with((), move |_| {
-            let logged_in = logged_in.clone();
+            let session_state = session_state.clone();
             let checking_session = checking_session.clone();
             spawn_local(async move {
-                match check_logged_in().await {
-                    Ok(status) => logged_in.set(status),
+                match check_session_state().await {
+                    Ok(state) => {
+                        session_state.set(state);
+                    }
                     Err(_) => log::error!("Failed to fetch session status"),
                 }
                 checking_session.set(false); // Session check is complete
@@ -97,12 +101,12 @@ pub fn app() -> Html {
         <BackdropViewer>
             <ToastViewer>
                 <Router<AppRoute> default={AppRoute::Index}>
-                    <RouterSwitch<AppRoute> render={move |route| {
+            <RouterSwitch<AppRoute> render={move |route| {
                         if *checking_session {
                             // Optionally, you could return a loading indicator here while checking the session
                             html! { <div>{"Checking session..."}</div> }
-                        } else if *logged_in || matches!(route, AppRoute::Login) {
-                            switch_app_route(route, logged_in.clone())
+                        } else if session_state.logged_in || matches!(route, AppRoute::Login) {
+                            switch_app_route(route, session_state.clone())
                         } else {
                             html! { <Redirect to={AppRoute::Login} /> }
                         }
@@ -113,10 +117,12 @@ pub fn app() -> Html {
     }
 }
 
-fn switch_app_route(target: AppRoute, logged_in: UseStateHandle<bool>) -> Html {
+fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState>) -> Html {
     match target {
         AppRoute::Index => html! {<AppPage><index::Index/></AppPage>},
-        AppRoute::Login => html! {<AppPage><login::Login logged_in={logged_in}/></AppPage>},
+        AppRoute::Login => {
+            html! {<AppPage><login::Login {session_state}/></AppPage>}
+        }
     }
 }
 
