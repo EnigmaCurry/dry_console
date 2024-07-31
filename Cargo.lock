@@ -767,6 +767,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "browser-panic-hook",
+ "gloo 0.11.0",
  "gloo-events 0.2.0",
  "gloo-net 0.4.0",
  "gloo-utils 0.2.0",
@@ -776,6 +777,7 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-logger",
  "web-sys",
