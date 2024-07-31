@@ -109,8 +109,12 @@ clean-dist:
 clean-release:
     rm -rf release
 
+# cleans ./frontend/node_modules
+clean-node-modules:
+    rm -rf frontend/node_modules
+
 # clean all artifacts
-clean: clean-dist clean-release
+clean: clean-dist clean-release clean-node-modules
     cargo clean
 
 # Install dry_console as a systemd service
