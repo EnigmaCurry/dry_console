@@ -1,7 +1,7 @@
 use crate::{
     api::auth::{Backend, Credentials},
     app_state::SharedState,
-    response::{AppJson, JsonResult},
+    response::{AppJson},
     routing::route,
     AppRouter,
 };
@@ -47,11 +47,7 @@ pub struct SessionMessages {
 fn is_new_login_allowed(state: SharedState) -> bool {
     match state.read() {
         Ok(s) => {
-            if !s.is_login_allowed() {
-                false
-            } else {
-                true
-            }
+            !(!s.is_login_allowed())
         }
         Err(_) => false,
     }
