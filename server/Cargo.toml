@@ -12,7 +12,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.86"
 aper = "0.3.0"
-argon2 = "0.5.3"
 async-trait = "0.1.81"
 axum = { version = "0.7.5", features = ["macros", "ws"] }
 axum-login = "0.15.3"
@@ -25,7 +24,6 @@ enum-iterator = "2.1.0"
 hostname = "0.4.0"
 hyper = { version = "1.4.1", features = ["full"] }
 hyper-util = "0.1.6"
-jiff = { version = "0.1.0", features = ["serde"] }
 open = "5.2.0"
 rand = "0.8.5"
 regex = "1.10.5"
@@ -49,3 +47,6 @@ utoipauto = "0.1.12"
 
 # [[package]]
 # path = ../
+
+[build-dependencies]
+walkdir = "2.5.0"

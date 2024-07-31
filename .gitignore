@@ -3,3 +3,4 @@ target-trunk/
 /dist/
 /.log/
 /release/
+node_modules/

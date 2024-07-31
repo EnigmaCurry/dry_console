@@ -3,20 +3,8 @@
 A workstation tool for managing remote Docker servers/VMs, and for
 deploying containers with [d.rymcg.tech](d.rymcg.tech).
 
-`dry_console` is implemented as a local web service, and it opens
-automatically in your preferred web browser. Security of this powerful
-application is a top concern. Authentication relies upon a
-one-time-use token, which is randomized on each startup of
-`dry_console`. The client must provide this token in the URL (which it
-does automatically, when the browser is opened via `dry_console`), and
-after the first successful login, the login service is disabled to
-prevent all future login attempts. Therefore, the cookie assigned to
-the first authenticated web browser becomes the only authorized client
-key. To allow multiple sessions, this client may reset the token in
-the admin interface, otherwise you can simply restart `dry_console` to
-create a new session (invalidating all others).
 
-# Platforms
+## Platforms
 
 This tool is built for the following platforms:
 
@@ -29,7 +17,25 @@ This tool is built for the following platforms:
 
 For MS Windows, use the Linux version inside WSL2.
 
-# Install script
+## Implementation
+
+`dry_console` is implemented as a local web service that you launch
+from your terminal, which automatically opens up your preferred web
+browser, and logs you into the application. Security for this powerful
+application is a top concern. Authentication relies upon a
+one-time-use token, which is randomized on each startup of
+`dry_console`. The client must provide this token in the URL (which it
+does automatically, when the browser is opened via `dry_console`), and
+after the first successful login, the login service is disabled to
+prevent all future login attempts. Therefore, the cookie that is
+assigned to the first authenticated web browser becomes the only
+authorized client key. To allow multiple sessions, there is an option
+in the admin interface: the first client may reset the token, which
+allows one additional client to login (this may be repeated for N
+clients), but otherwise you can simply restart `dry_console` to create
+a new session (invalidating all others).
+
+## Install script
 
 The release is self-contained in a single binary, so you may install it however you like.
 To automate the install system wide, you may copy and paste this *entire* code block 
@@ -71,13 +77,15 @@ chosen `INSTALL_DIR` (`/usr/local/bin` by default). It may prompt you
 to enter your password as it does this. If you don't need to use
 `sudo`, set `USE_SUDO=false`.
 
-# Development
+## Development
 
 dry_console is a full stack Rust web app using [axum](https://github.com/tokio-rs/axum) and [yew](https://yew.rs/). 
 
-## Dependencies
+### Dependencies
 
  * Rust and Cargo installed via [rustup](https://rustup.rs/).
+
+ * `npm` (NodeJS) installed via your OS package manager.
 
  * [Just](https://github.com/casey/just?tab=readme-ov-file#readme)
  
@@ -106,9 +114,9 @@ added to your shell's `PATH` variable.)
 just run
 ```
 
-## Release (Github actions)
+### Release (Github actions)
 
-### Bump release version
+#### Bump release version
 
 Update the version number in Cargo.toml, Cargo.lock, and README.md as
 suggested by git-cliff:
@@ -117,12 +125,12 @@ suggested by git-cliff:
 just bump-version
 ```
 
-### Make PR with the changeset
+#### Make PR with the changeset
 
 Branch protection is enabled, all changesets must come in the form of
 a Pull Request.
 
-### Merge PR and tag release
+#### Merge PR and tag release
 
 Once the PR is merged, tag the release `vX.X.X` and push it to the
 `master` branch.
