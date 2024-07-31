@@ -138,7 +138,6 @@ pub fn login(props: &LoginProps) -> Html {
                     });
                 }
             }
-            if let Some(token) = &**Rc::clone(&token_state).as_ref() {}
         })
     };
     let logout_submit = {
