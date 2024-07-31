@@ -33,7 +33,7 @@ fn main() {
 
             writeln!(
                 file,
-                "        (\"{}\", include_bytes!(\"../../../../../{}\"), \"application/javascript\"),",
+                "        (\"{}\", include_bytes!(\"../../../../../../{}\"), \"application/javascript\"),",
                 relative_path
                     .to_string_lossy()
                     .strip_prefix("dist")
@@ -47,7 +47,7 @@ fn main() {
     // App CSS
     writeln!(
         file,
-        "        (\"/style.css\", include_bytes!(\"../../../../../frontend/style.css\"), \"text/css\"),",
+        "        (\"/style.css\", include_bytes!(\"../../../../../../frontend/style.css\"), \"text/css\"),",
     )
     .unwrap();
 
@@ -55,24 +55,24 @@ fn main() {
     // TODO: Tree shake this 1.5MB
     writeln!(
         file,
-        "        (\"/patternfly.min.css\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css\"), \"text/css\"),",
+        "        (\"/patternfly.min.css\", include_bytes!(\"../../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css\"), \"text/css\"),",
     )
     .unwrap();
     writeln!(
         file,
-        "        (\"/patternfly.min.css.map\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css.map\"), \"application/octet-stream\"),",
+        "        (\"/patternfly.min.css.map\", include_bytes!(\"../../../../../../frontend/node_modules/@patternfly/patternfly/patternfly.min.css.map\"), \"application/octet-stream\"),",
     )
     .unwrap();
 
     // Patternfly fonts
     writeln!(
         file,
-        "        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"../../../../../frontend/node_modules/@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),",
+        "        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"../../../../../../frontend/node_modules/@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),",
     )
     .unwrap();
     writeln!(
         file,
-        "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"../../../../../frontend/node_modules/@patternfly/patternfly/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
+        "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"../../../../../../frontend/node_modules/@patternfly/patternfly/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
     )
     .unwrap();
 
