@@ -13,5 +13,5 @@ documentation = "https://docs.rs/dry_console"
 authors = ["EnigmaCurry <ryan@enigmacurry.com>"]
 
 
-[patch.crates-io]
-patternfly-yew = { path = "../../patternfly-yew/patternfly-yew" }
+# [patch.crates-io]
+# patternfly-yew = { path = "../../patternfly-yew/patternfly-yew" }
