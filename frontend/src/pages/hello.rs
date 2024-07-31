@@ -34,13 +34,11 @@ fn hello_server() -> Html {
 
     match data.as_ref() {
         None => {
-            panic!("testing");
             html! {
                 <div>{"No server response"}</div>
             }
         }
         Some(Ok(data)) => {
-            panic!("testing");
             html! {
                 <div>{"Got server response: "}{data}</div>
             }
