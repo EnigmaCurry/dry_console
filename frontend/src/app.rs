@@ -1,5 +1,5 @@
 use crate::components::logout;
-use crate::pages::{apps, host, index, login, routes};
+use crate::pages::{apps, host, login, routes};
 use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
 use gloo_net::http::Request;
@@ -165,6 +165,7 @@ fn top_bar_menu() -> Html {
             AppRoute::Host => Some(TopMenuChoices::Host),
             AppRoute::Apps => Some(TopMenuChoices::Apps),
             AppRoute::Routes => Some(TopMenuChoices::Routes),
+            #[allow(unreachable_patterns)]
             _ => None,
         },
     };
