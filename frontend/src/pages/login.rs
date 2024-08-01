@@ -31,7 +31,10 @@ pub fn login(props: &LoginProps) -> Html {
         move |t: AlertType, msg: &str| {
             toaster.toast(Toast {
                 title: msg.into(),
-                timeout: Some(Duration::from_secs(5)),
+                timeout: Some(Duration::from_secs(match t {
+                    AlertType::Danger => 5,
+                    _ => 2,
+                })),
                 r#type: t,
                 ..Default::default()
             });
@@ -70,7 +73,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     new_login_allowed: false,
                                 });
                                 toast(AlertType::Success, "Login successful!");
-                                router.push(AppRoute::Index); // Redirect to index after successful login
+                                router.push(AppRoute::Host);
                             }
                             _ => {
                                 toast(AlertType::Warning, "Login failed.");
@@ -83,6 +86,7 @@ pub fn login(props: &LoginProps) -> Html {
             || ()
         });
     }
+
     let login_submit = {
         let token_state = Rc::new(token_state.clone());
         let loading_state = Rc::new(loading_state.clone());
@@ -123,7 +127,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     logged_in: true,
                                     new_login_allowed: false,
                                 });
-                                router_clone.push(AppRoute::Index); // Redirect to index after successful login
+                                router_clone.push(AppRoute::Host); // Redirect to index after successful login
                             }
                             Ok(r) => match r.status() {
                                 401 => toast(AlertType::Warning, "Invalid token!"),
@@ -164,7 +168,7 @@ pub fn login(props: &LoginProps) -> Html {
                             logged_in: false,
                             new_login_allowed: false,
                         });
-                        router.push(AppRoute::Index);
+                        router.push(AppRoute::Host);
                     }
                     _ => {
                         toast(AlertType::Danger, "Logout error!");
@@ -197,7 +201,7 @@ pub fn login(props: &LoginProps) -> Html {
                         </form>
                     </div>
                 } else if ! (*session_state).new_login_allowed {
-                      <div>{"No new logins allowed (restart this service to create a new session)."}</div>
+                      <div>{"You are logged out. No new sessions are allowed. (You must restart this service to create a new session)."}</div>
                 } else {
                     <div>
                         <p>{"Login"}</p>

@@ -15,6 +15,7 @@ browser-panic-hook = "0.2.0"
 gloo = "0.11.0"
 gloo-events = "0.2.0"
 gloo-net = "0.4"
+gloo-storage = "0.3.0"
 gloo-utils = "0.2.0"
 log = "0.4.17"
 patternfly-yew = { version = "0.6.2", features = ["icons-fab", "tree"] }

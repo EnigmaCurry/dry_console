@@ -1,29 +1,43 @@
-use crate::pages::index;
-use crate::pages::login;
+use crate::components::logout;
+use crate::pages::{apps, host, index, login, routes};
 use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
 use gloo_net::http::Request;
+use gloo_storage;
+use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
-use strum::IntoEnumIterator;
+//use strum::IntoEnumIterator;
+use strum_macros::Display;
 use strum_macros::EnumIter;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::window;
 use yew::prelude::*;
 use yew_nested_router::prelude::{Switch as RouterSwitch, *};
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Target, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+enum TopMenuChoices {
+    Host,
+    Apps,
+    Routes,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Target, EnumIter, Display)]
 pub enum AppRoute {
     #[default]
-    Index,
+    Host,
+    Apps,
+    Routes,
     Login,
 }
 
 impl Into<&'static str> for AppRoute {
     fn into(self) -> &'static str {
         match self {
-            AppRoute::Index => "Index",
             AppRoute::Login => "Login",
+            AppRoute::Host => "Host",
+            AppRoute::Apps => "Apps",
+            AppRoute::Routes => "Routes",
         }
     }
 }
@@ -100,7 +114,7 @@ pub fn app() -> Html {
     html! {
         <BackdropViewer>
             <ToastViewer>
-                <Router<AppRoute> default={AppRoute::Index}>
+                <Router<AppRoute> default={AppRoute::Host}>
             <RouterSwitch<AppRoute> render={move |route| {
                         if *checking_session {
                             // Optionally, you could return a loading indicator here while checking the session
@@ -119,69 +133,159 @@ pub fn app() -> Html {
 
 fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState>) -> Html {
     match target {
-        AppRoute::Index => html! {<AppPage><index::Index/></AppPage>},
         AppRoute::Login => {
-            html! {<AppPage><login::Login {session_state}/></AppPage>}
+            html! {<AppPage session_state={session_state.clone()}><login::Login session_state={session_state.clone()}/></AppPage>}
+        }
+        AppRoute::Host => {
+            html! {<AppPage {session_state}><host::Host/></AppPage>}
+        }
+        AppRoute::Apps => {
+            html! {<AppPage {session_state}><apps::Apps/></AppPage>}
+        }
+        AppRoute::Routes => {
+            html! {<AppPage {session_state}><routes::Routes/></AppPage>}
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
-pub struct PageProps {
+pub struct AppPageProps {
     pub children: Children,
+    pub session_state: UseStateHandle<crate::app::SessionState>,
 }
 
-fn sidebar() -> Html {
-    let nav_items = AppRoute::iter()
-        .map(|route| {
-            let route_name: &'static str = route.clone().into();
-            html_nested! {
-                <NavItem>
-                    <NavRouterItem<AppRoute> to={route}>
-                        {route_name}
-                    </NavRouterItem<AppRoute>>
-                </NavItem>
-            }
+#[function_component(TopBarMenu)]
+fn top_bar_menu() -> Html {
+    let navigator = use_router::<AppRoute>().unwrap();
+    log::info!("{:?}", navigator.active_target);
+    let choice = match navigator.active_target {
+        None => None,
+        Some(ref c) => match c {
+            AppRoute::Login => Some(TopMenuChoices::Host),
+            AppRoute::Host => Some(TopMenuChoices::Host),
+            AppRoute::Apps => Some(TopMenuChoices::Apps),
+            AppRoute::Routes => Some(TopMenuChoices::Routes),
+            _ => None,
+        },
+    };
+    let selected = use_state(|| choice);
+    let callback = {
+        let selected = selected.clone();
+        use_callback(selected.clone(), move |input: TopMenuChoices, selected| {
+            selected.set(Some(input));
+            let route = match input {
+                TopMenuChoices::Host => AppRoute::Host,
+                TopMenuChoices::Apps => AppRoute::Apps,
+                TopMenuChoices::Routes => AppRoute::Routes,
+            };
+            navigator.push(route); // This will navigate and trigger a re-render
+            ()
         })
-        .collect::<Html>();
+    };
+
+    html! {
+        <ToggleGroup>
+            <ToggleGroupItem
+                text="Host"
+                key=0
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Host); () }}
+                selected={*selected == Some(TopMenuChoices::Host)}
+            />
+            <ToggleGroupItem
+                text="Apps"
+                key=1
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Apps); () }}
+                selected={*selected == Some(TopMenuChoices::Apps)}
+            />
+            <ToggleGroupItem
+                text="Routes"
+                key=2
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Routes); () }}
+                selected={*selected == Some(TopMenuChoices::Routes)}
+            />
+        </ToggleGroup>
+    }
+}
+
+fn sidebar(
+    darkmode: UseStateHandle<bool>,
+    onthemeswitch: Callback<bool>,
+    session_state: UseStateHandle<crate::app::SessionState>,
+) -> Html {
+    // let nav_items = AppRoute::iter()
+    //     .map(|route| {
+    //         let route_name: &'static str = route.clone().into();
+    //         html_nested! {
+    //             <NavItem>
+    //                 <NavRouterItem<AppRoute> to={route}>
+    //                     {route_name}
+    //                 </NavRouterItem<AppRoute>>
+    //             </NavItem>
+    //         }
+    //     })
+    //     .collect::<Html>();
 
     html_nested! {
-            <Nav>
-                <NavList>
-                    <NavExpandable title="Routes">
-                        {nav_items}
-                    </NavExpandable>
-                </NavList>
-            </Nav>
+        <Nav>
+            <NavList>
+                // <NavExpandable title="Routes" expanded={false}>
+                //     {nav_items}
+                // </NavExpandable>
+                <NavExpandable title="Preferences" expanded={true}>
+                    <NavItem>
+                        <patternfly_yew::prelude::Switch
+                            checked={*darkmode}
+                            onchange={onthemeswitch}
+                            label="Dark Theme"
+                        />
+                    </NavItem>
+                </NavExpandable>
+                <NavExpandable title="Session" expanded={true}>
+                    <NavItem>
+                      <logout::Logout {session_state}/>
+                    </NavItem>
+                </NavExpandable>
+            </NavList>
+        </Nav>
     }
     .into()
 }
 
 #[function_component(AppPage)]
-fn page(props: &PageProps) -> Html {
+fn page(props: &AppPageProps) -> Html {
     log::debug!("rendering page");
-    let brand = html! { "brand!" };
+    let brand = html! { <a href="/">{"dry_console"}</a> };
 
-    // track dark mode state
     let darkmode = use_state_eq(|| {
-        gloo_utils::window()
-            .match_media("(prefers-color-scheme: dark)")
-            .ok()
-            .flatten()
-            .map(|m| m.matches())
-            .unwrap_or_default()
+        if let Some(storage) = gloo_storage::LocalStorage::get("dark_mode").ok() {
+            storage
+        } else {
+            gloo_utils::window()
+                .match_media("(prefers-color-scheme: dark)")
+                .ok()
+                .flatten()
+                .map(|m| m.matches())
+                .unwrap_or_default()
+        }
     });
 
-    // apply dark mode
-    use_effect_with(*darkmode, |state| match state {
-        true => gloo_utils::document_element().set_class_name("pf-v5-theme-dark"),
-        false => gloo_utils::document_element().set_class_name(""),
-    });
+    {
+        let darkmode = darkmode.clone();
+        use_effect_with(*darkmode, move |state| {
+            if let Err(e) = gloo_storage::LocalStorage::set("dark_mode", *state) {
+                log::error!("Failed to store dark mode state: {:?}", e);
+            }
+
+            match state {
+                true => gloo_utils::document_element().set_class_name("pf-v5-theme-dark"),
+                false => gloo_utils::document_element().set_class_name(""),
+            }
+        });
+    }
 
     // toggle dark mode
     let onthemeswitch = use_callback(darkmode.setter(), |state, setter| setter.set(state));
 
-    // track window width
     let window_width = use_state(|| {
         window()
             .expect("Unable to get window object")
@@ -213,22 +317,25 @@ fn page(props: &PageProps) -> Html {
         width if width < 1200.0 => false,
         _ => true,
     };
+
+    let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone(), props.session_state.clone())}</PageSidebar>};
     let tools = html!(
         <Toolbar full_height=true>
             <ToolbarContent>
                 <ToolbarGroup
                     modifiers={ToolbarElementModifier::Right.all()}
                     variant={GroupVariant::IconButton}
-                >
-                    <ToolbarItem>
-                        <patternfly_yew::prelude::Switch checked={*darkmode} onchange={onthemeswitch} label="Dark Theme" />
-                    </ToolbarItem>
+             >
+             { if props.session_state.logged_in {
+                 html! { <TopBarMenu /> }
+             } else {
+                 html! { }
+             }}
                 </ToolbarGroup>
             </ToolbarContent>
         </Toolbar>
     );
 
-    let sidebar = html_nested! {<PageSidebar>{sidebar()}</PageSidebar>};
     html! {
         <Page {brand} {sidebar} {tools} {open}>
             { for props.children.iter() }

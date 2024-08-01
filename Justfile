@@ -19,8 +19,7 @@ deps:
     cargo install --locked trunk; \
     cargo install --locked git-cliff; \
     cargo install --locked cargo-edit; \
-    
-    
+
 # Install rust depdencies (precompiled)
 bin-deps:
     rustup target add wasm32-unknown-unknown
@@ -29,12 +28,8 @@ bin-deps:
 
 # Run (development)
 run:
-    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT}"
+    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT} --open"
 
-# Open web browser to app URL
-open:
-    xdg-open http://localhost:${HTTP_PORT}
-    
 # Build frontend WASM (debug)
 build-frontend: clean-dist
     cd frontend; npm ci; trunk build ${RELEASE_BUILD_ARGS:-} --filehash false
