@@ -131,7 +131,7 @@ pub struct PageProps {
     pub children: Children,
 }
 
-fn sidebar() -> Html {
+fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Html {
     let nav_items = AppRoute::iter()
         .map(|route| {
             let route_name: &'static str = route.clone().into();
@@ -146,13 +146,22 @@ fn sidebar() -> Html {
         .collect::<Html>();
 
     html_nested! {
-            <Nav>
-                <NavList>
-                    <NavExpandable title="Routes">
-                        {nav_items}
-                    </NavExpandable>
-                </NavList>
-            </Nav>
+        <Nav>
+            <NavList>
+                <NavExpandable title="Routes">
+                    {nav_items}
+                </NavExpandable>
+                <NavExpandable title="Settings">
+                    <NavItem>
+                        <patternfly_yew::prelude::Switch
+                            checked={*darkmode}
+                            onchange={onthemeswitch}
+                            label="Dark Theme"
+                        />
+                    </NavItem>
+                </NavExpandable>
+            </NavList>
+        </Nav>
     }
     .into()
 }
@@ -220,15 +229,15 @@ fn page(props: &PageProps) -> Html {
                     modifiers={ToolbarElementModifier::Right.all()}
                     variant={GroupVariant::IconButton}
                 >
-                    <ToolbarItem>
-                        <patternfly_yew::prelude::Switch checked={*darkmode} onchange={onthemeswitch} label="Dark Theme" />
-                    </ToolbarItem>
+                    // <ToolbarItem>
+                    //     <patternfly_yew::prelude::Switch checked={*darkmode} onchange={onthemeswitch.clone()} label="Dark Theme" />
+                    // </ToolbarItem>
                 </ToolbarGroup>
             </ToolbarContent>
         </Toolbar>
     );
 
-    let sidebar = html_nested! {<PageSidebar>{sidebar()}</PageSidebar>};
+    let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone())}</PageSidebar>};
     html! {
         <Page {brand} {sidebar} {tools} {open}>
             { for props.children.iter() }
