@@ -63,33 +63,33 @@ fn main() {
 
     // App CSS
     writeln!(
-        file, "{}",
-        format!("        (\"/style.css\", include_bytes!(\"{project_root}/frontend/style.css\"), \"text/css\"),"),
+        file,
+        "        (\"/style.css\", include_bytes!(\"{project_root}/frontend/style.css\"), \"text/css\"),"
     )
     .unwrap();
 
     // Patternfly CSS
     // TODO: Tree shake this 1.5MB
     writeln!(
-        file, "{}",
-        format!("        (\"/patternfly.min.css\", include_bytes!(\"{dist_dir}/patternfly.min.css\"), \"text/css\"),"),
+        file,
+        "        (\"/patternfly.min.css\", include_bytes!(\"{dist_dir}/patternfly.min.css\"), \"text/css\"),",
     )
     .unwrap();
     writeln!(
-        file, "{}",
-        format!("        (\"/patternfly.min.css.map\", include_bytes!(\"{dist_dir}/patternfly.min.css.map\"), \"application/octet-stream\"),")
+        file,
+        "        (\"/patternfly.min.css.map\", include_bytes!(\"{dist_dir}/patternfly.min.css.map\"), \"application/octet-stream\"),",
     )
     .unwrap();
 
     // Patternfly fonts
     writeln!(
-        file, "{}",
-        format!("        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),"),
+        file,
+        "        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),",
     )
     .unwrap();
     writeln!(
-        file, "{}",
-        format!("        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),"),
+        file,
+        "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
     )
     .unwrap();
 
