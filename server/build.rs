@@ -21,7 +21,6 @@ fn main() {
         .join("dist")
         .to_string_lossy()
         .to_string();
-    let dist_path = Path::new(&dist_dir);
     let snippets_dir = PathBuf::from(&dist_dir)
         .join("snippets")
         .to_string_lossy()
@@ -53,7 +52,7 @@ fn main() {
                 "        (\"{}\", include_bytes!(\"{}\"), \"application/javascript\"),",
                 asset_path
                     .to_string_lossy()
-                    .strip_prefix(&format!("{dist_dir}"))
+                    .strip_prefix(&dist_dir.to_string())
                     .unwrap(),
                 asset_path.to_string_lossy()
             )
