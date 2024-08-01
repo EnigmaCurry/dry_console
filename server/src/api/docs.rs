@@ -7,7 +7,7 @@ use utoipauto::utoipauto;
 
 #[utoipauto(paths = "./server/src")]
 #[derive(OpenApi)]
-#[openapi()]
+#[openapi(info(contact()))]
 struct ApiDoc;
 
 pub fn router() -> Router<SharedState> {
