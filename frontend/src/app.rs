@@ -24,7 +24,6 @@ enum TopMenuChoices {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target, EnumIter, Display)]
 pub enum AppRoute {
     #[default]
-    Index,
     Host,
     Apps,
     Routes,
@@ -34,7 +33,6 @@ pub enum AppRoute {
 impl Into<&'static str> for AppRoute {
     fn into(self) -> &'static str {
         match self {
-            AppRoute::Index => "Index",
             AppRoute::Login => "Login",
             AppRoute::Host => "Host",
             AppRoute::Apps => "Apps",
@@ -115,7 +113,7 @@ pub fn app() -> Html {
     html! {
         <BackdropViewer>
             <ToastViewer>
-                <Router<AppRoute> default={AppRoute::Index}>
+                <Router<AppRoute> default={AppRoute::Host}>
             <RouterSwitch<AppRoute> render={move |route| {
                         if *checking_session {
                             // Optionally, you could return a loading indicator here while checking the session
@@ -134,7 +132,6 @@ pub fn app() -> Html {
 
 fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState>) -> Html {
     match target {
-        AppRoute::Index => html! {<AppPage><index::Index/></AppPage>},
         AppRoute::Login => {
             html! {<AppPage><login::Login {session_state}/></AppPage>}
         }
@@ -148,11 +145,22 @@ fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState
 pub struct PageProps {
     pub children: Children,
 }
+
 #[function_component(TopBarMenu)]
 fn top_bar_menu() -> Html {
-    let selected = use_state(|| None);
-
     let navigator = use_router::<AppRoute>().unwrap();
+    log::info!("{:?}", navigator.active_target);
+    let choice = match navigator.active_target {
+        None => None,
+        Some(ref c) => match c {
+            AppRoute::Login => Some(TopMenuChoices::Host),
+            AppRoute::Host => Some(TopMenuChoices::Host),
+            AppRoute::Apps => Some(TopMenuChoices::Apps),
+            AppRoute::Routes => Some(TopMenuChoices::Routes),
+            _ => None,
+        },
+    };
+    let selected = use_state(|| choice);
     let callback = {
         let selected = selected.clone();
         use_callback(selected.clone(), move |input: TopMenuChoices, selected| {
