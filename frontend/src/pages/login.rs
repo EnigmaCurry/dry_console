@@ -31,7 +31,10 @@ pub fn login(props: &LoginProps) -> Html {
         move |t: AlertType, msg: &str| {
             toaster.toast(Toast {
                 title: msg.into(),
-                timeout: Some(Duration::from_secs(5)),
+                timeout: Some(Duration::from_secs(match t {
+                    AlertType::Danger => 5,
+                    _ => 2,
+                })),
                 r#type: t,
                 ..Default::default()
             });
@@ -198,7 +201,7 @@ pub fn login(props: &LoginProps) -> Html {
                         </form>
                     </div>
                 } else if ! (*session_state).new_login_allowed {
-                      <div>{"No new logins allowed (restart this service to create a new session)."}</div>
+                      <div>{"You are logged out. No new sessions are allowed. (You must restart this service to create a new session)."}</div>
                 } else {
                     <div>
                         <p>{"Login"}</p>

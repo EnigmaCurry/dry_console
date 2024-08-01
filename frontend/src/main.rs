@@ -1,4 +1,5 @@
 mod app;
+mod components;
 mod pages;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 

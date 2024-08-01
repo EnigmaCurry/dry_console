@@ -1,3 +1,4 @@
+use crate::components::logout;
 use crate::pages::{apps, host, index, login, routes};
 use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
@@ -131,19 +132,18 @@ pub fn app() -> Html {
 }
 
 fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState>) -> Html {
-    let logged_in = session_state.logged_in;
     match target {
         AppRoute::Login => {
-            html! {<AppPage {logged_in}><login::Login {session_state}/></AppPage>}
+            html! {<AppPage session_state={session_state.clone()}><login::Login session_state={session_state.clone()}/></AppPage>}
         }
         AppRoute::Host => {
-            html! {<AppPage {logged_in}><host::Host/></AppPage>}
+            html! {<AppPage {session_state}><host::Host/></AppPage>}
         }
         AppRoute::Apps => {
-            html! {<AppPage {logged_in}><apps::Apps/></AppPage>}
+            html! {<AppPage {session_state}><apps::Apps/></AppPage>}
         }
         AppRoute::Routes => {
-            html! {<AppPage {logged_in}><routes::Routes/></AppPage>}
+            html! {<AppPage {session_state}><routes::Routes/></AppPage>}
         }
     }
 }
@@ -151,7 +151,7 @@ fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub struct AppPageProps {
     pub children: Children,
-    pub logged_in: bool,
+    pub session_state: UseStateHandle<crate::app::SessionState>,
 }
 
 #[function_component(TopBarMenu)]
@@ -207,7 +207,11 @@ fn top_bar_menu() -> Html {
     }
 }
 
-fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Html {
+fn sidebar(
+    darkmode: UseStateHandle<bool>,
+    onthemeswitch: Callback<bool>,
+    session_state: UseStateHandle<crate::app::SessionState>,
+) -> Html {
     // let nav_items = AppRoute::iter()
     //     .map(|route| {
     //         let route_name: &'static str = route.clone().into();
@@ -234,6 +238,11 @@ fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Htm
                             onchange={onthemeswitch}
                             label="Dark Theme"
                         />
+                    </NavItem>
+                </NavExpandable>
+                <NavExpandable title="Session" expanded={true}>
+                    <NavItem>
+                      <logout::Logout {session_state}/>
                     </NavItem>
                 </NavExpandable>
             </NavList>
@@ -309,7 +318,7 @@ fn page(props: &AppPageProps) -> Html {
         _ => true,
     };
 
-    let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone())}</PageSidebar>};
+    let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone(), props.session_state.clone())}</PageSidebar>};
     let tools = html!(
         <Toolbar full_height=true>
             <ToolbarContent>
@@ -317,7 +326,7 @@ fn page(props: &AppPageProps) -> Html {
                     modifiers={ToolbarElementModifier::Right.all()}
                     variant={GroupVariant::IconButton}
              >
-             { if props.logged_in {
+             { if props.session_state.logged_in {
                  html! { <TopBarMenu /> }
              } else {
                  html! { }

@@ -29,7 +29,7 @@ bin-deps:
 
 # Run (development)
 run:
-    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT} --open"
+    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT}"
 
 # Build frontend WASM (debug)
 build-frontend: clean-dist
