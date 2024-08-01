@@ -1,5 +1,4 @@
-use crate::pages::index;
-use crate::pages::login;
+use crate::pages::{apps, host, index, login, routes};
 use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
 use gloo_net::http::Request;
@@ -18,6 +17,9 @@ use yew_nested_router::prelude::{Switch as RouterSwitch, *};
 pub enum AppRoute {
     #[default]
     Index,
+    Host,
+    Apps,
+    Routes,
     Login,
 }
 
@@ -26,6 +28,9 @@ impl Into<&'static str> for AppRoute {
         match self {
             AppRoute::Index => "Index",
             AppRoute::Login => "Login",
+            AppRoute::Host => "Host",
+            AppRoute::Apps => "Apps",
+            AppRoute::Routes => "Routes",
         }
     }
 }
@@ -125,12 +130,56 @@ fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState
         AppRoute::Login => {
             html! {<AppPage><login::Login {session_state}/></AppPage>}
         }
+        AppRoute::Host => html! {<AppPage><host::Host/></AppPage>},
+        AppRoute::Apps => html! {<AppPage><apps::Apps/></AppPage>},
+        AppRoute::Routes => html! {<AppPage><routes::Routes/></AppPage>},
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub struct PageProps {
     pub children: Children,
+}
+#[function_component(TopBarMenu)]
+fn top_bar_menu() -> Html {
+    #[function_component(TopBarMenu2)]
+    fn toggle_group_single_select() -> Html {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum Choices {
+            Host,
+            Apps,
+            Routes,
+        }
+        let selected = use_state(|| None);
+        let callback = use_callback(selected.clone(), |input, selected| {
+            selected.set(Some(input))
+        });
+        html! {
+            <ToggleGroup>
+                <ToggleGroupItem
+                    text="Host"
+                    key=0
+                    onchange={let cb = callback.clone(); move |_| cb.emit(Choices::Host)}
+                    selected={*selected == Some(Choices::Host)}
+                />
+                <ToggleGroupItem
+                    text="Apps"
+                    key=1
+                    onchange={let cb = callback.clone(); move |_| cb.emit(Choices::Apps)}
+                    selected={*selected == Some(Choices::Apps)}
+                />
+                <ToggleGroupItem
+                    text="Routes"
+                    key=2
+                    onchange={let cb = callback.clone(); move |_| cb.emit(Choices::Routes)}
+                    selected={*selected == Some(Choices::Routes)}
+                />
+            </ToggleGroup>
+        }
+    }
+    html! {
+        <TopBarMenu2 />
+    }
 }
 
 fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Html {
@@ -150,10 +199,10 @@ fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Htm
     html_nested! {
         <Nav>
             <NavList>
-                <NavExpandable title="Routes">
-                    {nav_items}
-                </NavExpandable>
-                <NavExpandable title="Settings">
+                // <NavExpandable title="Routes" expanded={false}>
+                //     {nav_items}
+                // </NavExpandable>
+                <NavExpandable title="Settings" expanded={true}>
                     <NavItem>
                         <patternfly_yew::prelude::Switch
                             checked={*darkmode}
@@ -171,7 +220,7 @@ fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Htm
 #[function_component(AppPage)]
 fn page(props: &PageProps) -> Html {
     log::debug!("rendering page");
-    let brand = html! { "brand!" };
+    let brand = html! { <a href="/">{"dry_console"}</a> };
 
     let darkmode = use_state_eq(|| {
         if let Some(storage) = gloo_storage::LocalStorage::get("dark_mode").ok() {
@@ -242,8 +291,8 @@ fn page(props: &PageProps) -> Html {
                 <ToolbarGroup
                     modifiers={ToolbarElementModifier::Right.all()}
                     variant={GroupVariant::IconButton}
-                >
-                    // You can remove the dark mode switch from here if it's only needed in the sidebar
+             >
+                   <TopBarMenu />
                 </ToolbarGroup>
             </ToolbarContent>
         </Toolbar>
