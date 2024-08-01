@@ -117,7 +117,7 @@ async fn main() {
     let inline_files = get_inline_files();
     let mut app = Router::new()
         .layer(routing::SlashRedirectLayer)
-        .nest(API_PREFIX, api::router(opt.clone(), auth_backend))
+        .nest(API_PREFIX, api::router(auth_backend))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
