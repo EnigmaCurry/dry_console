@@ -22,7 +22,7 @@ use tower::ServiceExt;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::{info};
+use tracing::info;
 
 const API_PREFIX: &str = "/api";
 
@@ -72,7 +72,7 @@ async fn serve_inline_file(
 ////////////////////////////////////////////////////////////////////////////////
 // Command line interface
 ////////////////////////////////////////////////////////////////////////////////
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[clap(name = "server", about = "A server for our wasm project!")]
 struct Opt {
     /// set the log level
@@ -117,7 +117,7 @@ async fn main() {
     let inline_files = get_inline_files();
     let mut app = Router::new()
         .layer(routing::SlashRedirectLayer)
-        .nest(API_PREFIX, api::router(auth_backend))
+        .nest(API_PREFIX, api::router(opt.clone(), auth_backend))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
@@ -128,7 +128,7 @@ async fn main() {
         .route("/*else", get(client_index_html))
         .layer(AddExtensionLayer::new(shutdown_tx.clone()))
         .layer(TraceLayer::new_for_http())
-        .with_state(shared_state);
+        .with_state(shared_state.clone());
 
     if cfg!(debug_assertions) {
         info!("Live-Reload is enabled.");
@@ -138,8 +138,14 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&sock_addr)
         .await
         .unwrap_or_else(|_| panic!("Error: unable to bind socket: {sock_addr}"));
+    let token = shared_state
+        .clone()
+        .read()
+        .expect("Unable to read cache")
+        .cache_get_string("token", "xxx");
     if opt.open {
-        open::that(format!("http://{sock_addr}")).expect("Couldn't open web browser.");
+        open::that(format!("http://{sock_addr}/login#token:{token}"))
+            .expect("Couldn't open web browser.");
     }
     let serve_future = async {
         loop {

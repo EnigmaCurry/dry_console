@@ -18,7 +18,7 @@ mod workstation;
 use crate::api::auth::Backend;
 use crate::app_state::SharedState;
 use crate::routing::route;
-use crate::AppRouter;
+use crate::{AppRouter, Opt};
 
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
@@ -62,7 +62,7 @@ impl ApiModule for APIModule {
 }
 
 ///Adds all routes for all API modules
-pub fn router(auth_backend: Backend) -> AppRouter {
+pub fn router(opt: Opt, auth_backend: Backend) -> AppRouter {
     let key = cookie::Key::generate();
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)

@@ -70,7 +70,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     new_login_allowed: false,
                                 });
                                 toast(AlertType::Success, "Login successful!");
-                                router.push(AppRoute::Index); // Redirect to index after successful login
+                                router.push(AppRoute::Index);
                             }
                             _ => {
                                 toast(AlertType::Warning, "Login failed.");
@@ -83,6 +83,7 @@ pub fn login(props: &LoginProps) -> Html {
             || ()
         });
     }
+
     let login_submit = {
         let token_state = Rc::new(token_state.clone());
         let loading_state = Rc::new(loading_state.clone());

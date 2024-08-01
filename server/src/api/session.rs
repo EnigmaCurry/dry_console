@@ -127,7 +127,6 @@ fn login() -> AppRouter {
                 }
                 // Tokens are one-time passwords, reset it now:
                 let _token = auth_session.backend.reset_token(State(state.clone()));
-                //info!("\n\nNew login credentials::\nToken: {}\n", token);
                 user
             }
             Ok(None) => {
