@@ -6,7 +6,7 @@ use gloo_storage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
-use strum::IntoEnumIterator;
+//use strum::IntoEnumIterator;
 use strum_macros::Display;
 use strum_macros::EnumIter;
 use wasm_bindgen_futures::spawn_local;
@@ -192,18 +192,18 @@ fn top_bar_menu() -> Html {
 }
 
 fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Html {
-    let nav_items = AppRoute::iter()
-        .map(|route| {
-            let route_name: &'static str = route.clone().into();
-            html_nested! {
-                <NavItem>
-                    <NavRouterItem<AppRoute> to={route}>
-                        {route_name}
-                    </NavRouterItem<AppRoute>>
-                </NavItem>
-            }
-        })
-        .collect::<Html>();
+    // let nav_items = AppRoute::iter()
+    //     .map(|route| {
+    //         let route_name: &'static str = route.clone().into();
+    //         html_nested! {
+    //             <NavItem>
+    //                 <NavRouterItem<AppRoute> to={route}>
+    //                     {route_name}
+    //                 </NavRouterItem<AppRoute>>
+    //             </NavItem>
+    //         }
+    //     })
+    //     .collect::<Html>();
 
     html_nested! {
         <Nav>
