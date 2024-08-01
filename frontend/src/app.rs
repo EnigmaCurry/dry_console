@@ -3,6 +3,8 @@ use crate::pages::login;
 use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
 use gloo_net::http::Request;
+use gloo_storage;
+use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
 use strum::IntoEnumIterator;
@@ -171,26 +173,36 @@ fn page(props: &PageProps) -> Html {
     log::debug!("rendering page");
     let brand = html! { "brand!" };
 
-    // track dark mode state
     let darkmode = use_state_eq(|| {
-        gloo_utils::window()
-            .match_media("(prefers-color-scheme: dark)")
-            .ok()
-            .flatten()
-            .map(|m| m.matches())
-            .unwrap_or_default()
+        if let Some(storage) = gloo_storage::LocalStorage::get("dark_mode").ok() {
+            storage
+        } else {
+            gloo_utils::window()
+                .match_media("(prefers-color-scheme: dark)")
+                .ok()
+                .flatten()
+                .map(|m| m.matches())
+                .unwrap_or_default()
+        }
     });
 
-    // apply dark mode
-    use_effect_with(*darkmode, |state| match state {
-        true => gloo_utils::document_element().set_class_name("pf-v5-theme-dark"),
-        false => gloo_utils::document_element().set_class_name(""),
-    });
+    {
+        let darkmode = darkmode.clone();
+        use_effect_with(*darkmode, move |state| {
+            if let Err(e) = gloo_storage::LocalStorage::set("dark_mode", *state) {
+                log::error!("Failed to store dark mode state: {:?}", e);
+            }
+
+            match state {
+                true => gloo_utils::document_element().set_class_name("pf-v5-theme-dark"),
+                false => gloo_utils::document_element().set_class_name(""),
+            }
+        });
+    }
 
     // toggle dark mode
     let onthemeswitch = use_callback(darkmode.setter(), |state, setter| setter.set(state));
 
-    // track window width
     let window_width = use_state(|| {
         window()
             .expect("Unable to get window object")
@@ -222,6 +234,8 @@ fn page(props: &PageProps) -> Html {
         width if width < 1200.0 => false,
         _ => true,
     };
+
+    let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone())}</PageSidebar>};
     let tools = html!(
         <Toolbar full_height=true>
             <ToolbarContent>
@@ -229,15 +243,12 @@ fn page(props: &PageProps) -> Html {
                     modifiers={ToolbarElementModifier::Right.all()}
                     variant={GroupVariant::IconButton}
                 >
-                    // <ToolbarItem>
-                    //     <patternfly_yew::prelude::Switch checked={*darkmode} onchange={onthemeswitch.clone()} label="Dark Theme" />
-                    // </ToolbarItem>
+                    // You can remove the dark mode switch from here if it's only needed in the sidebar
                 </ToolbarGroup>
             </ToolbarContent>
         </Toolbar>
     );
 
-    let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone())}</PageSidebar>};
     html! {
         <Page {brand} {sidebar} {tools} {open}>
             { for props.children.iter() }

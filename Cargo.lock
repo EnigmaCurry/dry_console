@@ -770,6 +770,7 @@ dependencies = [
  "gloo 0.11.0",
  "gloo-events 0.2.0",
  "gloo-net 0.4.0",
+ "gloo-storage 0.3.0",
  "gloo-utils 0.2.0",
  "log",
  "patternfly-yew",
