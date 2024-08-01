@@ -7,13 +7,21 @@ use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
 use strum::IntoEnumIterator;
+use strum_macros::Display;
 use strum_macros::EnumIter;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::window;
 use yew::prelude::*;
 use yew_nested_router::prelude::{Switch as RouterSwitch, *};
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Target, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+enum TopMenuChoices {
+    Host,
+    Apps,
+    Routes,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Target, EnumIter, Display)]
 pub enum AppRoute {
     #[default]
     Index,
@@ -142,43 +150,44 @@ pub struct PageProps {
 }
 #[function_component(TopBarMenu)]
 fn top_bar_menu() -> Html {
-    #[function_component(TopBarMenu2)]
-    fn toggle_group_single_select() -> Html {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        enum Choices {
-            Host,
-            Apps,
-            Routes,
-        }
-        let selected = use_state(|| None);
-        let callback = use_callback(selected.clone(), |input, selected| {
-            selected.set(Some(input))
-        });
-        html! {
-            <ToggleGroup>
-                <ToggleGroupItem
-                    text="Host"
-                    key=0
-                    onchange={let cb = callback.clone(); move |_| cb.emit(Choices::Host)}
-                    selected={*selected == Some(Choices::Host)}
-                />
-                <ToggleGroupItem
-                    text="Apps"
-                    key=1
-                    onchange={let cb = callback.clone(); move |_| cb.emit(Choices::Apps)}
-                    selected={*selected == Some(Choices::Apps)}
-                />
-                <ToggleGroupItem
-                    text="Routes"
-                    key=2
-                    onchange={let cb = callback.clone(); move |_| cb.emit(Choices::Routes)}
-                    selected={*selected == Some(Choices::Routes)}
-                />
-            </ToggleGroup>
-        }
-    }
+    let selected = use_state(|| None);
+
+    let navigator = use_router::<AppRoute>().unwrap();
+    let callback = {
+        let selected = selected.clone();
+        use_callback(selected.clone(), move |input: TopMenuChoices, selected| {
+            selected.set(Some(input));
+            let route = match input {
+                TopMenuChoices::Host => AppRoute::Host,
+                TopMenuChoices::Apps => AppRoute::Apps,
+                TopMenuChoices::Routes => AppRoute::Routes,
+            };
+            navigator.push(route); // This will navigate and trigger a re-render
+            ()
+        })
+    };
+
     html! {
-        <TopBarMenu2 />
+        <ToggleGroup>
+            <ToggleGroupItem
+                text="Host"
+                key=0
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Host); () }}
+                selected={*selected == Some(TopMenuChoices::Host)}
+            />
+            <ToggleGroupItem
+                text="Apps"
+                key=1
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Apps); () }}
+                selected={*selected == Some(TopMenuChoices::Apps)}
+            />
+            <ToggleGroupItem
+                text="Routes"
+                key=2
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Routes); () }}
+                selected={*selected == Some(TopMenuChoices::Routes)}
+            />
+        </ToggleGroup>
     }
 }
 
