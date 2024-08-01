@@ -131,19 +131,27 @@ pub fn app() -> Html {
 }
 
 fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState>) -> Html {
+    let logged_in = session_state.logged_in;
     match target {
         AppRoute::Login => {
-            html! {<AppPage><login::Login {session_state}/></AppPage>}
+            html! {<AppPage {logged_in}><login::Login {session_state}/></AppPage>}
         }
-        AppRoute::Host => html! {<AppPage><host::Host/></AppPage>},
-        AppRoute::Apps => html! {<AppPage><apps::Apps/></AppPage>},
-        AppRoute::Routes => html! {<AppPage><routes::Routes/></AppPage>},
+        AppRoute::Host => {
+            html! {<AppPage {logged_in}><host::Host/></AppPage>}
+        }
+        AppRoute::Apps => {
+            html! {<AppPage {logged_in}><apps::Apps/></AppPage>}
+        }
+        AppRoute::Routes => {
+            html! {<AppPage {logged_in}><routes::Routes/></AppPage>}
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
-pub struct PageProps {
+pub struct AppPageProps {
     pub children: Children,
+    pub logged_in: bool,
 }
 
 #[function_component(TopBarMenu)]
@@ -219,7 +227,7 @@ fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Htm
                 // <NavExpandable title="Routes" expanded={false}>
                 //     {nav_items}
                 // </NavExpandable>
-                <NavExpandable title="Settings" expanded={true}>
+                <NavExpandable title="Preferences" expanded={true}>
                     <NavItem>
                         <patternfly_yew::prelude::Switch
                             checked={*darkmode}
@@ -235,7 +243,7 @@ fn sidebar(darkmode: UseStateHandle<bool>, onthemeswitch: Callback<bool>) -> Htm
 }
 
 #[function_component(AppPage)]
-fn page(props: &PageProps) -> Html {
+fn page(props: &AppPageProps) -> Html {
     log::debug!("rendering page");
     let brand = html! { <a href="/">{"dry_console"}</a> };
 
@@ -309,7 +317,11 @@ fn page(props: &PageProps) -> Html {
                     modifiers={ToolbarElementModifier::Right.all()}
                     variant={GroupVariant::IconButton}
              >
-                   <TopBarMenu />
+             { if props.logged_in {
+                 html! { <TopBarMenu /> }
+             } else {
+                 html! { }
+             }}
                 </ToolbarGroup>
             </ToolbarContent>
         </Toolbar>
