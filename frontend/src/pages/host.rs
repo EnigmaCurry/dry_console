@@ -1,4 +1,5 @@
 use patternfly_yew::prelude::*;
+use yew::platform::spawn_local;
 use yew::prelude::*;
 use yew::virtual_dom::VChild;
 
@@ -22,6 +23,7 @@ fn tabs() -> Html {
     )
 }
 
+#[derive(Clone)]
 struct HostDependency {
     name: String,
     installed: Option<bool>,
@@ -39,40 +41,46 @@ impl HostDependency {
         // TODO: check API
         Ok(false)
     }
-
-    async fn get_title(self: &Self) -> String {
-        match self.is_installed().await {
-            Ok(i) => match i {
-                true => format!("✅ {}", self.name),
-                false => format!("⚠️ {}", self.name),
-            },
-            Err(_e) => self.name.to_string(),
-        }
-    }
 }
 
 #[function_component(DependencyList)]
 fn dependency_list() -> Html {
-    let dependencies = vec![
-        HostDependency::new("git"),
-        HostDependency::new("docker"),
-        // Add more dependencies here
-    ];
-    let state = use_state(|| "");
-    let toggle = |key: &'static str| {
-        let state = state.clone();
-        Callback::from(move |_: ()| {
-            state.set(key);
-        })
-    };
+    let dependencies = use_state::<Vec<HostDependency>, _>(|| {
+        vec![
+            HostDependency::new("git"),
+            HostDependency::new("docker"),
+            // Add more dependencies here
+        ]
+    });
 
-    let first_uninstalled = dependencies.iter().position(|dep| !dep.installed);
+    let cloned_dependencies = dependencies.clone();
+
+    use_effect(move || {
+        let dependencies = cloned_dependencies.clone();
+        spawn_local(async move {
+            let mut deps: Vec<HostDependency> = (*dependencies).clone();
+            for dep in deps.iter_mut() {
+                match dep.is_installed().await {
+                    Ok(installed) => dep.installed = Some(installed),
+                    Err(_) => dep.installed = None,
+                }
+            }
+            dependencies.set(deps);
+        });
+        || ()
+    });
 
     let accordion_items = dependencies.iter().enumerate().map(|(index, dep)| {
+        let title = match dep.installed {
+            Some(true) => format!("✅ {}", dep.name),
+            Some(false) => format!("⚠️ {}", dep.name),
+            None => dep.name.clone(),
+        };
+
         html_nested! {
-            <AccordionItem title={dep.get_title()} expanded={first_uninstalled == Some(index)}>
+            <AccordionItem title={title} expanded={false}>
                 <div>
-                    { format!("{} is {}", dep.name, if dep.installed { "installed" } else { "not installed" }) }
+                    { format!("{} is {}", dep.name, if dep.installed.unwrap_or(false) { "installed" } else { "not installed" }) }
                 </div>
             </AccordionItem>
         }
