@@ -101,7 +101,13 @@ async fn main() {
         std::env::set_var("RUST_LOG", format!("{},hyper=info,mio=info", opt.log_level))
     }
     // enable console logging
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::from_default_env()
+                // Suppress DEBUG logging for HTTP requests:
+                .add_directive("tower_http::trace=info".parse().unwrap()),
+        )
+        .init();
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let shutdown_tx = Arc::new(Mutex::new(Some(shutdown_tx)));
@@ -112,7 +118,7 @@ async fn main() {
     ));
 
     info!("listening on http://{sock_addr}");
-    let shared_state = app_state::SharedState::default();
+    let shared_state = app_state::create_shared_state(&opt);
     let auth_backend = Backend::new(&shared_state);
     let inline_files = get_inline_files();
     let mut app = Router::new()

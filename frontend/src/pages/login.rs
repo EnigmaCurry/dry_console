@@ -49,7 +49,6 @@ pub fn login(props: &LoginProps) -> Html {
         use_effect_with((), move |_| {
             let location = window().location();
             if let Ok(hash) = location.hash() {
-                gloo::console::log!("Found hash: ", &hash); // Debug log
                 if hash.starts_with("#token:") {
                     let token = hash.trim_start_matches("#token:").to_string();
                     loading_state.set(true);
@@ -201,7 +200,7 @@ pub fn login(props: &LoginProps) -> Html {
                         </form>
                     </div>
                 } else if ! (*session_state).new_login_allowed {
-                      <div>{"You are logged out. No new sessions are allowed. (You must restart this service to create a new session)."}</div>
+                      <div>{"You are logged out. No new sessions are allowed at this time. (You must restart this service to create a new session)."}</div>
                 } else {
                     <div>
                         <p>{"Login"}</p>

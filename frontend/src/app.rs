@@ -157,7 +157,7 @@ pub struct AppPageProps {
 #[function_component(TopBarMenu)]
 fn top_bar_menu() -> Html {
     let navigator = use_router::<AppRoute>().unwrap();
-    log::info!("{:?}", navigator.active_target);
+    //log::info!("{:?}", navigator.active_target);
     let choice = match navigator.active_target {
         None => None,
         Some(ref c) => match c {
