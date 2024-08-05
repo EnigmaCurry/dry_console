@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use patternfly_yew::prelude::*;
 use yew::platform::spawn_local;
 use yew::prelude::*;
@@ -16,10 +17,12 @@ fn tabs() -> Html {
     html! (
         <>
             <Tabs<HostTab> detached=true {onselect} selected={*selected} r#box=true>
-            <Tab<HostTab> index={HostTab::Dependencies} title="Dependencies"/>
+                <Tab<HostTab> index={HostTab::Dependencies} title="Dependencies"/>
             </Tabs<HostTab>>
-            <section hidden={(*selected) != HostTab::Dependencies}><DependencyList/></section>
-            </>
+            <section hidden={(*selected) != HostTab::Dependencies}>
+                <DependencyList/>
+            </section>
+        </>
     )
 }
 
@@ -37,52 +40,72 @@ impl HostDependency {
         }
     }
 
-    async fn is_installed(self: &Self) -> Result<bool, anyhow::Error> {
-        // TODO: check API
+    async fn is_installed(&self) -> Result<bool, anyhow::Error> {
+        // TODO: Replace with actual API call to check if installed
+        //Err(anyhow!("todo"))
         Ok(false)
     }
 }
 
 #[function_component(DependencyList)]
 fn dependency_list() -> Html {
-    let dependencies = use_state::<Vec<HostDependency>, _>(|| {
+    let dependencies = use_state(|| {
         vec![
             HostDependency::new("git"),
             HostDependency::new("docker"),
             // Add more dependencies here
         ]
     });
+    let is_checked = use_state(|| false);
 
-    let cloned_dependencies = dependencies.clone();
+    {
+        let dependencies = dependencies.clone();
+        let is_checked = is_checked.clone();
 
-    use_effect(move || {
-        let dependencies = cloned_dependencies.clone();
-        spawn_local(async move {
-            let mut deps: Vec<HostDependency> = (*dependencies).clone();
-            for dep in deps.iter_mut() {
-                match dep.is_installed().await {
-                    Ok(installed) => dep.installed = Some(installed),
-                    Err(_) => dep.installed = None,
-                }
+        use_effect(move || {
+            if *is_checked {
+                return Box::new(|| ()) as Box<dyn FnOnce()>;
             }
-            dependencies.set(deps);
-        });
-        || ()
-    });
 
-    let accordion_items = dependencies.iter().enumerate().map(|(index, dep)| {
+            spawn_local(async move {
+                let mut deps = (*dependencies).clone();
+                for dep in deps.iter_mut() {
+                    match dep.is_installed().await {
+                        Ok(installed) => dep.installed = Some(installed),
+                        Err(_) => dep.installed = None,
+                    }
+                }
+                dependencies.set(deps);
+                is_checked.set(true); // Mark dependencies as checked
+            });
+
+            Box::new(|| ()) as Box<dyn FnOnce()>
+        });
+    }
+
+    let state = use_state(|| String::new());
+    let toggle = |key: String| {
+        let state = state.clone();
+        Callback::from(move |_: ()| {
+            state.set(key.clone()); // Clone the key inside the closure
+        })
+    };
+
+    let accordion_items = dependencies.iter().enumerate().map(|(_index, dep)| {
         let title = match dep.installed {
             Some(true) => format!("✅ {}", dep.name),
             Some(false) => format!("⚠️ {}", dep.name),
             None => dep.name.clone(),
         };
 
+        let on_toggle = toggle(dep.name.clone());
+        let is_expanded = *state == dep.name;
         html_nested! {
-            <AccordionItem title={title} expanded={false}>
+            <AccordionItem title={title} expanded={is_expanded} onclick={on_toggle}>
                 <div>
-                    { format!("{} is {}", dep.name, if dep.installed.unwrap_or(false) { "installed" } else { "not installed" }) }
-                </div>
-            </AccordionItem>
+            { format!("{} is {}", dep.name, if dep.installed.unwrap_or(false) { "installed" } else { "not installed" }) }
+            </div>
+                </AccordionItem>
         }
     }).collect::<Vec<VChild<AccordionItem>>>();
 
