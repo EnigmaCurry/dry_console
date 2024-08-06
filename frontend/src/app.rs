@@ -1,5 +1,5 @@
 use crate::components::logout;
-use crate::pages::{apps, host, login, routes};
+use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
 use gloo_events::EventListener;
 use gloo_net::http::Request;
@@ -17,7 +17,7 @@ use yew_nested_router::prelude::{Switch as RouterSwitch, *};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
 enum TopMenuChoices {
-    Host,
+    Workstation,
     Apps,
     Routes,
 }
@@ -25,7 +25,7 @@ enum TopMenuChoices {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target, EnumIter, Display)]
 pub enum AppRoute {
     #[default]
-    Host,
+    Workstation,
     Apps,
     Routes,
     Login,
@@ -35,7 +35,7 @@ impl Into<&'static str> for AppRoute {
     fn into(self) -> &'static str {
         match self {
             AppRoute::Login => "Login",
-            AppRoute::Host => "Host",
+            AppRoute::Workstation => "Workstation",
             AppRoute::Apps => "Apps",
             AppRoute::Routes => "Routes",
         }
@@ -114,7 +114,7 @@ pub fn app() -> Html {
     html! {
         <BackdropViewer>
             <ToastViewer>
-                <Router<AppRoute> default={AppRoute::Host}>
+                <Router<AppRoute> default={AppRoute::Workstation}>
             <RouterSwitch<AppRoute> render={move |route| {
                         if *checking_session {
                             // Optionally, you could return a loading indicator here while checking the session
@@ -136,8 +136,8 @@ fn switch_app_route(target: AppRoute, session_state: UseStateHandle<SessionState
         AppRoute::Login => {
             html! {<AppPage session_state={session_state.clone()}><login::Login session_state={session_state.clone()}/></AppPage>}
         }
-        AppRoute::Host => {
-            html! {<AppPage {session_state}><host::Host/></AppPage>}
+        AppRoute::Workstation => {
+            html! {<AppPage {session_state}><workstation::Workstation/></AppPage>}
         }
         AppRoute::Apps => {
             html! {<AppPage {session_state}><apps::Apps/></AppPage>}
@@ -161,8 +161,8 @@ fn top_bar_menu() -> Html {
     let choice = match navigator.active_target {
         None => None,
         Some(ref c) => match c {
-            AppRoute::Login => Some(TopMenuChoices::Host),
-            AppRoute::Host => Some(TopMenuChoices::Host),
+            AppRoute::Login => Some(TopMenuChoices::Workstation),
+            AppRoute::Workstation => Some(TopMenuChoices::Workstation),
             AppRoute::Apps => Some(TopMenuChoices::Apps),
             AppRoute::Routes => Some(TopMenuChoices::Routes),
             #[allow(unreachable_patterns)]
@@ -175,7 +175,7 @@ fn top_bar_menu() -> Html {
         use_callback(selected.clone(), move |input: TopMenuChoices, selected| {
             selected.set(Some(input));
             let route = match input {
-                TopMenuChoices::Host => AppRoute::Host,
+                TopMenuChoices::Workstation => AppRoute::Workstation,
                 TopMenuChoices::Apps => AppRoute::Apps,
                 TopMenuChoices::Routes => AppRoute::Routes,
             };
@@ -187,10 +187,10 @@ fn top_bar_menu() -> Html {
     html! {
         <ToggleGroup>
             <ToggleGroupItem
-                text="Host"
+                text="Workstation"
                 key=0
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Host); () }}
-                selected={*selected == Some(TopMenuChoices::Host)}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Workstation); () }}
+                selected={*selected == Some(TopMenuChoices::Workstation)}
             />
             <ToggleGroupItem
                 text="Apps"

@@ -72,7 +72,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     new_login_allowed: false,
                                 });
                                 toast(AlertType::Success, "Login successful!");
-                                router.push(AppRoute::Host);
+                                router.push(AppRoute::Workstation);
                             }
                             _ => {
                                 toast(AlertType::Warning, "Login failed.");
@@ -126,7 +126,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     logged_in: true,
                                     new_login_allowed: false,
                                 });
-                                router_clone.push(AppRoute::Host); // Redirect to index after successful login
+                                router_clone.push(AppRoute::Workstation); // Redirect to index after successful login
                             }
                             Ok(r) => match r.status() {
                                 401 => toast(AlertType::Warning, "Invalid token!"),
@@ -167,7 +167,7 @@ pub fn login(props: &LoginProps) -> Html {
                             logged_in: false,
                             new_login_allowed: false,
                         });
-                        router.push(AppRoute::Host);
+                        router.push(AppRoute::Workstation);
                     }
                     _ => {
                         toast(AlertType::Danger, "Logout error!");

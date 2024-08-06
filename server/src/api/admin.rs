@@ -15,7 +15,7 @@ use tokio::sync::{oneshot, Mutex};
 use utoipa::ToSchema;
 
 #[derive(Default, Serialize, ToSchema)]
-pub struct NewLoginToken {
+pub struct NewCredentials {
     /// New token for login:
     token: String,
 }
@@ -52,18 +52,18 @@ fn shutdown() -> AppRouter {
     post,
     path = "/api/admin/enable_login/",
     responses(
-        (status = OK, description = "Login (re-)enabled", body = NewLoginToken)
+        (status = OK, description = "Login (re-)enabled", body = NewCredentials)
     ),
 )]
 fn enable_login() -> AppRouter {
     async fn handler(
         State(state): State<SharedState>,
         auth_session: AuthSession<Backend>,
-    ) -> JsonResult<NewLoginToken> {
+    ) -> JsonResult<NewCredentials> {
         match state.write() {
             Ok(mut state) => {
                 state.enable_login();
-                Ok(AppJson(NewLoginToken {
+                Ok(AppJson(NewCredentials {
                     token: auth_session.backend.get_token(State(state.clone())),
                 }))
             }

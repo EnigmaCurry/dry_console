@@ -22,3 +22,13 @@ html:not(.pf-v5-theme-dark) section {
 .pf-v5-c-toggle-group__button:not(.pf-m-selected):hover {
     background-color: #4b6784;
 }
+code {
+    padding: .2em .5em;
+    background-color: #343941;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 85%;
+    white-space: break-spaces;
+    margin: 0;
+    font-weight: bold;
+}
