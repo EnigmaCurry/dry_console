@@ -12,6 +12,7 @@ use tracing::{debug, info};
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Clone, Debug)]
 pub struct AppState {
+    #[allow(dead_code)]
     opt: Opt,
     cache: HashMap<String, Bytes>,
     login_allowed: bool,
