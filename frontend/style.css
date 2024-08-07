@@ -32,3 +32,8 @@ code {
     margin: 0;
     font-weight: bold;
 }
+
+.flex-center {
+    display: flex;
+    justify-content: center;
+}

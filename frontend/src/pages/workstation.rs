@@ -87,11 +87,13 @@ fn dependency_list() -> Html {
     let dependencies = use_state(Vec::new);
     let first_uninstalled = use_state(|| String::new());
     let status_checked = use_state(|| false);
+    let is_loading = use_state(|| true);
 
     {
         let dependencies = dependencies.clone();
         let first_uninstalled = first_uninstalled.clone();
         let status_checked = status_checked.clone();
+        let is_loading = is_loading.clone();
 
         use_effect(move || {
             if !*status_checked {
@@ -138,6 +140,7 @@ fn dependency_list() -> Html {
                         }
                     }
                     status_checked.set(true); // Mark the status check as complete
+                    is_loading.set(false); // Set loading state to false after fetching
                 });
             }
 
@@ -221,9 +224,23 @@ fn dependency_list() -> Html {
         .collect::<Vec<VChild<AccordionItem>>>();
 
     html! {
-        <Accordion>
-            { accordion_items }
-        </Accordion>
+        if *is_loading {
+            <div>
+                <Card>
+                <CardTitle>{"Checking dependencies, please wait ..."}</CardTitle>
+                <CardBody>
+                <div class="flex-center">
+                <Spinner size={SpinnerSize::Custom(String::from("80px"))} aria_label="Contents of the custom size example" />
+                </div>
+                </CardBody>
+                </Card>
+                </div>
+            } else {
+                <Accordion>
+                { accordion_items }
+                </Accordion>
+            }
+
     }
 }
 
