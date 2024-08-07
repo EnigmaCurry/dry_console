@@ -15,7 +15,7 @@ use axum::{
 use axum_login::tower_sessions::Session;
 use axum_login::AuthSession;
 use axum_messages::Messages;
-use serde::Serialize;
+use dry_console_dto::session::{SessionMessages, SessionState};
 use tracing::{debug, info, warn};
 use utoipa::ToSchema;
 
@@ -29,19 +29,6 @@ pub fn router(backend: Backend) -> Router<SharedState> {
         .merge(logout())
         .merge(read_messages())
         .with_state(s.0)
-}
-
-#[derive(Default, Serialize, ToSchema)]
-pub struct SessionState {
-    /// Is the current user logged in?
-    logged_in: bool,
-    /// Are new logins allowed?
-    new_login_allowed: bool,
-}
-
-#[derive(Default, Serialize, ToSchema)]
-pub struct SessionMessages {
-    messages: Vec<String>,
 }
 
 fn is_new_login_allowed(state: SharedState) -> bool {

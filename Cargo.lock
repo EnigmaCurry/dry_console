@@ -715,6 +715,7 @@ dependencies = [
  "serde_json",
  "strum",
  "utoipa",
+ "utoipauto",
 ]
 
 [[package]]

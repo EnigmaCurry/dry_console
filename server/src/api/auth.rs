@@ -1,3 +1,4 @@
+use super::token::generate_token;
 use crate::{
     app_state::{AppState, SharedState},
     response::AppError,
@@ -5,14 +6,8 @@ use crate::{
 use async_trait::async_trait;
 use axum::extract::State;
 use axum_login::{AuthUser, AuthnBackend, UserId};
-use std::fmt;
+pub use dry_console_dto::session::Credentials;
 use tracing::debug;
-//use jiff::{Timestamp, Zoned};
-use serde::Deserialize;
-//use tracing::debug;
-use utoipa::ToSchema;
-
-use super::token::generate_token;
 
 pub const TOKEN_CACHE_NAME: &str = "token";
 const ADMIN_USER: &str = "admin";
@@ -73,21 +68,6 @@ impl Backend {
     }
     pub fn get_state(&self) -> State<SharedState> {
         self.state.clone()
-    }
-}
-
-#[derive(Clone, Deserialize, ToSchema)]
-pub struct Credentials {
-    /// One time token for login
-    #[schema(example = "")]
-    pub token: String,
-}
-
-impl fmt::Debug for Credentials {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Credentials")
-            .field("token", &"REDACTED")
-            .finish()
     }
 }
 

@@ -12,3 +12,4 @@ utoipa = { version = "4.2.3", features = ["axum_extras"] }
 serde_json = { version = "1.0.120", features = ["preserve_order"] }
 serde = { version = "1.0.204", features = ["derive"] }
 strum = { version = "0.26.3", features = ["derive"] }
+utoipauto = "0.1.14"

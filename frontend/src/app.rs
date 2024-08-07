@@ -1,13 +1,12 @@
 use crate::components::logout;
 use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
+pub use dry_console_dto::session::SessionState;
 use gloo_events::EventListener;
 use gloo_net::http::Request;
 use gloo_storage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
-use serde::Deserialize;
-//use strum::IntoEnumIterator;
 use strum_macros::Display;
 use strum_macros::EnumIter;
 use wasm_bindgen_futures::spawn_local;
@@ -40,12 +39,6 @@ impl Into<&'static str> for AppRoute {
             AppRoute::Routes => "Routes",
         }
     }
-}
-
-#[derive(Deserialize, Debug, Default, Clone, PartialEq)]
-pub struct SessionState {
-    pub logged_in: bool,
-    pub new_login_allowed: bool,
 }
 
 #[function_component(Redirect)]
