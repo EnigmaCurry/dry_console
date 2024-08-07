@@ -5,6 +5,7 @@ use yew::prelude::*;
 
 #[derive(Deserialize, Debug, Clone)]
 struct User {
+    #[allow(dead_code)]
     uid: u32,
     name: String,
 }
