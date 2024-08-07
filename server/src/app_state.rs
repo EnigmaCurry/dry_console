@@ -1,6 +1,7 @@
 use crate::api::auth::TOKEN_CACHE_NAME;
 use crate::api::token::generate_token;
 use crate::response::AppError;
+use crate::Opt;
 use axum::body::Bytes;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -11,19 +12,10 @@ use tracing::{debug, info};
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Clone, Debug)]
 pub struct AppState {
+    #[allow(dead_code)]
+    opt: Opt,
     cache: HashMap<String, Bytes>,
     login_allowed: bool,
-}
-impl Default for AppState {
-    fn default() -> Self {
-        let token = generate_token();
-        let s = AppState {
-            cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token.clone()))]),
-            login_allowed: true,
-        };
-        info!("\n\nLogin credential generated:\nToken: {}\n", token);
-        s
-    }
 }
 impl AppState {
     pub fn cache_set(&mut self, key: &str, value: &Bytes) {
@@ -51,6 +43,18 @@ impl AppState {
     }
 }
 pub type SharedState = Arc<RwLock<AppState>>;
+
+pub fn create_shared_state(opt: &Opt) -> SharedState {
+    let token = generate_token();
+    let url = format!("http://{0}:{1}/login#token:{token}", opt.addr, opt.port);
+    info!("\n\nLogin URL:\n{0}\n", url);
+
+    Arc::new(RwLock::new(AppState {
+        opt: opt.clone(),
+        cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token))]),
+        login_allowed: true,
+    }))
+}
 
 pub trait ShareableState {
     #[allow(dead_code)]

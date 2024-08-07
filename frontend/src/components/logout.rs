@@ -57,7 +57,7 @@ pub fn logout(props: &LogoutProps) -> Html {
                             logged_in: false,
                             new_login_allowed: false,
                         });
-                        router.push(AppRoute::Host);
+                        router.push(AppRoute::Workstation);
                     }
                     _ => {
                         toast(AlertType::Danger, "Logout error!");

@@ -91,6 +91,11 @@ fn main() {
         "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
     )
     .unwrap();
+    writeln!(
+        file,
+        "        (\"/assets/fonts/RedHatText/RedHatText-Medium.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Medium.woff2\"), \"font/woff2\"),",
+    )
+    .unwrap();
 
     // Write the end of the function definition
     writeln!(file, "    ]").unwrap();

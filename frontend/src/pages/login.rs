@@ -49,7 +49,6 @@ pub fn login(props: &LoginProps) -> Html {
         use_effect_with((), move |_| {
             let location = window().location();
             if let Ok(hash) = location.hash() {
-                gloo::console::log!("Found hash: ", &hash); // Debug log
                 if hash.starts_with("#token:") {
                     let token = hash.trim_start_matches("#token:").to_string();
                     loading_state.set(true);
@@ -73,7 +72,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     new_login_allowed: false,
                                 });
                                 toast(AlertType::Success, "Login successful!");
-                                router.push(AppRoute::Host);
+                                router.push(AppRoute::Workstation);
                             }
                             _ => {
                                 toast(AlertType::Warning, "Login failed.");
@@ -127,7 +126,7 @@ pub fn login(props: &LoginProps) -> Html {
                                     logged_in: true,
                                     new_login_allowed: false,
                                 });
-                                router_clone.push(AppRoute::Host); // Redirect to index after successful login
+                                router_clone.push(AppRoute::Workstation); // Redirect to index after successful login
                             }
                             Ok(r) => match r.status() {
                                 401 => toast(AlertType::Warning, "Invalid token!"),
@@ -168,7 +167,7 @@ pub fn login(props: &LoginProps) -> Html {
                             logged_in: false,
                             new_login_allowed: false,
                         });
-                        router.push(AppRoute::Host);
+                        router.push(AppRoute::Workstation);
                     }
                     _ => {
                         toast(AlertType::Danger, "Logout error!");
@@ -201,7 +200,7 @@ pub fn login(props: &LoginProps) -> Html {
                         </form>
                     </div>
                 } else if ! (*session_state).new_login_allowed {
-                      <div>{"You are logged out. No new sessions are allowed. (You must restart this service to create a new session)."}</div>
+                      <div>{"You are logged out. No new sessions are allowed at this time. (You must restart this service to create a new session)."}</div>
                 } else {
                     <div>
                         <p>{"Login"}</p>

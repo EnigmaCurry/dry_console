@@ -35,6 +35,9 @@ pub enum APIModule {
     Admin,
     Test,
     Workstation,
+    // Modules not listed that are handled separately:
+    // Session
+    // Docs
 }
 impl ApiModule for APIModule {
     fn main() -> AppRouter {
