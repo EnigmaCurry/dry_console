@@ -89,6 +89,7 @@ fn dependency_list() -> Html {
     let status_checked = use_state(|| false);
     let is_loading = use_state(|| true);
     let has_fetched = use_state(|| false);
+    let all_installed = use_state(|| false); // New state for summary message
 
     let fetch_dependencies = {
         let dependencies = dependencies.clone();
@@ -96,6 +97,7 @@ fn dependency_list() -> Html {
         let status_checked = status_checked.clone();
         let is_loading = is_loading.clone();
         let has_fetched = has_fetched.clone();
+        let all_installed = all_installed.clone();
 
         Callback::from(move |_| {
             if *has_fetched {
@@ -107,6 +109,7 @@ fn dependency_list() -> Html {
             let status_checked = status_checked.clone();
             let is_loading = is_loading.clone();
             let has_fetched = has_fetched.clone();
+            let all_installed = all_installed.clone();
 
             is_loading.set(true);
             status_checked.set(false);
@@ -127,6 +130,8 @@ fn dependency_list() -> Html {
                             serde_json::from_str::<Vec<WorkstationDependencySpec>>(&text)
                         {
                             let mut workstation_deps: Vec<WorkstationDependency> = Vec::new();
+                            let mut all_installed_temp = true; // Temporary flag for checking installation status
+
                             for dep in deps.iter_mut() {
                                 let mut dep = dep.get_dependency();
                                 match dep.get_installed_state().await {
@@ -134,6 +139,9 @@ fn dependency_list() -> Html {
                                         dep = state;
                                     }
                                     Err(_e) => {}
+                                }
+                                if dep.installed != Some(true) {
+                                    all_installed_temp = false;
                                 }
                                 workstation_deps.push(dep);
                             }
@@ -144,6 +152,8 @@ fn dependency_list() -> Html {
                             {
                                 first_uninstalled.set(dep.name.clone());
                             }
+
+                            all_installed.set(all_installed_temp); // Update the all_installed state
 
                             dependencies.set(workstation_deps);
                         } else {
@@ -267,6 +277,14 @@ fn dependency_list() -> Html {
                 <Card>
                     <CardTitle>
                     <div >
+                    <span>
+                    { if *all_installed {
+                        html! { <p><h1> {"😎 Success!"} </h1> {"Found all dependencies."}</p> }
+                    } else {
+                        html! { <p><h1> {"⁉️ Warning!"} </h1> {"Not all dependencies were found. Please install all the dependencies before proceeding."} </p>}
+                    } }
+                    </span>
+                    <br/>
                     <Button label="Recheck dependencies" onclick={on_click} />
                     </div>
                     </CardTitle>

@@ -37,3 +37,22 @@ code {
     display: flex;
     justify-content: center;
 }
+
+h1 {
+    font-size: 200%;
+}
+h2 {
+    font-size: 166.67%;
+}
+h3 {
+    font-size: 133.33%;
+}
+h4 {
+    font-size: 116.67%;
+}
+h5 {
+    font-size: 108.33%;
+}
+h6 {
+    font-size: 100%;
+}
