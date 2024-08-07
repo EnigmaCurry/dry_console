@@ -28,48 +28,63 @@ fn tabs() -> Html {
     )
 }
 
-#[derive(Clone)]
-struct WorkstationDependency {
+#[derive(Clone, Deserialize)]
+struct WorkstationDependencySpec {
     name: String,
-    installed: Option<bool>,
-    path: String,
+    version: String,
 }
 
-#[derive(Deserialize)]
-struct WorkstationDependencyStatus {
-    installed: bool,
-}
-
-impl WorkstationDependency {
-    fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
+impl WorkstationDependencySpec {
+    fn get_dependency(&self) -> WorkstationDependency {
+        WorkstationDependency {
+            name: self.name.clone(),
             installed: None,
+            version: self.version.clone(),
             path: "".to_string(),
         }
     }
+}
 
-    async fn is_installed(&mut self) -> Result<bool, anyhow::Error> {
+#[derive(Clone, Deserialize, Debug)]
+struct WorkstationDependency {
+    name: String,
+    installed: Option<bool>,
+    version: String,
+    path: String,
+}
+
+impl WorkstationDependency {
+    // fn new(name: &str) -> Self {
+    //     Self {
+    //         name: name.to_string(),
+    //         installed: None,
+    //         path: "".to_string(),
+    //         version: "*".to_string(),
+    //     }
+    // }
+
+    async fn get_installed_state(&mut self) -> Result<WorkstationDependency, anyhow::Error> {
         let url = format!("/api/workstation/dependency/{}", self.name);
-        match Request::get(&url).send().await {
-            Ok(r) => {
-                let status: WorkstationDependencyStatus = r.json().await?;
-                Ok(status.installed)
-            }
-            Err(e) => Err(anyhow!(e)),
+        let response = Request::get(&url).send().await?;
+        let json_value: serde_json::Value = response.json().await?;
+        let dependency: WorkstationDependency = serde_json::from_value(json_value)?;
+        Ok(dependency)
+    }
+
+    fn validate(self) -> Option<bool> {
+        if self.installed == None {
+            return None;
         }
+        if !self.installed.unwrap_or(false) || self.path.is_empty() || self.version.is_empty() {
+            return Some(false);
+        }
+        Some(true)
     }
 }
 
 #[function_component(DependencyList)]
 fn dependency_list() -> Html {
-    let dependencies = use_state(|| {
-        vec![
-            WorkstationDependency::new("git"),
-            WorkstationDependency::new("docker"),
-        ]
-    });
-
+    let dependencies = use_state(Vec::new);
     let first_uninstalled = use_state(|| String::new());
     let status_checked = use_state(|| false);
 
@@ -81,21 +96,47 @@ fn dependency_list() -> Html {
         use_effect(move || {
             if !*status_checked {
                 spawn_local(async move {
-                    let mut deps = (*dependencies).clone();
-                    for dep in deps.iter_mut() {
-                        dep.installed = match dep.is_installed().await {
-                            Ok(installed) => Some(installed),
-                            Err(_) => None,
-                        };
-                    }
+                    match gloo_net::http::Request::get("/api/workstation/dependencies")
+                        .send()
+                        .await
+                    {
+                        Ok(response) => {
+                            let text = response
+                                .text()
+                                .await
+                                .unwrap_or_else(|_| "Failed to get response text".to_string());
 
-                    // Find the first uninstalled dependency and set it as the state
-                    if let Some(dep) = deps.iter().find(|dep| dep.installed == Some(false)) {
-                        first_uninstalled.set(dep.name.clone());
-                    }
+                            if let Ok(mut deps) =
+                                serde_json::from_str::<Vec<WorkstationDependencySpec>>(&text)
+                            {
+                                let mut workstation_deps: Vec<WorkstationDependency> = Vec::new();
+                                for dep in deps.iter_mut() {
+                                    let mut dep = dep.get_dependency();
+                                    match dep.get_installed_state().await {
+                                        Ok(state) => {
+                                            dep = state;
+                                        }
+                                        Err(_e) => {}
+                                    }
+                                    workstation_deps.push(dep);
+                                }
 
-                    // Update the dependencies state
-                    dependencies.set(deps);
+                                if let Some(dep) = deps
+                                    .iter()
+                                    .find(|dep| dep.get_dependency().installed == Some(false))
+                                {
+                                    first_uninstalled.set(dep.name.clone());
+                                }
+
+                                dependencies.set(workstation_deps);
+                            } else {
+                                log::error!("Failed to parse dependencies response");
+                            }
+                        }
+                        Err(_) => {
+                            log::error!("Failed to fetch dependencies");
+                        }
+                    }
                     status_checked.set(true); // Mark the status check as complete
                 });
             }
@@ -104,45 +145,80 @@ fn dependency_list() -> Html {
         });
     }
 
-    let toggle = |key: String| {
+    let toggle = {
         let first_uninstalled = first_uninstalled.clone();
-        Callback::from(move |_: ()| {
-            first_uninstalled.set(key.clone());
+        Callback::from(move |key: String| {
+            first_uninstalled.set(key);
         })
     };
 
-    let accordion_items = dependencies.iter().enumerate().map(|(_index, dep)| {
-        let title = match dep.installed {
-            Some(true) => format!("✅ {}", dep.name),
-            Some(false) => format!("⚠️ {}", dep.name),
-            None => format!("⏳️ {}", dep.name),
-        };
+    let accordion_items = dependencies
+        .iter()
+        .enumerate()
+        .map(|(_index, dep)| {
+            let title = match dep.clone().validate() {
+                Some(true) => format!("✅ {}", dep.name),
+                Some(false) => format!("⚠️ {}", dep.name),
+                None => format!("⏳️ {}", dep.name),
+            };
 
-        let on_toggle = toggle(dep.name.clone()); // Pass the name to toggle
+            let on_toggle = {
+                let name = dep.name.clone();
+                let toggle = toggle.clone();
+                Callback::from(move |_| toggle.emit(name.clone()))
+            };
 
-        let is_expanded = *first_uninstalled == dep.name; // Check if the current state matches the dependency name
+            let is_expanded = *first_uninstalled == dep.name; // Check if the current state matches the dependency name
 
-        html_nested! {
-            <AccordionItem title={title} expanded={is_expanded} onclick={on_toggle}>
-                <div>
-            { match dep.installed {
-                None => {"Dependency check is pending ...".to_string()},
-                Some(b) => format!("{} is {}", dep.name, if b { "installed:" } else { "not installed." })
-            }}
-//            { format!("{} is {}", dep.name, if dep.installed.unwrap_or(false) { "installed:" } else { "not installed." }) }
-            { if dep.installed.unwrap_or(false) && dep.path.len() > 0 {
-                html! {
+            html_nested! {
+                <AccordionItem title={title} expanded={is_expanded} onclick={on_toggle}>
                     <div>
-                    <code>
-                    { dep.path.to_string() }
-                    </code>
-                    </div>
-                }
-            } else { html! {} }}
-            </div>
-            </AccordionItem>
-        }
-    }).collect::<Vec<VChild<AccordionItem>>>();
+                { match dep.installed {
+                    None => html! {"Dependency check is pending ..."},
+                    Some(false) => {
+                        html! { format!("{} is not installed", dep.name) }
+                    }
+                    Some(true) => {//
+                        match dep.clone().validate() {
+                            Some(is_valid) => {
+                                match is_valid {
+                                    true => {
+                                        html! {
+                                            <DescriptionList>
+                                                <DescriptionGroup term="Path">
+                                                <code>
+                                            { dep.path.to_string() }
+                                            </code>
+                                                </DescriptionGroup>
+                                                <DescriptionGroup term="Version">
+                                                <code>
+                                            { dep.version.to_string() }
+                                            </code>
+                                                </DescriptionGroup>
+                                                </DescriptionList>
+                                        }
+                                    },
+                                    false => {
+                                        if dep.clone().path.is_empty() {
+                                            html! {"Validation error: path is empty"}
+                                        } else if dep.clone().version.is_empty() {
+                                            html! {"Validation error: version is empty"}
+                                        } else {
+                                            html! {"Validation error"}
+                                        }
+                                    }
+                                }
+
+                            },
+                            None => {html! {"Dependency check is pending ..."}}
+                        }
+                    }
+                }}
+                </div>
+                </AccordionItem>
+            }
+        })
+        .collect::<Vec<VChild<AccordionItem>>>();
 
     html! {
         <Accordion>

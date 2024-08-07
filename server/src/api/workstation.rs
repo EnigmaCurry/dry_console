@@ -1,12 +1,15 @@
 use crate::{api::route, app_state::SharedState, response::AppError};
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
 use hostname::get as host_name_get;
-use hyper::StatusCode;
 use semver::VersionReq;
 use serde::Serialize;
-use std::str::FromStr;
+use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
+use which::which;
+
+mod docker;
+mod git;
 
 pub fn router() -> Router<SharedState> {
     Router::new()
@@ -118,16 +121,37 @@ fn required_dependencies() -> Router<SharedState> {
 )]
 fn dependencies() -> Router<SharedState> {
     async fn handler(Path(name): Path<String>) -> impl IntoResponse {
-        fn match_name_to_dependency(name: String) -> Option<WorkstationDependencies> {
-            WorkstationDependencies::from_str(&name).ok()
-        }
-        match match_name_to_dependency(name.clone()) {
-            Some(_dependency) => Json(WorkstationDependencyState {
-                name,
-                installed: false,
-                path: "".to_string(),
-                version: "x.x.x".to_string(),
-            })
+        match WorkstationDependencies::from_str(&name.clone()).ok() {
+            Some(dependency) => {
+                // Check if dependency is installed:
+                let mut installed = false;
+                let mut version = String::new();
+                let path = match which(OsStr::new(dependency.as_ref())) {
+                    Ok(p) => {
+                        installed = true;
+                        p.to_string_lossy().to_string()
+                    }
+                    _ => String::new(),
+                };
+                if installed {
+                    match dependency {
+                        WorkstationDependencies::docker => {
+                            let v = docker::get_version();
+                            version = v;
+                        }
+                        WorkstationDependencies::git => {
+                            let v = git::get_version();
+                            version = v;
+                        }
+                    }
+                };
+                Json(WorkstationDependencyState {
+                    name,
+                    installed,
+                    path,
+                    version,
+                })
+            }
             .into_response(),
             None => AppError::Internal("Invalid dependency".to_string()).into_response(),
         }
