@@ -266,7 +266,7 @@ fn dependency_list() -> Html {
         <>
             if *is_loading {
                 <Card>
-                    <CardTitle>{"Checking dependencies, please wait ..."}</CardTitle>
+                    <CardTitle><p><h1>{"⌛️ Checking dependencies, please wait ..."}</h1></p></CardTitle>
                     <CardBody>
                     <div class="flex-center">
                     <Spinner size={SpinnerSize::Custom(String::from("80px"))} aria_label="Contents of the custom size example" />
@@ -279,9 +279,9 @@ fn dependency_list() -> Html {
                     <div >
                     <span>
                     { if *all_installed {
-                        html! { <p><h1> {"😎 Success!"} </h1> {"Found all dependencies."}</p> }
+                        html! { <p><h1> {"😎 All dependencies found!"} </h1></p> }
                     } else {
-                        html! { <p><h1> {"⁉️ Warning!"} </h1> {"Not all dependencies were found. Please install all the dependencies before proceeding."} </p>}
+                        html! { <p><h1> {"⁉️ Warning!"} </h1> {"Not all workstation dependencies were found. Please install all the dependencies before proceeding."} </p>}
                     } }
                     </span>
                     <br/>
