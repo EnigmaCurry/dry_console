@@ -25,6 +25,7 @@ hostname = "0.4.0"
 hyper = { version = "1.4.1", features = ["full"] }
 hyper-util = "0.1.6"
 open = "5.2.0"
+os-release = "0.1.0"
 rand = "0.8.5"
 regex = "1.10.5"
 semver = "1.0.23"
@@ -48,6 +49,7 @@ utoipa = { version = "4.2.3", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "7.1.0", features = ["axum", "vendored"] }
 utoipauto = "0.1.12"
 which = "6.0.2"
+dry_console_dto = { path = "../dto" }
 
 # [[package]]
 # path = ../

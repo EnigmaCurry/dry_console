@@ -30,4 +30,5 @@ web-sys = { version = "0.3.69", features = ["HtmlInputElement", "Window", "Media
 yew = { version = "0.21", features = ["csr"] }
 yew-nested-router = "0.7.0"
 yew-router = "0.17.0"
+dry_console_dto = { path = "../dto" }
 

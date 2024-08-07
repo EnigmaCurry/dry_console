@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "server",
   "frontend",
+  "dto",
 ]
 
 [workspace.package]

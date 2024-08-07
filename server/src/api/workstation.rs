@@ -1,53 +1,22 @@
 use crate::{api::route, app_state::SharedState, response::AppError};
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
+use dry_console_dto::workstation::{WorkstationDependencyInfo, WorkstationState, WorkstationUser};
 use hostname::get as host_name_get;
-use regex::Regex;
 use semver::VersionReq;
 use serde::Serialize;
-use std::process::Command;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
 use which::which;
 
-mod bash;
-mod curl;
-mod docker;
-mod git;
-mod htpasswd;
-mod jq;
-mod make;
-mod openssl;
-mod sed;
-mod shred;
-mod ssh;
-mod xargs;
-mod xdg_open;
+mod dependencies;
+pub mod platform;
 
 pub fn router() -> Router<SharedState> {
     Router::new()
         .merge(workstation())
         .merge(required_dependencies())
         .merge(dependencies())
-}
-
-#[derive(Default, Serialize, ToSchema)]
-pub struct WorkstationUser {
-    uid: u32,
-    name: String,
-}
-
-#[derive(Default, Serialize, ToSchema)]
-pub struct WorkstationState {
-    /// Hostname of the workstation.
-    hostname: String,
-    user: WorkstationUser,
-}
-
-#[derive(Serialize)]
-struct WorkstationDependencyInfo {
-    name: String,
-    version: String,
 }
 
 #[allow(non_camel_case_types)]
@@ -80,6 +49,7 @@ pub enum WorkstationDependencies {
     #[strum(props(Version = "*"))]
     curl,
 }
+
 impl WorkstationDependencies {
     fn get_version(&self) -> VersionReq {
         VersionReq::parse(self.get_str("Version").unwrap_or("*")).unwrap()
@@ -117,9 +87,11 @@ fn workstation() -> Router<SharedState> {
         let uid = users::get_current_uid();
         let user = users::get_user_by_uid(users::get_current_uid()).unwrap();
         let name = user.name().to_string_lossy().to_string();
+        let platform = platform::detect_platform();
         Json(WorkstationState {
             hostname,
             user: WorkstationUser { uid, name },
+            platform,
         })
         .into_response()
     }
@@ -144,36 +116,6 @@ fn required_dependencies() -> Router<SharedState> {
         Json(&dependencies).into_response()
     }
     route("/dependencies", get(handler))
-}
-
-pub enum OutputStream {
-    ///Process stdout
-    Stdout,
-    ///Process stderr
-    Stderr,
-}
-
-///Find the version of a program by matching its output to regex
-pub fn find_version(cmd: &str, regex: &str, stream: OutputStream) -> String {
-    if let Ok(parts) = shell_words::split(cmd) {
-        if let Some((program, args)) = parts.split_first() {
-            if let Ok(output) = Command::new(program).args(args).output() {
-                let output = match stream {
-                    OutputStream::Stdout => String::from_utf8_lossy(&output.stdout).to_string(),
-                    OutputStream::Stderr => String::from_utf8_lossy(&output.stderr).to_string(),
-                };
-
-                if let Ok(version_regex) = Regex::new(regex) {
-                    if let Some(caps) = version_regex.captures(&output) {
-                        if let Some(version) = caps.get(1) {
-                            return version.as_str().to_string();
-                        }
-                    }
-                }
-            }
-        }
-    }
-    "".to_string()
 }
 
 #[utoipa::path(
@@ -203,55 +145,55 @@ fn dependencies() -> Router<SharedState> {
                 if installed {
                     match dependency {
                         WorkstationDependencies::git => {
-                            let v = git::get_version();
+                            let v = dependencies::git::get_version();
                             version = v;
                         }
                         WorkstationDependencies::docker => {
-                            let v = docker::get_version();
+                            let v = dependencies::docker::get_version();
                             version = v;
                         }
                         WorkstationDependencies::bash => {
-                            let v = bash::get_version();
+                            let v = dependencies::bash::get_version();
                             version = v;
                         }
                         WorkstationDependencies::ssh => {
-                            let v = ssh::get_version();
+                            let v = dependencies::ssh::get_version();
                             version = v;
                         }
                         WorkstationDependencies::make => {
-                            let v = make::get_version();
+                            let v = dependencies::make::get_version();
                             version = v;
                         }
                         WorkstationDependencies::sed => {
-                            let v = sed::get_version();
+                            let v = dependencies::sed::get_version();
                             version = v;
                         }
                         WorkstationDependencies::xargs => {
-                            let v = xargs::get_version();
+                            let v = dependencies::xargs::get_version();
                             version = v;
                         }
                         WorkstationDependencies::shred => {
-                            let v = shred::get_version();
+                            let v = dependencies::shred::get_version();
                             version = v;
                         }
                         WorkstationDependencies::openssl => {
-                            let v = openssl::get_version();
+                            let v = dependencies::openssl::get_version();
                             version = v;
                         }
                         WorkstationDependencies::htpasswd => {
-                            let v = htpasswd::get_version();
+                            let v = dependencies::htpasswd::get_version();
                             version = v;
                         }
                         WorkstationDependencies::jq => {
-                            let v = jq::get_version();
+                            let v = dependencies::jq::get_version();
                             version = v;
                         }
                         WorkstationDependencies::xdg_open => {
-                            let v = xdg_open::get_version();
+                            let v = dependencies::xdg_open::get_version();
                             version = v;
                         }
                         WorkstationDependencies::curl => {
-                            let v = curl::get_version();
+                            let v = dependencies::curl::get_version();
                             version = v;
                         }
                     }
