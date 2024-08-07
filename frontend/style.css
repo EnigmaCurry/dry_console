@@ -56,3 +56,6 @@ h5 {
 h6 {
     font-size: 100%;
 }
+ol {
+    margin-left: 2em;
+}
