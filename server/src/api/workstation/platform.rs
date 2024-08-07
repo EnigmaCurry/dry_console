@@ -1,12 +1,11 @@
 use dry_console_dto::workstation::{Distribution, OSType, Platform, PlatformSupport};
 use regex::Regex;
-use serde::Serialize;
-use utoipa::ToSchema;
 pub fn detect_platform() -> Platform {
     if cfg!(target_os = "linux") {
+        #[allow(unused_assignments)]
         let mut os_type = OSType::Linux;
-        let mut supported = PlatformSupport::Unsupported;
-        let mut distribution = Distribution::Unknown;
+        let supported = PlatformSupport::Unsupported;
+        let distribution = Distribution::Unknown;
         let mut version = String::new();
 
         if let Ok(version_info) = std::fs::read_to_string("/proc/version") {

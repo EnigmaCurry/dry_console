@@ -130,7 +130,7 @@ fn required_dependencies() -> Router<SharedState> {
 )]
 fn dependencies() -> Router<SharedState> {
     async fn handler(Path(name): Path<String>) -> impl IntoResponse {
-        match WorkstationDependencies::from_str(&name.clone().replace("-", "_")).ok() {
+        match WorkstationDependencies::from_str(&name.clone().replace('-', "_")).ok() {
             Some(dependency) => {
                 // Check if dependency is installed:
                 let mut installed = false;
