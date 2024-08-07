@@ -1,13 +1,14 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use strum::Display;
 use utoipa::ToSchema;
 
-#[derive(Default, Serialize, ToSchema)]
+#[derive(Default, Serialize, Deserialize, ToSchema, Clone)]
 pub struct WorkstationUser {
     pub uid: u32,
     pub name: String,
 }
 
-#[derive(Default, Serialize, ToSchema)]
+#[derive(Default, Serialize, Deserialize, ToSchema, Clone)]
 pub struct WorkstationState {
     /// Hostname of the workstation.
     pub hostname: String,
@@ -21,7 +22,7 @@ pub struct WorkstationDependencyInfo {
     pub version: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Display)]
 pub enum OSType {
     Linux,
     MacOS,
@@ -29,14 +30,14 @@ pub enum OSType {
     Unknown,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Display)]
 pub enum PlatformSupport {
     FullySupported,
     PartiallySupported,
     Unsupported,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Display)]
 pub enum Distribution {
     Fedora,
     Arch,
@@ -45,7 +46,7 @@ pub enum Distribution {
     Unknown,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct Platform {
     pub os_type: OSType,
     pub version: String,

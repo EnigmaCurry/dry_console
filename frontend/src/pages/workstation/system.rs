@@ -1,20 +1,7 @@
+use dry_console_dto::workstation::WorkstationState;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
-use serde::Deserialize;
 use yew::prelude::*;
-
-#[derive(Deserialize, Debug, Clone)]
-struct User {
-    #[allow(dead_code)]
-    uid: u32,
-    name: String,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct Workstation {
-    hostname: String,
-    user: User,
-}
 
 #[function_component(System)]
 pub fn system() -> Html {
@@ -23,7 +10,7 @@ pub fn system() -> Html {
 
     wasm_bindgen_futures::spawn_local(async move {
         if workstation_clone.is_none() {
-            let fetched_data: Workstation = Request::get("/api/workstation/")
+            let fetched_data: WorkstationState = Request::get("/api/workstation/")
                 .send()
                 .await
                 .expect("Failed to fetch data")
@@ -33,7 +20,6 @@ pub fn system() -> Html {
             workstation_clone.set(Some(fetched_data));
         }
     });
-
     html! {
         <Card>
             <CardTitle>
@@ -48,15 +34,29 @@ pub fn system() -> Html {
             <CardBody>
                 {
                     if let Some(workstation) = &*workstation {
+                        let os_type = workstation.clone().platform.os_type.to_string();
+                        let os_term = if os_type == "Linux" {
+                            "🐧 OS Type"
+                        } else if os_type == "MacOS" {
+                            "🍎 OS Type"
+                        } else if os_type == "Windows" {
+                            "🤑 OS Type"
+                        } else {
+                            "OS Type"
+                        };
+
                         html! {
-                            <>
-                                <p>{ "Workstation 🖥️ : " }<code>{workstation.clone().hostname}</code></p>
-                                <br/>
-                                <p>{ "Todo items:" }</p>
-                                <ol>
-                                    <li><a href="/workstation#dependencies">{ "Install dependencies" }</a></li>
-                                </ol>
-                            </>
+                            <DescriptionList>
+                                <DescriptionGroup term="🖥️ Workstation">
+                                    <code>{workstation.clone().hostname}</code>
+                                </DescriptionGroup>
+                                <DescriptionGroup term={os_term}>
+                                    <code>{format!("{} {}", os_type, workstation.clone().platform.version.to_string())}</code>
+                                </DescriptionGroup>
+                                <DescriptionGroup term="Dependencies">
+                                    <a href="/workstation#dependencies">{ "Install dependencies" }</a>
+                                </DescriptionGroup>
+                            </DescriptionList>
                         }
                     } else {
                         html! { <p>{ "Loading..." }</p> }

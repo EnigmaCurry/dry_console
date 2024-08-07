@@ -33,6 +33,10 @@ code {
     font-weight: bold;
 }
 
+.pf-v5-c-description-list {
+    font-size: 130%;
+}
+
 .flex-center {
     display: flex;
     justify-content: center;
@@ -59,3 +63,4 @@ h6 {
 ol {
     margin-left: 2em;
 }
+
