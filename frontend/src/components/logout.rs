@@ -55,7 +55,14 @@ pub fn logout(props: &LogoutProps) -> Html {
                         toast(AlertType::Success, "Logged out!");
                         session_state.set(SessionState {
                             logged_in: false,
-                            new_login_allowed: false,
+                            new_login_allowed: res
+                                .json::<serde_json::Value>()
+                                .await
+                                .expect("Unable to parse JSON")
+                                .get("new_login_allowed")
+                                .unwrap_or(&serde_json::Value::from(false))
+                                .as_bool()
+                                .unwrap_or(false),
                         });
                         router.push(AppRoute::Workstation);
                     }
