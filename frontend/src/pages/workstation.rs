@@ -88,62 +88,82 @@ fn dependency_list() -> Html {
     let first_uninstalled = use_state(|| String::new());
     let status_checked = use_state(|| false);
     let is_loading = use_state(|| true);
+    let has_fetched = use_state(|| false);
 
-    {
+    let fetch_dependencies = {
         let dependencies = dependencies.clone();
         let first_uninstalled = first_uninstalled.clone();
         let status_checked = status_checked.clone();
         let is_loading = is_loading.clone();
+        let has_fetched = has_fetched.clone();
 
-        use_effect(move || {
-            if !*status_checked {
-                spawn_local(async move {
-                    match gloo_net::http::Request::get("/api/workstation/dependencies")
-                        .send()
-                        .await
-                    {
-                        Ok(response) => {
-                            let text = response
-                                .text()
-                                .await
-                                .unwrap_or_else(|_| "Failed to get response text".to_string());
-
-                            if let Ok(mut deps) =
-                                serde_json::from_str::<Vec<WorkstationDependencySpec>>(&text)
-                            {
-                                let mut workstation_deps: Vec<WorkstationDependency> = Vec::new();
-                                for dep in deps.iter_mut() {
-                                    let mut dep = dep.get_dependency();
-                                    match dep.get_installed_state().await {
-                                        Ok(state) => {
-                                            dep = state;
-                                        }
-                                        Err(_e) => {}
-                                    }
-                                    workstation_deps.push(dep);
-                                }
-
-                                if let Some(dep) = deps
-                                    .iter()
-                                    .find(|dep| dep.get_dependency().installed == Some(false))
-                                {
-                                    first_uninstalled.set(dep.name.clone());
-                                }
-
-                                dependencies.set(workstation_deps);
-                            } else {
-                                log::error!("Failed to parse dependencies response");
-                            }
-                        }
-                        Err(_) => {
-                            log::error!("Failed to fetch dependencies");
-                        }
-                    }
-                    status_checked.set(true); // Mark the status check as complete
-                    is_loading.set(false); // Set loading state to false after fetching
-                });
+        Callback::from(move |_| {
+            if *has_fetched {
+                return;
             }
 
+            let dependencies = dependencies.clone();
+            let first_uninstalled = first_uninstalled.clone();
+            let status_checked = status_checked.clone();
+            let is_loading = is_loading.clone();
+            let has_fetched = has_fetched.clone();
+
+            is_loading.set(true);
+            status_checked.set(false);
+            has_fetched.set(true);
+
+            spawn_local(async move {
+                match gloo_net::http::Request::get("/api/workstation/dependencies")
+                    .send()
+                    .await
+                {
+                    Ok(response) => {
+                        let text = response
+                            .text()
+                            .await
+                            .unwrap_or_else(|_| "Failed to get response text".to_string());
+
+                        if let Ok(mut deps) =
+                            serde_json::from_str::<Vec<WorkstationDependencySpec>>(&text)
+                        {
+                            let mut workstation_deps: Vec<WorkstationDependency> = Vec::new();
+                            for dep in deps.iter_mut() {
+                                let mut dep = dep.get_dependency();
+                                match dep.get_installed_state().await {
+                                    Ok(state) => {
+                                        dep = state;
+                                    }
+                                    Err(_e) => {}
+                                }
+                                workstation_deps.push(dep);
+                            }
+
+                            if let Some(dep) = deps
+                                .iter()
+                                .find(|dep| dep.get_dependency().installed == Some(false))
+                            {
+                                first_uninstalled.set(dep.name.clone());
+                            }
+
+                            dependencies.set(workstation_deps);
+                        } else {
+                            log::error!("Failed to parse dependencies response");
+                        }
+                    }
+                    Err(_) => {
+                        log::error!("Failed to fetch dependencies");
+                    }
+                }
+                status_checked.set(true);
+                is_loading.set(false);
+            });
+        })
+    };
+
+    {
+        let fetch_dependencies = fetch_dependencies.clone();
+        use_effect(move || {
+            fetch_dependencies.emit(());
             || ()
         });
     }
@@ -171,7 +191,7 @@ fn dependency_list() -> Html {
                 Callback::from(move |_| toggle.emit(name.clone()))
             };
 
-            let is_expanded = *first_uninstalled == dep.name; // Check if the current state matches the dependency name
+            let is_expanded = *first_uninstalled == dep.name;
 
             html_nested! {
                 <AccordionItem title={title} expanded={is_expanded} onclick={on_toggle}>
@@ -223,24 +243,41 @@ fn dependency_list() -> Html {
         })
         .collect::<Vec<VChild<AccordionItem>>>();
 
+    let on_click = {
+        let fetch_dependencies = fetch_dependencies.clone();
+        let has_fetched = has_fetched.clone();
+        Callback::from(move |_: MouseEvent| {
+            has_fetched.set(false);
+            fetch_dependencies.emit(());
+        })
+    };
+
     html! {
-        if *is_loading {
-            <div>
+        <>
+            if *is_loading {
                 <Card>
-                <CardTitle>{"Checking dependencies, please wait ..."}</CardTitle>
-                <CardBody>
-                <div class="flex-center">
-                <Spinner size={SpinnerSize::Custom(String::from("80px"))} aria_label="Contents of the custom size example" />
-                </div>
-                </CardBody>
-                </Card>
-                </div>
-            } else {
-                <Accordion>
+                    <CardTitle>{"Checking dependencies, please wait ..."}</CardTitle>
+                    <CardBody>
+                    <div class="flex-center">
+                    <Spinner size={SpinnerSize::Custom(String::from("80px"))} aria_label="Contents of the custom size example" />
+                    </div>
+                    </CardBody>
+                    </Card>
+                } else {
+                <Card>
+                    <CardTitle>
+                    <div >
+                    <Button label="Recheck dependencies" onclick={on_click} />
+                    </div>
+                    </CardTitle>
+                    <CardBody>
+                    <Accordion>
                 { accordion_items }
                 </Accordion>
+                    </CardBody>
+                    </Card>
             }
-
+        </>
     }
 }
 
