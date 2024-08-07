@@ -1,3 +1,4 @@
+use os_release::OsRelease;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use utoipa::ToSchema;
@@ -30,36 +31,47 @@ pub enum OSType {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, ToSchema, Clone, Display)]
-pub enum PlatformSupport {
-    FullySupported,
-    PartiallySupported,
-    Unsupported,
-}
-
-#[derive(Serialize, Deserialize, ToSchema, Clone, Display)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Display, PartialEq)]
 pub enum Distribution {
     Fedora,
     Arch,
     Debian,
     Ubuntu,
-    Unknown,
+    Unsupported,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
+pub struct LinuxRelease {
+    pub name: String,
+    pub version: String,
+    pub variant: String,
+    pub variant_id: String,
+}
+impl Default for LinuxRelease {
+    fn default() -> Self {
+        Self {
+            name: "Unsupported".to_string(),
+            version: "".to_string(),
+            variant: "".to_string(),
+            variant_id: "".to_string(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct Platform {
     pub os_type: OSType,
     pub version: String,
-    pub supported: PlatformSupport,
     pub distribution: Distribution,
+    pub release: LinuxRelease,
 }
 impl Default for Platform {
     fn default() -> Self {
         Self {
             os_type: OSType::Unknown,
             version: String::new(),
-            supported: PlatformSupport::Unsupported,
-            distribution: Distribution::Unknown,
+            distribution: Distribution::Unsupported,
+            release: LinuxRelease::default(),
         }
     }
 }

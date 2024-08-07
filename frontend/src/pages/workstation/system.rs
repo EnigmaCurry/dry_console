@@ -45,6 +45,11 @@ pub fn system() -> Html {
                             "OS Type"
                         };
 
+                        let distro_term = "Distribution";
+                        let variant_text = match workstation.clone().platform.release.variant.as_str() {
+                            "" => "".to_string(),
+                            v => format!("({})", v.to_string().trim_matches('"'))
+                        };
                         html! {
                             <DescriptionList>
                                 <DescriptionGroup term="🖥️ Workstation">
@@ -52,6 +57,9 @@ pub fn system() -> Html {
                                 </DescriptionGroup>
                                 <DescriptionGroup term={os_term}>
                                     <code>{format!("{} {}", os_type, workstation.clone().platform.version.to_string())}</code>
+                                </DescriptionGroup>
+                                <DescriptionGroup term={distro_term}>
+                                <code>{format!("{} {} {}", workstation.clone().platform.release.name, workstation.clone().platform.release.version, variant_text)}</code>
                                 </DescriptionGroup>
                                 <DescriptionGroup term="Dependencies">
                                     <a href="/workstation#dependencies">{ "Install dependencies" }</a>
