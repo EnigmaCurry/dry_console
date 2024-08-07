@@ -1,8 +1,10 @@
 use crate::{api::route, app_state::SharedState, response::AppError};
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
 use hostname::get as host_name_get;
+use regex::Regex;
 use semver::VersionReq;
 use serde::Serialize;
+use std::process::Command;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
@@ -18,6 +20,7 @@ mod make;
 mod openssl;
 mod sed;
 mod shred;
+mod ssh;
 mod xargs;
 mod xdg_open;
 
@@ -58,6 +61,8 @@ pub enum WorkstationDependencies {
     bash,
     #[strum(props(Version = "*"))]
     make,
+    #[strum(props(Version = "*"))]
+    ssh,
     #[strum(props(Version = "*"))]
     sed,
     #[strum(props(Version = "*"))]
@@ -141,6 +146,36 @@ fn required_dependencies() -> Router<SharedState> {
     route("/dependencies", get(handler))
 }
 
+pub enum OutputStream {
+    ///Process stdout
+    Stdout,
+    ///Process stderr
+    Stderr,
+}
+
+///Find the version of a program by matching its output to regex
+pub fn find_version(cmd: &str, regex: &str, stream: OutputStream) -> String {
+    if let Ok(parts) = shell_words::split(cmd) {
+        if let Some((program, args)) = parts.split_first() {
+            if let Ok(output) = Command::new(program).args(args).output() {
+                let output = match stream {
+                    OutputStream::Stdout => String::from_utf8_lossy(&output.stdout).to_string(),
+                    OutputStream::Stderr => String::from_utf8_lossy(&output.stderr).to_string(),
+                };
+
+                if let Ok(version_regex) = Regex::new(regex) {
+                    if let Some(caps) = version_regex.captures(&output) {
+                        if let Some(version) = caps.get(1) {
+                            return version.as_str().to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    "".to_string()
+}
+
 #[utoipa::path(
     get,
     path = "/api/workstation/dependency/{name}",
@@ -177,6 +212,10 @@ fn dependencies() -> Router<SharedState> {
                         }
                         WorkstationDependencies::bash => {
                             let v = bash::get_version();
+                            version = v;
+                        }
+                        WorkstationDependencies::ssh => {
+                            let v = ssh::get_version();
                             version = v;
                         }
                         WorkstationDependencies::make => {

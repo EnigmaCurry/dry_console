@@ -117,7 +117,7 @@ pub fn dependency_list() -> Html {
                                     }
                                     Err(_e) => {}
                                 }
-                                if dep.installed != Some(true) {
+                                if !dep.clone().validate().unwrap_or(false) {
                                     all_installed_temp = false;
                                 }
                                 workstation_deps.push(dep);
