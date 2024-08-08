@@ -1,3 +1,4 @@
+use crate::components::ButtonLink;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
@@ -262,7 +263,8 @@ pub fn dependency_list() -> Html {
                     } }
                     </span>
                     <br/>
-                    <Button label="Recheck dependencies" onclick={on_click} />
+                    <Button label="🔄 Recheck dependencies" onclick={on_click} />
+                    <br/>
                     </div>
                     </CardTitle>
                     <CardBody>
@@ -270,6 +272,10 @@ pub fn dependency_list() -> Html {
                 { accordion_items }
                 </Accordion>
                     </CardBody>
+                    <CardFooter>
+                    <h1>{"Next:"}</h1>
+                    <ButtonLink href="/workstation#d-rymcg-tech">{"⭐️ Install d.rymcg.tech"}</ButtonLink>
+                    </CardFooter>
                     </Card>
             }
         </>

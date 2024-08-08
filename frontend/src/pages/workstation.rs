@@ -13,6 +13,7 @@ mod system;
 enum WorkstationTab {
     System,
     Dependencies,
+    DRymcgTech,
 }
 
 #[function_component(WorkstationTabs)]
@@ -62,6 +63,7 @@ fn tabs() -> Html {
             <Tabs<WorkstationTab> detached=true {onselect} selected={(*selected).clone()} r#box=true>
                 <Tab<WorkstationTab> index={WorkstationTab::System} title="System"/>
                 <Tab<WorkstationTab> index={WorkstationTab::Dependencies} title="Dependencies"/>
+                <Tab<WorkstationTab> index={WorkstationTab::DRymcgTech} title="d.rymcg.tech"/>
             </Tabs<WorkstationTab>>
             <section hidden={(*selected) != WorkstationTab::System}>
                 <system::System />

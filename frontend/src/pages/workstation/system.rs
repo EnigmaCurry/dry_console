@@ -1,3 +1,4 @@
+use crate::components::ButtonLink;
 use dry_console_dto::workstation::WorkstationState;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
@@ -25,7 +26,10 @@ pub fn system() -> Html {
             <CardTitle>
                 {
                     if let Some(workstation) = &*workstation {
-                        html! { <h1>{ format!("🖖 Welcome {}", workstation.user.name) }</h1> }
+                        html! { <>
+                                 <h1>{ format!("🖖 Welcome {}", workstation.user.name) }</h1>
+                                </>
+                        }
                     } else {
                         html! { <h1>{ "🖖 Welcome" }</h1> }
                     }
@@ -51,26 +55,38 @@ pub fn system() -> Html {
                             v => format!("({})", v.to_string().trim_matches('"'))
                         };
                         html! {
-                            <DescriptionList>
+                            <>
+                                <DescriptionList>
                                 <DescriptionGroup term="🖥️ Workstation">
-                                    <code>{workstation.clone().hostname}</code>
+                                <code>{workstation.clone().hostname}</code>
                                 </DescriptionGroup>
                                 <DescriptionGroup term={os_term}>
-                                    <code>{format!("{} {}", os_type, workstation.clone().platform.version.to_string())}</code>
+                                <code>{format!("{} {}", os_type, workstation.clone().platform.version.to_string())}</code>
                                 </DescriptionGroup>
                                 <DescriptionGroup term={distro_term}>
                                 <code>{format!("{} {} {}", workstation.clone().platform.release.name, workstation.clone().platform.release.version, variant_text)}</code>
                                 </DescriptionGroup>
-                                <DescriptionGroup term="Dependencies">
-                                    <a href="/workstation#dependencies">{ "⭐️ Install dependencies" }</a>
-                                </DescriptionGroup>
-                            </DescriptionList>
+                                </DescriptionList>
+                                <hr/>
+                                <p>
+                            {"The Workstation screen consists of several tabs you should go through in order:"}
+                            </p>
+                                <ul>
+                                <li>{"Install dependencies."}</li>
+                                <li>{"Install d.rymcg.tech."}</li>
+                                <li>{"Setup Docker contexts."}</li>
+                                </ul>
+                                </>
                         }
                     } else {
                         html! { <p>{ "Loading..." }</p> }
                     }
                 }
-            </CardBody>
+        </CardBody>
+            <CardFooter>
+            <h1>{"Next:"}</h1>
+            <ButtonLink href="/workstation#dependencies">{"⭐️ Install dependencies"}</ButtonLink>
+            </CardFooter>
         </Card>
     }
 }

@@ -57,6 +57,7 @@ html:not(.pf-v5-theme-dark) .pf-v5-c-accordion .pf-v5-c-description-list {
 
 .pf-v5-c-button {
     color: white;
+    margin: 1em;
 }
 
 code {
@@ -99,4 +100,13 @@ h6 {
 }
 ol {
     margin-left: 2em;
+}
+
+li {
+    list-style-type: disc;
+    margin-left: 2em;
+}
+
+hr {
+    margin: 1em;
 }
