@@ -55,8 +55,7 @@ pub fn system() -> Html {
                             v => format!("({})", v.to_string().trim_matches('"'))
                         };
                         html! {
-                            <>
-                                <DescriptionList>
+                            <DescriptionList>
                                 <DescriptionGroup term="🖥️ Workstation">
                                 <code>{workstation.clone().hostname}</code>
                                 </DescriptionGroup>
@@ -67,16 +66,6 @@ pub fn system() -> Html {
                                 <code>{format!("{} {} {}", workstation.clone().platform.release.name, workstation.clone().platform.release.version, variant_text)}</code>
                                 </DescriptionGroup>
                                 </DescriptionList>
-                                <hr/>
-                                <p>
-                            {"The Workstation screen consists of several tabs you should go through in order:"}
-                            </p>
-                                <ul>
-                                <li>{"Install dependencies."}</li>
-                                <li>{"Install d.rymcg.tech."}</li>
-                                <li>{"Setup Docker contexts."}</li>
-                                </ul>
-                                </>
                         }
                     } else {
                         html! { <p>{ "Loading..." }</p> }
