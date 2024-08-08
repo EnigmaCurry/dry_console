@@ -22,6 +22,17 @@ html:not(.pf-v5-theme-dark) section {
 .pf-v5-c-toggle-group__button:not(.pf-m-selected):hover {
     background-color: #4b6784;
 }
+.pf-v5-c-card {
+    border-radius: 0 0px 15px 15px;
+    border-top: 1px solid #b98d8d;
+}
+html:not(.pf-v5-theme-dark) .pf-v5-c-card {
+    background-color: #aea0768a;
+}
+.pf-v5-c-button {
+    color: white;
+}
+
 code {
     padding: .2em .5em;
     background-color: #343941;
