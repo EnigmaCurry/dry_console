@@ -62,7 +62,7 @@ pub fn system() -> Html {
                                 <code>{format!("{} {} {}", workstation.clone().platform.release.name, workstation.clone().platform.release.version, variant_text)}</code>
                                 </DescriptionGroup>
                                 <DescriptionGroup term="Dependencies">
-                                    <a href="/workstation#dependencies">{ "Install dependencies" }</a>
+                                    <a href="/workstation#dependencies">{ "⭐️ Install dependencies" }</a>
                                 </DescriptionGroup>
                             </DescriptionList>
                         }

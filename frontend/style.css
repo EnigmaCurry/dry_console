@@ -27,8 +27,34 @@ html:not(.pf-v5-theme-dark) section {
     border-top: 1px solid #b98d8d;
 }
 html:not(.pf-v5-theme-dark) .pf-v5-c-card {
-    background-color: #aea0768a;
+    background-color: #6a634f8a;
 }
+html:not(.pf-v5-theme-dark) .pf-v5-c-masthead,
+html:not(.pf-v5-theme-dark) .pf-v5-c-toolbar__content {
+    background-color: #534b4b;
+}
+
+html:not(.pf-v5-theme-dark) .pf-v5-c-page__sidebar {
+    background-color: #3a1e1e;
+}
+
+html:not(.pf-v5-theme-dark) .pf-v5-c-toggle-group__button:not(.pf-m-selected) {
+    background-color: #4c6275;
+}
+
+html:not(.pf-v5-theme-dark) .pf-v5-c-accordion,
+html:not(.pf-v5-theme-dark) .pf-v5-c-accordion__toggle:hover,
+html:not(.pf-v5-theme-dark) .pf-v5-c-accordion__toggle:focus {
+    background-color: #f5f5dc;
+}
+
+html:not(.pf-v5-theme-dark) .pf-v5-c-accordion .pf-v5-c-description-list {
+    background-color: #dcddb1;
+    border-radius: 15px;
+    padding: 0.5em;
+}
+
+
 .pf-v5-c-button {
     color: white;
 }
@@ -74,4 +100,3 @@ h6 {
 ol {
     margin-left: 2em;
 }
-
