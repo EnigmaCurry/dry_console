@@ -17,7 +17,6 @@ use axum_login::AuthSession;
 use axum_messages::Messages;
 use dry_console_dto::session::{SessionMessages, SessionState};
 use tracing::{debug, info, warn};
-use utoipa::ToSchema;
 
 const LOGGED_IN_KEY: &str = "logged_in";
 

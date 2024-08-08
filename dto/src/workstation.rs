@@ -1,4 +1,3 @@
-use os_release::OsRelease;
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use utoipa::ToSchema;

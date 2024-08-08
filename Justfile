@@ -53,7 +53,7 @@ install: deps build-release-frontend
 
 # Run compiled release binary (no live-reload)
 static-run: build-release
-    ./target/release/server
+    ./target/release/dry_console --open
 
 # bump release version
 bump-version:
