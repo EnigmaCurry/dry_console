@@ -13,12 +13,14 @@ use crate::{app_state::SharedState, AppRouter, API_PREFIX};
 pub mod counter;
 pub mod error;
 pub mod hello;
+pub mod ping;
 
 #[derive(Debug, PartialEq, Sequence, Clone)]
 enum TestModule {
     Hello,
     Counter,
     Error,
+    Ping,
 }
 impl ApiModule for TestModule {
     fn main() -> AppRouter {
@@ -34,6 +36,7 @@ impl ApiModule for TestModule {
             TestModule::Hello => hello::main(),
             TestModule::Counter => counter::main(),
             TestModule::Error => error::main(),
+            TestModule::Ping => ping::main(),
         }
     }
     fn to_string(&self) -> String {

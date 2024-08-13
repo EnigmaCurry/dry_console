@@ -4,6 +4,23 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+fn write_source(file: &mut std::fs::File, destination: &str, source: &str, file_type: &str) {
+    writeln!(
+        file,
+        "        (\"{destination}\", include_bytes!(\"{source}\"), \"{file_type}\"),",
+    )
+    .unwrap();
+}
+
+fn write_font(file: &mut std::fs::File, dist_dir: &str, font: &str) {
+    write_source(
+        file,
+        format!("{font}").as_str(),
+        format!("{dist_dir}{font}").as_str(),
+        "font/woff2",
+    );
+}
+
 fn main() {
     // Get the output directory from the environment variable
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -47,55 +64,74 @@ fn main() {
         {
             let asset_path = entry.path();
 
-            writeln!(
-                file,
-                "        (\"{}\", include_bytes!(\"{}\"), \"application/javascript\"),",
+            write_source(
+                &mut file,
                 asset_path
                     .to_string_lossy()
                     .strip_prefix(&dist_dir.to_string())
                     .unwrap(),
-                asset_path.to_string_lossy()
-            )
-            .unwrap();
+                asset_path.to_string_lossy().to_string().as_str(),
+                "application/javascript",
+            );
         }
     }
 
     // App CSS
-    writeln!(
-        file,
-        "        (\"/style.css\", include_bytes!(\"{project_root}/frontend/style.css\"), \"text/css\"),"
-    )
-    .unwrap();
+    write_source(
+        &mut file,
+        "/style.css",
+        format!("{project_root}/frontend/style.css").as_str(),
+        "text/css",
+    );
 
     // Patternfly CSS
     // TODO: Tree shake this 1.5MB
-    writeln!(
-        file,
-        "        (\"/patternfly.min.css\", include_bytes!(\"{dist_dir}/patternfly.min.css\"), \"text/css\"),",
-    )
-    .unwrap();
-    writeln!(
-        file,
-        "        (\"/patternfly.min.css.map\", include_bytes!(\"{dist_dir}/patternfly.min.css.map\"), \"application/octet-stream\"),",
-    )
-    .unwrap();
+    write_source(
+        &mut file,
+        "/patternfly.min.css",
+        format!("{dist_dir}/patternfly.min.css").as_str(),
+        "text/css",
+    );
 
-    // Patternfly fonts
-    writeln!(
-        file,
-        "        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),",
-    )
-    .unwrap();
-    writeln!(
-        file,
-        "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
-    )
-    .unwrap();
-    writeln!(
-        file,
-        "        (\"/assets/fonts/RedHatText/RedHatText-Medium.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Medium.woff2\"), \"font/woff2\"),",
-    )
-    .unwrap();
+    write_source(
+        &mut file,
+        "/patternfly.min.css.map",
+        format!("{dist_dir}/patternfly.min.css.map").as_str(),
+        "application/octet-stream",
+    );
+
+    // // Patternfly fonts
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/webfonts/fa-solid-900.woff2",
+    );
+    write_font(&mut file, &dist_dir, "/assets/pficon/pf-v5-pficon.woff2");
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatText/RedHatText-Regular.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatText/RedHatText-Medium.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatMono/RedHatMono-Regular.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatMono/RedHatMono-Medium.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatDisplay/RedHatDisplay-Medium.woff2",
+    );
 
     // Write the end of the function definition
     writeln!(file, "    ]").unwrap();

@@ -1,4 +1,5 @@
 use crate::components::ButtonLink;
+use crate::pages::workstation::WorkstationTab;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
@@ -60,8 +61,14 @@ impl WorkstationDependency {
     }
 }
 
+#[derive(Properties, PartialEq)]
+pub struct DependencyListProps {
+    pub reload_trigger: u32,
+    pub selected_tab: WorkstationTab,
+}
+
 #[function_component(DependencyList)]
-pub fn dependency_list() -> Html {
+pub fn dependency_list(props: &DependencyListProps) -> Html {
     let dependencies = use_state(Vec::new);
     let first_uninstalled = use_state(|| String::new());
     let status_checked = use_state(|| false);
@@ -76,9 +83,10 @@ pub fn dependency_list() -> Html {
         let is_loading = is_loading.clone();
         let has_fetched = has_fetched.clone();
         let all_installed = all_installed.clone();
+        let selected_tab = props.selected_tab.clone(); // Clone the selected_tab
 
         Callback::from(move |_| {
-            if *has_fetched {
+            if *has_fetched || selected_tab != WorkstationTab::Dependencies {
                 return;
             }
 
@@ -150,6 +158,8 @@ pub fn dependency_list() -> Html {
 
     {
         let fetch_dependencies = fetch_dependencies.clone();
+        let _ = props.reload_trigger; // Use the prop to trigger re-fetching
+
         use_effect(move || {
             fetch_dependencies.emit(());
             || ()

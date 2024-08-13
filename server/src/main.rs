@@ -22,7 +22,7 @@ use tower::ServiceExt;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::info;
+use tracing::{error, info};
 
 const API_PREFIX: &str = "/api";
 
@@ -121,16 +121,18 @@ async fn main() {
     let shared_state = app_state::create_shared_state(&opt);
     let auth_backend = Backend::new(&shared_state);
     let inline_files = get_inline_files();
-    let mut app = Router::new()
+    let mut router = Router::new()
         .layer(routing::SlashRedirectLayer)
         .nest(API_PREFIX, api::router(auth_backend))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
     for (name, content, content_type) in inline_files {
-        app = app.route(name, get(move || serve_inline_file(content, content_type)));
+        router = router
+            .route(name, get(move || serve_inline_file(content, content_type)))
+            .into();
     }
-    let mut app = app
+    let mut router = router
         .route("/*else", get(client_index_html))
         .layer(AddExtensionLayer::new(shutdown_tx.clone()))
         .layer(TraceLayer::new_for_http())
@@ -138,8 +140,13 @@ async fn main() {
 
     if cfg!(debug_assertions) {
         info!("Live-Reload is enabled.");
-        app = app.layer(LiveReloadLayer::new());
+        router = router.layer(LiveReloadLayer::new());
     }
+
+    // Finally, make the app into a service:
+    let app = router.clone().into_make_service();
+    let router = Arc::new(router);
+
     //tracing::debug!("{:#?}", app);
     let listener = tokio::net::TcpListener::bind(&sock_addr)
         .await
@@ -158,22 +165,27 @@ async fn main() {
             let (stream, _) = match listener.accept().await {
                 Ok(pair) => pair,
                 Err(e) => {
-                    eprintln!("Error accepting connection: {}", e);
+                    error!("Error accepting connection: {}", e);
                     continue;
                 }
             };
 
-            let app = app.clone();
-            tokio::spawn(async move {
-                let io = TokioIo::new(stream);
-                if let Err(err) = http1::Builder::new()
-                    .serve_connection(
-                        io,
-                        service_fn(|req| <Router as Clone>::clone(&app).oneshot(req)),
-                    )
-                    .await
-                {
-                    eprintln!("Error serving connection: {}", err);
+            tokio::spawn({
+                let router = Arc::clone(&router);
+                async move {
+                    let io = TokioIo::new(stream);
+                    if let Err(err) = http1::Builder::new()
+                        .serve_connection(
+                            io,
+                            service_fn(move |req| {
+                                let router = Arc::clone(&router);
+                                async move { <Router as Clone>::clone(&router).oneshot(req).await }
+                            }),
+                        )
+                        .await
+                    {
+                        error!("Error serving request: {}", err);
+                    }
                 }
             });
         }

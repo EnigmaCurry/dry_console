@@ -7,6 +7,8 @@ pub struct ButtonLinkProps {
     pub href: String,
     #[prop_or_default]
     pub children: Children,
+    #[prop_or_default]
+    pub icon: Option<String>,
 }
 
 #[function_component(ButtonLink)]
@@ -18,7 +20,7 @@ pub fn button_link(props: &ButtonLinkProps) -> Html {
     });
 
     html! {
-        <Button class="button-link" {onclick}>
+        <Button icon={Icon::Github} class="button-link" {onclick}>
             { for props.children.iter() }
         </Button>
     }

@@ -69,7 +69,7 @@ fn tabs() -> Html {
                 <system::System />
             </section>
             <section hidden={(*selected) != WorkstationTab::Dependencies} key={*reload_trigger}>
-                <dependencies::DependencyList />
+                <dependencies::DependencyList reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
             </section>
         </>
     )

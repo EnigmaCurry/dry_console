@@ -1,4 +1,5 @@
 use crate::components::logout;
+use crate::components::ButtonLink;
 use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
 pub use dry_console_dto::session::SessionState;
@@ -237,6 +238,11 @@ fn sidebar(
                 <NavExpandable title="Session" expanded={true}>
                     <NavItem>
                       <logout::Logout {session_state}/>
+                    </NavItem>
+                </NavExpandable>
+                <NavExpandable title="Source code" expanded={true}>
+                    <NavItem>
+            <ButtonLink href="https://github.com/EnigmaCurry/dry_console">{"Github"}</ButtonLink>
                     </NavItem>
                 </NavExpandable>
             </NavList>
