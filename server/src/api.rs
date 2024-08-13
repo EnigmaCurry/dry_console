@@ -12,7 +12,7 @@ mod admin;
 pub mod auth;
 mod docs;
 mod session;
-mod test;
+pub mod test;
 pub mod token;
 mod workstation;
 use crate::api::auth::Backend;

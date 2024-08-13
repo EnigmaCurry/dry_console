@@ -11,6 +11,7 @@ use axum::{
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
 use serde::{Deserialize, Serialize};
 use tokio::time::{timeout, Duration, Instant};
+use tracing::{debug, error, info, warn};
 
 pub fn main() -> AppRouter {
     Router::new().merge(ping()).merge(ws())
@@ -30,35 +31,28 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
 fn ws() -> AppRouter {
     // Send a ping and measure how long time it takes to get a pong back
 
-    async fn ping_pong_socket(mut socket: WebSocket<ServerMsg, ClientMsg>) {
-        println!("hi");
+    async fn websocket(mut socket: WebSocket<ServerMsg, ClientMsg>) {
         let start = Instant::now();
-        // Send a Ping message to the client
-        if socket.send(Message::Item(ServerMsg::Ping)).await.is_ok() {
-            // Wait for a response with a timeout
-            match timeout(Duration::from_secs(5), socket.recv()).await {
-                Ok(Some(Ok(Message::Item(ClientMsg::Pong)))) => {
-                    println!("ping: {:?}", start.elapsed());
+        socket.send(Message::Item(ServerMsg::Ping)).await.ok();
+        if let Some(msg) = socket.recv().await {
+            match msg {
+                Ok(Message::Item(ClientMsg::Pong)) => {
+                    info!("ping: {:?}", start.elapsed());
                 }
-                Ok(Some(Ok(_))) => {
-                    println!("Received unexpected message");
+                Ok(other) => {
+                    warn!("Received unexpected message: {:?}", other);
                 }
-                Ok(Some(Err(err))) => {
-                    eprintln!("Received error: {}", err);
-                }
-                Ok(None) => {
-                    println!("Connection closed by client");
-                }
-                Err(_) => {
-                    println!("Timeout waiting for Pong response");
+                Err(err) => {
+                    error!("Got error: {}", err);
                 }
             }
-        } else {
-            eprintln!("Failed to send Ping message");
         }
+        info!("Closed websocket.");
     }
+
     async fn upgrade(ws: WebSocketUpgrade<ServerMsg, ClientMsg>) -> impl IntoResponse {
-        ws.on_upgrade(ping_pong_socket)
+        debug!("Websocket upgrade request received.");
+        ws.on_upgrade(websocket)
     }
     route("/ws", get(upgrade))
 }
@@ -95,17 +89,33 @@ fn ping() -> AppRouter {
 <p>Open the browser console (F12) and run:</p>
 <code>socket.send('Hello, WebSocket!');</code>
         <script>
-            let socket = new WebSocket('ws://api/test/ping/ws/');
+            let socket = new WebSocket('/api/test/ping/ws/');
 
             socket.onopen = function(event) {
                 console.log('WebSocket is open now.');
-                socket.send('Hello, WebSocket!');
             };
-
+            function blobToString(blob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        resolve(reader.result);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsText(blob);
+                });
+            }
             socket.onmessage = function(event) {
-                console.log('Received message:', event.data);
+                blobToString(event.data).then((msg) => {
+                    console.log('Received message:', msg);
+                    item = msg.replace(/^"|"$/g, '');
+                    if(item === "Ping") {
+                        socket.send("\"Pong\"");
+                    } else {
+                        console.warn("Invalid item:", item);
+                    }
+                })
+                
             };
-
             socket.onclose = function(event) {
                 console.log('WebSocket is closed now.');
             };

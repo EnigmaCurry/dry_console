@@ -117,3 +117,12 @@ check_deps() {
 
     if [[ -n "${missing}" ]]; then fault "Missing dependencies: ${missing}"; fi
 }
+check_emacs_unsaved_files() {
+    lock_files=$(find . -name ".#*")
+    if [ ! -z "$lock_files" ]; then
+        echo "Warning: You have unsaved files in Emacs. Please save all files before building."
+        echo "Unsaved files:"
+        echo "$lock_files"
+        return 1
+    fi
+}

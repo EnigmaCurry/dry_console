@@ -17,12 +17,14 @@ use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{oneshot, Mutex};
+use tokio::time::timeout;
 use tower::ServiceExt;
 use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 const API_PREFIX: &str = "/api";
 
@@ -98,19 +100,23 @@ async fn main() {
 
     // Setup logging & RUST_LOG from args
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", format!("{},hyper=info,mio=info", opt.log_level))
+        std::env::set_var(
+            "RUST_LOG",
+            format!(
+                "{},hyper=info,mio=info,wasm_bindgen_wasm_interpreter=info",
+                opt.log_level
+            ),
+        )
     }
     // enable console logging
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::from_default_env()
                 // Suppress DEBUG logging for HTTP requests:
-                .add_directive("tower_http::trace=info".parse().unwrap()),
+                .add_directive("tower_http::trace=info".parse().unwrap())
+                .add_directive("axum::rejection=trace".parse().unwrap()),
         )
         .init();
-
-    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
-    let shutdown_tx = Arc::new(Mutex::new(Some(shutdown_tx)));
 
     let sock_addr = SocketAddr::from((
         IpAddr::from_str(opt.addr.as_str()).unwrap_or(IpAddr::V6(Ipv6Addr::LOCALHOST)),
@@ -134,7 +140,6 @@ async fn main() {
     }
     let mut router = router
         .route("/*else", get(client_index_html))
-        .layer(AddExtensionLayer::new(shutdown_tx.clone()))
         .layer(TraceLayer::new_for_http())
         .with_state(shared_state.clone());
 
@@ -160,43 +165,7 @@ async fn main() {
         open::that(format!("http://{sock_addr}/login#token:{token}"))
             .expect("Couldn't open web browser.");
     }
-    let serve_future = async {
-        loop {
-            let (stream, _) = match listener.accept().await {
-                Ok(pair) => pair,
-                Err(e) => {
-                    error!("Error accepting connection: {}", e);
-                    continue;
-                }
-            };
 
-            tokio::spawn({
-                let router = Arc::clone(&router);
-                async move {
-                    let io = TokioIo::new(stream);
-                    if let Err(err) = http1::Builder::new()
-                        .serve_connection(
-                            io,
-                            service_fn(move |req| {
-                                let router = Arc::clone(&router);
-                                async move { <Router as Clone>::clone(&router).oneshot(req).await }
-                            }),
-                        )
-                        .await
-                    {
-                        error!("Error serving request: {}", err);
-                    }
-                }
-            });
-        }
-    };
-
-    tokio::select! {
-        _ = serve_future => {},
-        _ = shutdown_rx => {
-            println!("Shutdown signal received");
-        },
-    }
     axum::serve(listener, app)
         .await
         .expect("Error: unable to start server");

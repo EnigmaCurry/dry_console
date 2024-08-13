@@ -9,6 +9,7 @@ use axum::http::{Request, Response, StatusCode};
 use axum::routing::MethodRouter;
 use axum::Router;
 use tower::{Layer, Service};
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct SlashRedirectLayer;

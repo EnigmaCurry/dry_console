@@ -40,6 +40,8 @@ build-release-frontend:
 
 # Build (debug)
 build: build-frontend
+    source ./funcs.sh; \
+    check_emacs_unsaved_files;
     cargo build ${RELEASE_BUILD_ARGS:-}
 
 # Build (release)
