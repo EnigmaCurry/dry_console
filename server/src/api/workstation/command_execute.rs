@@ -7,15 +7,14 @@ use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
 use dry_console_dto::websocket::{
-    ClientMsg, CloseCode, PingReport, ProcessComplete, ProcessOutput, ServerMsg,
+    ClientMsg, CloseCode, ProcessComplete, ProcessOutput, ServerMsg,
 };
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::Mutex;
-use tokio::time::Instant;
 use tokio_stream::StreamExt;
-use tracing::{debug, info};
+use tracing::{debug};
 use ulid::Ulid;
 
 pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {

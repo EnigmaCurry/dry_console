@@ -1,11 +1,8 @@
 use crate::broadcast;
 use axum::extract::ws::CloseFrame;
 use axum_typed_websockets::{Message, WebSocket};
+use dry_console_dto::websocket::CloseCode;
 use dry_console_dto::websocket::WebSocketMessage;
-use dry_console_dto::websocket::{
-    ClientMsg, CloseCode, PingReport, ProcessComplete, ProcessOutput, ServerMsg,
-};
-use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -42,8 +39,8 @@ pub async fn handle_websocket<T, U, F>(
 
     send_ping.await;
 
-    let mut close_code: Option<CloseCode> = None;
-    let mut close_message: Option<String> = None;
+    let mut close_code: Option<CloseCode>;
+    let mut close_message: Option<String>;
 
     loop {
         tokio::select! {
