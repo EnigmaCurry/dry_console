@@ -5,10 +5,16 @@ use dry_console_dto::websocket::CloseCode;
 use serde::{Deserialize, Serialize};
 use tracing::*;
 
+pub struct WebSocketResponse {
+    pub close: bool,
+    pub close_code: CloseCode,
+    pub close_message: String,
+}
+
 pub async fn handle_websocket<T, U>(
     mut socket: WebSocket<T, U>,
     mut shutdown: broadcast::Receiver<()>,
-    mut on_message: impl FnMut(Message<U>) -> Option<(bool, CloseCode, String)>,
+    mut on_message: impl FnMut(Message<U>) -> Option<WebSocketResponse>,
 ) where
     T: Serialize + for<'de> Deserialize<'de>,
     U: Serialize + for<'de> Deserialize<'de>,
@@ -21,10 +27,10 @@ pub async fn handle_websocket<T, U>(
             Some(msg) = socket.recv() => {
                 match msg {
                     Ok(item) => {
-                        if let Some((should_close, code, message)) = on_message(item) {
-                            close_code = Some(code);
-                            close_message = Some(message);
-                            if should_close {
+                        if let Some(response) = on_message(item) {
+                            close_code = Some(response.close_code);
+                            close_message = Some(response.close_message);
+                            if !response.close {
                                 break;
                             }
                         }
@@ -44,7 +50,6 @@ pub async fn handle_websocket<T, U>(
             }
         }
 
-        // Check if the loop should break due to shutdown
         if close_code.is_some() {
             break;
         }
