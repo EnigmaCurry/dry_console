@@ -9,6 +9,7 @@ use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
 use which::which;
 
+pub mod command_execute;
 mod dependencies;
 pub mod platform;
 
@@ -17,6 +18,7 @@ pub fn router() -> Router<SharedState> {
         .merge(workstation())
         .merge(required_dependencies())
         .merge(dependencies())
+        .merge(command_execute::main())
 }
 
 #[allow(non_camel_case_types)]
