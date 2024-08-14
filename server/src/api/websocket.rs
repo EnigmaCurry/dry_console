@@ -3,6 +3,9 @@ use axum::extract::ws::CloseFrame;
 use axum_typed_websockets::{Message, WebSocket};
 use dry_console_dto::websocket::CloseCode;
 use serde::{Deserialize, Serialize};
+use std::future::Future;
+use std::pin::Pin;
+
 use tracing::*;
 
 pub struct WebSocketResponse {
@@ -11,13 +14,14 @@ pub struct WebSocketResponse {
     pub close_message: String,
 }
 
-pub async fn handle_websocket<T, U>(
+pub async fn handle_websocket<T, U, F>(
     mut socket: WebSocket<T, U>,
     mut shutdown: broadcast::Receiver<()>,
-    mut on_message: impl FnMut(Message<U>) -> Option<WebSocketResponse>,
+    mut on_message: F,
 ) where
     T: Serialize + for<'de> Deserialize<'de>,
     U: Serialize + for<'de> Deserialize<'de>,
+    F: FnMut(Message<U>) -> Pin<Box<dyn Future<Output = Option<WebSocketResponse>> + Send>>,
 {
     let mut close_code: Option<CloseCode> = None;
     let mut close_message: Option<String> = None;
@@ -27,10 +31,10 @@ pub async fn handle_websocket<T, U>(
             Some(msg) = socket.recv() => {
                 match msg {
                     Ok(item) => {
-                        if let Some(response) = on_message(item) {
+                        if let Some(response) = on_message(item).await {
                             close_code = Some(response.close_code);
                             close_message = Some(response.close_message);
-                            if !response.close {
+                            if response.close {
                                 break;
                             }
                         }
