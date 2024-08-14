@@ -41,57 +41,17 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
     async fn websocket(socket: WebSocket<ServerMsg, ClientMsg>, shutdown: broadcast::Receiver<()>) {
         let state = Arc::new(Mutex::new(State::AwaitingCommand));
         let socket = Arc::new(Mutex::new(Some(socket)));
-        let last_ping = Arc::new(Mutex::new(None));
 
-        async fn ping(
-            socket: Arc<Mutex<Option<WebSocket<ServerMsg, ClientMsg>>>>,
-            last_ping: Arc<Mutex<Option<Instant>>>,
-        ) {
-            let mut socket_guard = socket.lock().await;
-            *last_ping.lock().await = Some(Instant::now());
-            socket_guard
-                .as_mut()
-                .unwrap()
-                .send(Message::Item(ServerMsg::Ping))
-                .await
-                .ok();
-        }
-        // Initial ping:
-        ping(socket.clone(), last_ping.clone()).await;
-
+        // Move ping handling into the handle_websocket helper
         handle_websocket(socket.clone(), shutdown, move |msg| {
             let state = state.clone();
-            info!("state: {:?}", state);
             let socket = socket.clone();
-            let last_ping = last_ping.clone();
             Box::pin(async move {
                 let mut state_ref = state.lock().await;
                 let mut socket_ref = socket.lock().await;
-                let mut last_ping_guard = last_ping.lock().await;
                 let socket_guard = socket_ref.as_mut().unwrap();
                 match *state_ref {
                     State::AwaitingCommand => match msg {
-                        Message::Item(ClientMsg::Pong) => match *last_ping_guard {
-                            Some(instant) => {
-                                *last_ping_guard = None;
-                                socket_guard
-                                    .send(Message::Item(ServerMsg::PingReport(PingReport {
-                                        duration_ms: Instant::now().duration_since(instant),
-                                    })))
-                                    .await
-                                    .ok();
-                                Some(WebSocketResponse {
-                                    close: false,
-                                    close_code: CloseCode::NormalClosure,
-                                    close_message: "Awaiting command".to_string(),
-                                })
-                            }
-                            None => Some(WebSocketResponse {
-                                close: true,
-                                close_code: CloseCode::UnsupportedData,
-                                close_message: "Unexpected Pong".to_string(),
-                            }),
-                        },
                         Message::Item(ClientMsg::Command(_command_id)) => {
                             *state_ref = State::RunningProcess;
                             drop(state_ref); // Drop the lock on state to run the command
@@ -145,9 +105,9 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
                             *state.lock().await = State::Completed; // Update the state
                             Some(WebSocketResponse {
-                                close: false,
+                                close: true,
                                 close_code: CloseCode::NormalClosure,
-                                close_message: "Running process".to_string(),
+                                close_message: "Process finished".to_string(),
                             })
                         }
                         _ => Some(WebSocketResponse {

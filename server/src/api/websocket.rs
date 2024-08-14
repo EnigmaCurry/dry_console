@@ -1,12 +1,16 @@
 use crate::broadcast;
 use axum::extract::ws::CloseFrame;
 use axum_typed_websockets::{Message, WebSocket};
-use dry_console_dto::websocket::CloseCode;
+use dry_console_dto::websocket::WebSocketMessage;
+use dry_console_dto::websocket::{
+    ClientMsg, CloseCode, PingReport, ProcessComplete, ProcessOutput, ServerMsg,
+};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 
 use tracing::*;
 
@@ -22,10 +26,22 @@ pub async fn handle_websocket<T, U, F>(
     mut shutdown: broadcast::Receiver<()>,
     mut on_message: F,
 ) where
-    T: Serialize + for<'de> Deserialize<'de> + 'static,
-    U: Serialize + for<'de> Deserialize<'de> + 'static,
+    T: WebSocketMessage + 'static,
+    U: WebSocketMessage + 'static + PartialEq,
     F: FnMut(Message<U>) -> Pin<Box<dyn Future<Output = Option<WebSocketResponse>> + Send>>,
 {
+    let last_ping = Arc::new(Mutex::new(None));
+
+    let send_ping = async {
+        let mut socket_guard = socket.lock().await;
+        *last_ping.lock().await = Some(Instant::now());
+        if let Some(socket) = socket_guard.as_mut() {
+            socket.send(Message::Item(T::PING)).await.ok();
+        }
+    };
+
+    send_ping.await;
+
     let mut close_code: Option<CloseCode> = None;
     let mut close_message: Option<String> = None;
 
@@ -40,6 +56,19 @@ pub async fn handle_websocket<T, U, F>(
                 }
             } => {
                 match msg {
+                    Some(Ok(Message::Item(msg))) if msg == U::PONG => {
+                        let mut last_ping_guard = last_ping.lock().await;
+                        if let Some(instant) = *last_ping_guard {
+                            *last_ping_guard = None;
+                            if let Some(socket) = socket.lock().await.as_mut() {
+                                socket.send(Message::Item(T::ping_report(Instant::now().duration_since(instant)))).await.ok();
+                            }
+                        } else {
+                            close_code = Some(CloseCode::UnsupportedData);
+                            close_message = Some("Unexpected Pong".to_string());
+                            break;
+                        }
+                    },
                     Some(Ok(item)) => {
                         if let Some(response) = on_message(item).await {
                             close_code = Some(response.close_code);
@@ -69,7 +98,6 @@ pub async fn handle_websocket<T, U, F>(
         }
     }
 
-    // Disconnect
     debug!("Disconnecting socket...");
     let close_frame = CloseFrame {
         code: close_code.unwrap_or(CloseCode::NormalClosure).into(),
@@ -78,7 +106,6 @@ pub async fn handle_websocket<T, U, F>(
             .into(),
     };
 
-    // Take ownership of the WebSocket and close it
     let mut socket_guard = socket.lock().await;
     if let Some(mut socket_owned) = socket_guard.take() {
         if let Err(err) = socket_owned.send(Message::Close(Some(close_frame))).await {
