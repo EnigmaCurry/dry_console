@@ -136,8 +136,8 @@ systemd-restart:
 
 # Run clippy linter and paginate results with less
 clippy:
-    cargo clippy --color=always --bin dry_console 2>&1 | less -R
+    RUSTFLAGS="-D warnings" cargo clippy --color=always --bin dry_console 2>&1 | less -R
 
 # Run clippy linter and apply fixes
 clippy-fix:
-    cargo clippy --fix --color=always --bin dry_console 2>&1 | less -R
+    RUSTFLAGS="-D warnings" cargo clippy --fix --color=always --bin dry_console 2>&1 | less -R

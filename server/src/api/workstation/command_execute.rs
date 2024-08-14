@@ -6,15 +6,13 @@ use crate::broadcast;
 use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
-use dry_console_dto::websocket::{
-    ClientMsg, CloseCode, ProcessComplete, ProcessOutput, ServerMsg,
-};
+use dry_console_dto::websocket::{ClientMsg, CloseCode, ProcessComplete, ProcessOutput, ServerMsg};
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use tracing::{debug};
+use tracing::debug;
 use ulid::Ulid;
 
 pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
@@ -57,8 +55,16 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
                             // Run the command asynchronously
                             let process_id = Ulid::new();
-                            let mut process = Command::new("seq")
-                                .arg("10")
+                            let script = r#"
+                            #!/bin/sh
+                            for i in $(seq 10); do
+                               echo $i
+                               sleep 1
+                            done
+                            "#;
+                            let mut process = Command::new("/bin/sh")
+                                .arg("-c")
+                                .arg(script)
                                 .stdout(Stdio::piped())
                                 .spawn()
                                 .expect("Failed to start process");
