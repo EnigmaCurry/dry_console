@@ -1,4 +1,4 @@
-use patternfly_yew::prelude::*;
+//use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
 use wasm_bindgen::{closure::Closure, JsCast};
@@ -19,7 +19,7 @@ impl Component for TerminalOutput {
     type Message = Msg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             messages: Vec::new(),
             ws: None,

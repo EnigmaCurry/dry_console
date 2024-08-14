@@ -10,21 +10,12 @@ use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use clap::Parser;
-use hyper::server::conn::http1;
-use hyper::service::service_fn;
-use hyper_util::rt::TokioIo;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{oneshot, Mutex};
-use tokio::time::timeout;
-use tower::ServiceExt;
-use tower_http::add_extension::AddExtensionLayer;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::{debug, error, info};
+use tracing::info;
 
 const API_PREFIX: &str = "/api";
 
@@ -134,9 +125,7 @@ async fn main() {
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
     for (name, content, content_type) in inline_files {
-        router = router
-            .route(name, get(move || serve_inline_file(content, content_type)))
-            .into();
+        router = router.route(name, get(move || serve_inline_file(content, content_type)));
     }
     let mut router = router
         .route("/*else", get(client_index_html))
@@ -150,7 +139,6 @@ async fn main() {
 
     // Finally, make the app into a service:
     let app = router.clone().into_make_service();
-    let router = Arc::new(router);
 
     //tracing::debug!("{:#?}", app);
     let listener = tokio::net::TcpListener::bind(&sock_addr)

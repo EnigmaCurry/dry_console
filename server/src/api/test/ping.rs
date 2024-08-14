@@ -10,7 +10,7 @@ use axum::{
 };
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
 use serde::{Deserialize, Serialize};
-use tokio::time::{timeout, Duration, Instant};
+use tokio::time::Instant;
 use tracing::{debug, error, info, warn};
 
 pub fn main() -> AppRouter {

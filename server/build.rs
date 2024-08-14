@@ -15,7 +15,7 @@ fn write_source(file: &mut std::fs::File, destination: &str, source: &str, file_
 fn write_font(file: &mut std::fs::File, dist_dir: &str, font: &str) {
     write_source(
         file,
-        format!("{font}").as_str(),
+        font.to_string().as_str(),
         format!("{dist_dir}{font}").as_str(),
         "font/woff2",
     );
