@@ -50,6 +50,7 @@ utoipauto = "0.1.12"
 which = "6.0.2"
 dry_console_dto = { path = "../dto" }
 ulid = { version = "1.1.3", features = ["serde"] }
+tokio-stream = { version = "0.1.15", features = ["io-util"] }
 
 # [[package]]
 # path = ../
