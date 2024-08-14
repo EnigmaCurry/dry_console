@@ -6,14 +6,16 @@ use crate::broadcast;
 use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
-use dry_console_dto::websocket::{ClientMsg, CloseCode, ProcessComplete, ProcessOutput, ServerMsg};
+use dry_console_dto::websocket::{
+    ClientMsg, CloseCode, PingReport, ProcessComplete, ProcessOutput, ServerMsg,
+};
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 use tokio_stream::StreamExt;
-use tracing::debug;
+use tracing::{debug, info};
 use ulid::Ulid;
 
 pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
@@ -28,7 +30,7 @@ pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
     )
 )]
 fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
-    #[derive(PartialEq, Clone)]
+    #[derive(PartialEq, Clone, Debug)]
     enum State {
         AwaitingPong,
         AwaitingCommand,
@@ -40,7 +42,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
     async fn websocket(socket: WebSocket<ServerMsg, ClientMsg>, shutdown: broadcast::Receiver<()>) {
         let state = Arc::new(Mutex::new(State::AwaitingPong));
         let socket = Arc::new(Mutex::new(Some(socket)));
-
+        let start = Instant::now();
         {
             // Initial Ping
             let mut socket_guard = socket.lock().await;
@@ -54,16 +56,22 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
         handle_websocket(socket.clone(), shutdown, move |msg| {
             let state = state.clone();
+            info!("state: {:?}", state);
             let socket = socket.clone();
             Box::pin(async move {
                 let mut state_ref = state.lock().await;
                 let mut socket_ref = socket.lock().await;
                 let socket_guard = socket_ref.as_mut().unwrap();
-
                 match *state_ref {
                     State::AwaitingPong => match msg {
                         Message::Item(ClientMsg::Pong) => {
                             *state_ref = State::AwaitingCommand;
+                            socket_guard
+                                .send(Message::Item(ServerMsg::PingReport(PingReport {
+                                    duration_ms: Instant::now().duration_since(start),
+                                })))
+                                .await
+                                .ok();
                             Some(WebSocketResponse {
                                 close: false,
                                 close_code: CloseCode::NormalClosure,
@@ -83,7 +91,6 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
                             // Run the command asynchronously
                             let process_id = Ulid::new();
-                            let _start = Instant::now();
                             let mut process = Command::new("seq")
                                 .arg("10")
                                 .stdout(Stdio::piped())
