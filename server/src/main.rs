@@ -13,10 +13,10 @@ use clap::Parser;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
+use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::info;
-
 const API_PREFIX: &str = "/api";
 
 pub type AppRouter = Router<SharedState>;
@@ -109,6 +109,17 @@ async fn main() {
         )
         .init();
 
+    // Shutdown signal handler
+    let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
+    let shutdown_tx_clone = shutdown_tx.clone();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            // Notify all WebSocket handlers to shut down
+            info!("Sending shutdown signal ...");
+            let _ = shutdown_tx_clone.send(());
+        }
+    });
+
     let sock_addr = SocketAddr::from((
         IpAddr::from_str(opt.addr.as_str()).unwrap_or(IpAddr::V6(Ipv6Addr::LOCALHOST)),
         opt.port,
@@ -120,7 +131,7 @@ async fn main() {
     let inline_files = get_inline_files();
     let mut router = Router::new()
         .layer(routing::SlashRedirectLayer)
-        .nest(API_PREFIX, api::router(auth_backend))
+        .nest(API_PREFIX, api::router(auth_backend, shutdown_tx))
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
@@ -155,6 +166,9 @@ async fn main() {
     }
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            shutdown_rx.recv().await.ok();
+        })
         .await
         .expect("Error: unable to start server");
 }

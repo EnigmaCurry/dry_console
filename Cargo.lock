@@ -711,10 +711,12 @@ dependencies = [
 name = "dry_console_dto"
 version = "0.2.3"
 dependencies = [
+ "num_enum",
  "os-release",
  "serde",
  "serde_json",
  "strum",
+ "ulid",
  "utoipa",
  "utoipauto",
 ]

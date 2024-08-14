@@ -1,3 +1,4 @@
+use crate::broadcast;
 use crate::{api::route, app_state::SharedState, response::AppError};
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
 use dry_console_dto::workstation::{WorkstationDependencyInfo, WorkstationState, WorkstationUser};
@@ -13,12 +14,12 @@ pub mod command_execute;
 mod dependencies;
 pub mod platform;
 
-pub fn router() -> Router<SharedState> {
+pub fn router(shutdown: broadcast::Sender<()>) -> Router<SharedState> {
     Router::new()
         .merge(workstation())
         .merge(required_dependencies())
         .merge(dependencies())
-        .merge(command_execute::main())
+        .merge(command_execute::main(shutdown))
 }
 
 #[allow(non_camel_case_types)]

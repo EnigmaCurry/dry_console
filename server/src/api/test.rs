@@ -8,8 +8,8 @@ use axum::{
 use enum_iterator::{all, Sequence};
 
 use super::{route, APIModule, ApiModule};
+use crate::broadcast;
 use crate::{app_state::SharedState, AppRouter, API_PREFIX};
-
 pub mod counter;
 pub mod error;
 pub mod hello;
@@ -23,15 +23,15 @@ enum TestModule {
     Ping,
 }
 impl ApiModule for TestModule {
-    fn main() -> AppRouter {
+    fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<TestModule>() {
-            app = app.merge(m.router());
+            app = app.merge(m.router(shutdown.clone()));
         }
         app
     }
-    fn router(&self) -> AppRouter {
+    fn router(&self, _shutdown: broadcast::Sender<()>) -> AppRouter {
         match self {
             TestModule::Hello => hello::main(),
             TestModule::Counter => counter::main(),
@@ -52,8 +52,8 @@ impl ApiModule for TestModule {
     }
 }
 
-pub fn router() -> AppRouter {
-    TestModule::main().route("/", get(|| async { "Test" }))
+pub fn router(shutdown: broadcast::Sender<()>) -> AppRouter {
+    TestModule::main(shutdown).route("/", get(|| async { "Test" }))
 }
 
 fn test_route(

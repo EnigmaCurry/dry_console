@@ -14,18 +14,18 @@ mod docs;
 mod session;
 pub mod test;
 pub mod token;
-mod websocket;
 mod workstation;
 use crate::api::auth::Backend;
 use crate::app_state::SharedState;
+use crate::broadcast;
 use crate::routing::route;
 use crate::AppRouter;
 
 /// All API modules (and sub-modules) must implement ApiModule trait:
 pub trait ApiModule {
-    fn main() -> AppRouter;
+    fn main(shutdown: broadcast::Sender<()>) -> AppRouter;
     fn to_string(&self) -> String;
-    fn router(&self) -> AppRouter;
+    fn router(&self, shutdown: broadcast::Sender<()>) -> AppRouter;
     #[allow(dead_code)]
     fn redirect(&self) -> MethodRouter<SharedState, Infallible>;
 }
@@ -41,19 +41,22 @@ pub enum APIModule {
     // Docs
 }
 impl ApiModule for APIModule {
-    fn main() -> AppRouter {
+    fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<APIModule>() {
-            app = app.nest(format!("/{}/", m.to_string()).as_str(), m.router())
+            app = app.nest(
+                format!("/{}/", m.to_string()).as_str(),
+                m.router(shutdown.clone()),
+            )
         }
         app
     }
-    fn router(&self) -> AppRouter {
+    fn router(&self, shutdown: broadcast::Sender<()>) -> AppRouter {
         match self {
             APIModule::Admin => admin::router(),
-            APIModule::Test => test::router(),
-            APIModule::Workstation => workstation::router(),
+            APIModule::Test => test::router(shutdown),
+            APIModule::Workstation => workstation::router(shutdown),
         }
     }
     fn to_string(&self) -> String {
@@ -66,7 +69,7 @@ impl ApiModule for APIModule {
 }
 
 ///Adds all routes for all API modules
-pub fn router(auth_backend: Backend) -> AppRouter {
+pub fn router(auth_backend: Backend, shutdown: broadcast::Sender<()>) -> AppRouter {
     let key = cookie::Key::generate();
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store)
@@ -74,7 +77,7 @@ pub fn router(auth_backend: Backend) -> AppRouter {
         .with_signed(key.clone());
     let auth_layer =
         AuthManagerLayerBuilder::new(auth_backend.clone(), session_layer.clone()).build();
-    APIModule::main()
+    APIModule::main(shutdown)
         .route_layer(login_required!(Backend))
         .nest("/session/", session::router(auth_backend))
         .layer(MessagesManagerLayer)
