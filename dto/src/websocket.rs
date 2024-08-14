@@ -3,35 +3,35 @@ use serde::{Deserialize, Serialize, Serializer};
 use std::time::Duration;
 use ulid::Ulid;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PingReport {
     #[serde(serialize_with = "serialize_duration_as_milliseconds")]
     pub duration_ms: Duration,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Command {
     pub id: Ulid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Process {
     pub id: Ulid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProcessComplete {
     pub id: Ulid,
     pub code: i32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProcessOutput {
     pub id: Ulid,
     pub line: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 /// Enum of message types that the server may send to the client.
 pub enum ServerMsg {
     Ping,
@@ -42,7 +42,7 @@ pub enum ServerMsg {
     ProcessComplete(ProcessComplete),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 /// Enum of message types that the client may send to the server.
 pub enum ClientMsg {
     Command(Command),
