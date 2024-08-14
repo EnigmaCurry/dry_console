@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
+use uzers::{get_current_uid, get_user_by_uid};
 use which::which;
 
 pub mod command_execute;
@@ -87,8 +88,8 @@ fn workstation() -> Router<SharedState> {
             .unwrap_or_else(|_| "Unknown".into())
             .to_string_lossy()
             .to_string();
-        let uid = users::get_current_uid();
-        let user = users::get_user_by_uid(users::get_current_uid()).unwrap();
+        let uid = get_current_uid();
+        let user = get_user_by_uid(get_current_uid()).unwrap();
         let name = user.name().to_string_lossy().to_string();
         let platform = platform::detect_platform();
         Json(WorkstationState {

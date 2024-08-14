@@ -19,6 +19,7 @@ deps:
     cargo install --locked trunk; \
     cargo install --locked git-cliff; \
     cargo install --locked cargo-edit; \
+    cargo install --locked cargo-audit;
 
 # Install rust depdencies (precompiled)
 bin-deps:
@@ -94,6 +95,7 @@ release:
     CURRENT_VERSION=$(grep -Po '^version = \K.*' Cargo.toml | sed -e 's/"//g' | head -1); \
     if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then echo "Tag already exists: v${CURRENT_VERSION}"; exit 1; fi; \
     if (git ls-remote --tags "${GIT_REMOTE}" | grep -q "refs/tags/v${CURRENT_VERSION}" >/dev/null 2>&1); then echo "Tag already exists on remote ${GIT_REMOTE}: v${CURRENT_VERSION}"; exit 1; fi; \
+    cargo audit | less; \
     confirm yes "New tag will be \"v${CURRENT_VERSION}\"" " -- Proceed?"; \
     git tag "v${CURRENT_VERSION}"; \
     git push "${GIT_REMOTE}" tag "v${CURRENT_VERSION}";
