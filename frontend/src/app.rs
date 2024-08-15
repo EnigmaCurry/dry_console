@@ -242,7 +242,7 @@ fn sidebar(
                 </NavExpandable>
                 <NavExpandable title="Source code" expanded={true}>
                     <NavItem>
-            <ButtonLink href="https://github.com/EnigmaCurry/dry_console">{"Github"}</ButtonLink>
+                      <ButtonLink href="https://github.com/EnigmaCurry/dry_console">{"Github"}</ButtonLink>
                     </NavItem>
                 </NavExpandable>
             </NavList>

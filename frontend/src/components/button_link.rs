@@ -15,12 +15,13 @@ pub struct ButtonLinkProps {
 pub fn button_link(props: &ButtonLinkProps) -> Html {
     let href = props.href.clone();
 
-    let onclick = Callback::from(move |_| {
+    let onclick = Callback::from(move |e: MouseEvent| {
+        e.prevent_default();
         window().location().set_href(&href).unwrap();
     });
 
     html! {
-        <Button icon={Icon::Github} class="button-link" {onclick}>
+        <Button class="button-link" {onclick}>
             { for props.children.iter() }
         </Button>
     }
