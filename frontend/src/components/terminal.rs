@@ -62,11 +62,12 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             }
 
             move || {
-                if selected_tab != WorkstationTab::DRymcgTech && *is_connected_clone {
+                if *is_connected_clone {
                     if let Some(ws_rc) = &*ws_state_clone {
-                        // Borrow the RefCell, then borrow the WebSocket inside it
-                        let ws = ws_rc.borrow();
-                        ws.borrow().close().ok(); // Close the WebSocket
+                        // Borrow the WebSocket from the RefCell within Rc
+                        let ws_ref = ws_rc.borrow();
+                        // Access the actual WebSocket and close it
+                        ws_ref.borrow().close().ok();
                     }
                     ws_state_clone.set(None);
                     callback_state_clone.set(None);
