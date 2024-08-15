@@ -1,7 +1,7 @@
 use crate::app::{AppRoute, SessionState};
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
-use std::{rc::Rc, sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 use web_sys::SubmitEvent;
 use yew::prelude::*;
 use yew_nested_router::prelude::*;
@@ -18,7 +18,7 @@ pub fn logout(props: &LogoutProps) -> Html {
 
     let session_state = props.session_state.clone();
     let router = use_router().unwrap();
-    let toast = Arc::new({
+    let toast = Rc::new({
         let toaster = toaster.clone();
         move |t: AlertType, msg: &str| {
             toaster.toast(Toast {

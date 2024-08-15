@@ -8,7 +8,7 @@ pub struct InstallDRyMcGTechProps {
 }
 
 #[function_component(InstallDRyMcGTech)]
-pub fn install(props: &InstallDRyMcGTechProps) -> Html {
+pub fn install(_props: &InstallDRyMcGTechProps) -> Html {
     html! {
         <>
         {"here"}

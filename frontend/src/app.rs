@@ -173,7 +173,6 @@ fn top_bar_menu() -> Html {
                 TopMenuChoices::Routes => AppRoute::Routes,
             };
             navigator.push(route); // This will navigate and trigger a re-render
-            
         })
     };
 
@@ -312,10 +311,7 @@ fn page(props: &AppPageProps) -> Html {
         });
     }
 
-    let open = match *window_width {
-        width if width < 1200.0 => false,
-        _ => true,
-    };
+    let open = !matches!(*window_width, width if width < 1200.0);
 
     let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone(), props.session_state.clone())}</PageSidebar>};
     let tools = html!(

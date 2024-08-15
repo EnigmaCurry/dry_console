@@ -3,7 +3,7 @@ use gloo::utils::window;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Serialize;
-use std::{rc::Rc, sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 use web_sys::{HtmlInputElement, SubmitEvent};
 use yew::prelude::*;
 use yew_nested_router::prelude::*;
@@ -26,7 +26,7 @@ pub fn login(props: &LoginProps) -> Html {
 
     let session_state = props.session_state.clone();
     let router = use_router().unwrap();
-    let toast = Arc::new({
+    let toast = Rc::new({
         let toaster = toaster.clone();
         move |t: AlertType, msg: &str| {
             toaster.toast(Toast {
