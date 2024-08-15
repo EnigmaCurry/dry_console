@@ -22,7 +22,7 @@ fn tabs() -> Html {
     let selected = use_state_eq(|| {
         let location = window().location();
         let hash = location.hash().unwrap_or_default();
-        WorkstationTab::from_str(&hash.trim_start_matches('#')).unwrap_or(WorkstationTab::System)
+        WorkstationTab::from_str(hash.trim_start_matches('#')).unwrap_or(WorkstationTab::System)
     });
 
     let reload_trigger = use_state(|| 0);
@@ -35,7 +35,7 @@ fn tabs() -> Html {
             let listener = EventListener::new(&window.clone(), "hashchange", move |_event| {
                 let location = window.location();
                 let hash = location.hash().unwrap_or_default();
-                if let Ok(tab) = WorkstationTab::from_str(&hash.trim_start_matches('#')) {
+                if let Ok(tab) = WorkstationTab::from_str(hash.trim_start_matches('#')) {
                     if tab == WorkstationTab::Dependencies {
                         reload_trigger.set(*reload_trigger + 1); // Trigger reload when Dependencies tab is selected via hash change
                     }

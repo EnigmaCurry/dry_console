@@ -51,9 +51,7 @@ impl WorkstationDependency {
     }
 
     fn validate(self) -> Option<bool> {
-        if self.installed == None {
-            return None;
-        }
+        self.installed?;
         if !self.installed.unwrap_or(false) || self.path.is_empty() || self.version.is_empty() {
             return Some(false);
         }
@@ -70,7 +68,7 @@ pub struct DependencyListProps {
 #[function_component(DependencyList)]
 pub fn dependency_list(props: &DependencyListProps) -> Html {
     let dependencies = use_state(Vec::new);
-    let first_uninstalled = use_state(|| String::new());
+    let first_uninstalled = use_state(String::new);
     let status_checked = use_state(|| false);
     let is_loading = use_state(|| true);
     let has_fetched = use_state(|| false);
@@ -175,8 +173,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
 
     let accordion_items = dependencies
         .iter()
-        .enumerate()
-        .map(|(_index, dep)| {
+        .map(|dep| {
             let title = match dep.clone().validate() {
                 Some(true) => format!("✅ {}", dep.name),
                 Some(false) => format!("⚠️ {}", dep.name),

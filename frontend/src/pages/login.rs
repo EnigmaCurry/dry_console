@@ -192,14 +192,14 @@ pub fn login(props: &LoginProps) -> Html {
             if *loading_state {
                 <div>{"Logging in..."}</div>
             } else {
-                if (*session_state).logged_in {
+                if session_state.logged_in {
                     <div>
                       <div>{"Already logged in."}</div>
                         <form onsubmit={logout_submit}>
                             <Button label="Logout" r#type={ButtonType::Submit} />
                         </form>
                     </div>
-                } else if ! (*session_state).new_login_allowed {
+                } else if ! session_state.new_login_allowed {
                       <div>{"You are logged out. No new sessions are allowed at this time. (You must restart this service to create a new session)."}</div>
                 } else {
                     <div>

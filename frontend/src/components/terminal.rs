@@ -17,7 +17,7 @@ pub enum Msg {
 
 #[function_component(TerminalOutput)]
 pub fn terminal_output() -> Html {
-    let messages = use_state_eq(|| Vec::new());
+    let messages = use_state_eq(Vec::new);
     let ws = use_state(|| None::<WebSocket>);
     let callback = use_state(|| None::<Closure<dyn FnMut(web_sys::MessageEvent)>>);
 

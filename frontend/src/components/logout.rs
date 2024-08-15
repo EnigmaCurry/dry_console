@@ -80,7 +80,7 @@ pub fn logout(props: &LogoutProps) -> Html {
             if *loading_state {
                 <div>{"Loading state ..."}</div>
             } else {
-                if (*session_state).logged_in {
+                if session_state.logged_in {
                     <div>
                         <form onsubmit={logout_submit}>
                             <Button label="Logout" r#type={ButtonType::Submit} />

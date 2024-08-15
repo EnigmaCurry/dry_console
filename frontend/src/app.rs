@@ -5,7 +5,6 @@ use anyhow::{anyhow, Error};
 pub use dry_console_dto::session::SessionState;
 use gloo_events::EventListener;
 use gloo_net::http::Request;
-use gloo_storage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use strum_macros::Display;
@@ -31,9 +30,9 @@ pub enum AppRoute {
     Login,
 }
 
-impl Into<&'static str> for AppRoute {
-    fn into(self) -> &'static str {
-        match self {
+impl From<AppRoute> for &'static str {
+    fn from(val: AppRoute) -> Self {
+        match val {
             AppRoute::Login => "Login",
             AppRoute::Workstation => "Workstation",
             AppRoute::Apps => "Apps",
@@ -83,7 +82,7 @@ async fn check_session_state() -> Result<SessionState, Error> {
 
 #[function_component(Application)]
 pub fn app() -> Html {
-    let session_state = use_state(|| SessionState::default());
+    let session_state = use_state(SessionState::default);
     let checking_session = use_state(|| true);
 
     {
@@ -174,7 +173,7 @@ fn top_bar_menu() -> Html {
                 TopMenuChoices::Routes => AppRoute::Routes,
             };
             navigator.push(route); // This will navigate and trigger a re-render
-            ()
+            
         })
     };
 
@@ -183,19 +182,19 @@ fn top_bar_menu() -> Html {
             <ToggleGroupItem
                 text="Workstation"
                 key=0
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Workstation); () }}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Workstation);  }}
                 selected={*selected == Some(TopMenuChoices::Workstation)}
             />
             <ToggleGroupItem
                 text="Apps"
                 key=1
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Apps); () }}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Apps);  }}
                 selected={*selected == Some(TopMenuChoices::Apps)}
             />
             <ToggleGroupItem
                 text="Routes"
                 key=2
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Routes); () }}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Routes);  }}
                 selected={*selected == Some(TopMenuChoices::Routes)}
             />
         </ToggleGroup>
@@ -257,7 +256,7 @@ fn page(props: &AppPageProps) -> Html {
     let brand = html! { <a href="/">{"dry_console"}</a> };
 
     let darkmode = use_state_eq(|| {
-        if let Some(storage) = gloo_storage::LocalStorage::get("dark_mode").ok() {
+        if let Ok(storage) = gloo_storage::LocalStorage::get("dark_mode") {
             storage
         } else {
             gloo_utils::window()
