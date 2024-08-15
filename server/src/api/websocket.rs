@@ -6,6 +6,7 @@ use dry_console_dto::websocket::WebSocketMessage;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 
@@ -29,22 +30,38 @@ pub async fn handle_websocket<T, U, F>(
 {
     let last_ping = Arc::new(Mutex::new(None));
 
-    let send_ping = async {
-        let mut socket_guard = socket.lock().await;
-        *last_ping.lock().await = Some(Instant::now());
-        if let Some(socket) = socket_guard.as_mut() {
-            socket.send(Message::Item(T::PING)).await.ok();
-        }
-        debug!("Ping message sent!");
-    };
+    let mut ping_interval = tokio::time::interval(Duration::from_secs(10));
+    let mut ping_timeout: Option<Pin<Box<tokio::time::Sleep>>> = None;
 
-    send_ping.await;
-
-    let mut close_code: Option<CloseCode>;
-    let mut close_message: Option<String>;
+    let mut close_code: Option<CloseCode> = None;
+    let mut close_message: Option<String> = None;
 
     loop {
         tokio::select! {
+            _ = ping_interval.tick() => {
+                let mut socket_guard = socket.lock().await;
+                *last_ping.lock().await = Some(Instant::now());
+                if let Some(socket) = socket_guard.as_mut() {
+                    socket.send(Message::Item(T::PING)).await.ok();
+                    //debug!("Ping message sent!");
+                    ping_timeout = Some(Box::pin(tokio::time::sleep(Duration::from_secs(20))));
+                }
+            },
+            _ = async {
+                if let Some(timeout) = &mut ping_timeout {
+                    timeout.await;
+                    true
+                } else {
+                    false
+                }
+            } => {
+                if *last_ping.lock().await != None {
+                    close_code = Some(CloseCode::PolicyViolation);
+                    close_message = Some("Pong response not received in time".to_string());
+                    debug!("Pong response not received within 20s. Disconnecting...");
+                    break;
+                }
+            },
             msg = async {
                 let mut socket_guard = socket.lock().await;
                 if let Some(socket) = socket_guard.as_mut() {
@@ -55,13 +72,14 @@ pub async fn handle_websocket<T, U, F>(
             } => {
                 match msg {
                     Some(Ok(Message::Item(msg))) if msg == U::PONG => {
-                        debug!("Pong message received!");
+                        //debug!("Pong message received!");
                         let mut last_ping_guard = last_ping.lock().await;
                         if let Some(instant) = *last_ping_guard {
                             *last_ping_guard = None;
                             if let Some(socket) = socket.lock().await.as_mut() {
                                 socket.send(Message::Item(T::ping_report(Instant::now().duration_since(instant)))).await.ok();
                             }
+                            ping_timeout = None;
                         } else {
                             close_code = Some(CloseCode::UnsupportedData);
                             close_message = Some("Unexpected Pong".to_string());

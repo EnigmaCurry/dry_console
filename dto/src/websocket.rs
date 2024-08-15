@@ -1,5 +1,5 @@
 use num_enum::IntoPrimitive;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::time::Duration;
 use ulid::Ulid;
 
@@ -7,6 +7,7 @@ use ulid::Ulid;
 pub struct PingReport {
     #[serde(
         serialize_with = "serialize_duration_as_milliseconds",
+        deserialize_with = "deserialize_duration_from_milliseconds",
         rename = "duration_ms"
     )]
     pub duration: Duration,
@@ -62,6 +63,14 @@ where
     S: Serializer,
 {
     serializer.serialize_u128(duration.as_millis())
+}
+
+fn deserialize_duration_from_milliseconds<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let millis = u64::deserialize(deserializer)?;
+    Ok(Duration::from_millis(millis))
 }
 
 /// Exit codes for websocket connections

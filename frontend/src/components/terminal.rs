@@ -15,18 +15,32 @@ pub struct TerminalOutputProps {
     pub selected_tab: WorkstationTab,
 }
 
+pub struct TerminalOutputState {
+    ws: Option<Rc<RefCell<WebSocket>>>,
+    _callback: Option<Closure<dyn FnMut(web_sys::MessageEvent)>>,
+}
+
+impl Drop for TerminalOutputState {
+    fn drop(&mut self) {
+        debug!("Drop!");
+        if let Some(ws) = &self.ws {
+            ws.borrow().close().ok(); // Properly close the WebSocket
+        }
+    }
+}
+
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let messages = use_state_eq(Vec::new);
-    let ws = use_state(|| None::<Rc<RefCell<WebSocket>>>); // Update the type here
-    let callback = use_state(|| None::<Closure<dyn FnMut(web_sys::MessageEvent)>>);
+    let ws_state = use_state(|| None);
+    let callback_state = use_state(|| None);
     let is_connected = use_state(|| false); // Track connection status
 
     {
         let messages = messages.clone();
         let selected_tab = props.selected_tab.clone();
-        let ws_clone = ws.clone();
-        let callback_clone = callback.clone();
+        let ws_state_clone = ws_state.clone();
+        let callback_state_clone = callback_state.clone();
         let is_connected_clone = is_connected.clone();
 
         use_effect(move || {
@@ -39,24 +53,23 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     });
                 });
 
-                setup_websocket(
-                    "/api/workstation/command_execute/",
-                    ws_clone.clone(),
-                    callback_clone.clone(),
-                    on_message,
-                );
+                let (ws, callback) =
+                    setup_websocket("/api/workstation/command_execute/", on_message);
 
+                ws_state_clone.set(Some(Rc::new(RefCell::new(ws))));
+                callback_state_clone.set(Some(callback));
                 is_connected_clone.set(true); // Mark as connected
             }
 
-            // Cleanup function: close WebSocket if tab changes and WebSocket is connected
             move || {
                 if selected_tab != WorkstationTab::DRymcgTech && *is_connected_clone {
-                    if let Some(ws_instance) = (*ws_clone).as_ref() {
-                        ws_instance.borrow().close().ok();
+                    if let Some(ws_rc) = &*ws_state_clone {
+                        // Borrow the RefCell, then borrow the WebSocket inside it
+                        let ws = ws_rc.borrow();
+                        ws.borrow().close().ok(); // Close the WebSocket
                     }
-                    ws_clone.set(None);
-                    callback_clone.set(None);
+                    ws_state_clone.set(None);
+                    callback_state_clone.set(None);
                     is_connected_clone.set(false); // Reset connection status
                 }
             }
