@@ -1,6 +1,7 @@
 mod app;
 mod components;
 mod pages;
+mod websocket;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 
 #[cfg(not(debug_assertions))]

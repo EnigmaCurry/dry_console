@@ -35,6 +35,7 @@ pub async fn handle_websocket<T, U, F>(
         if let Some(socket) = socket_guard.as_mut() {
             socket.send(Message::Item(T::PING)).await.ok();
         }
+        debug!("Ping message sent!");
     };
 
     send_ping.await;
@@ -54,6 +55,7 @@ pub async fn handle_websocket<T, U, F>(
             } => {
                 match msg {
                     Some(Ok(Message::Item(msg))) if msg == U::PONG => {
+                        debug!("Pong message received!");
                         let mut last_ping_guard = last_ping.lock().await;
                         if let Some(instant) = *last_ping_guard {
                             *last_ping_guard = None;
@@ -78,11 +80,13 @@ pub async fn handle_websocket<T, U, F>(
                     Some(Err(err)) => {
                         close_code = Some(CloseCode::InvalidFramePayloadData);
                         close_message = Some(format!("Error parsing message: {}", err));
+                        debug!("Websocket closed after parse error: {}",err);
                         break;
                     },
                     None => {
                         close_code = Some(CloseCode::NormalClosure);
                         close_message = Some("Connection closed by client.".to_string());
+                        debug!("Websocket closed by client.");
                         break;
                     }
                 }

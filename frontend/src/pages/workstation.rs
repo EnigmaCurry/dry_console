@@ -11,7 +11,7 @@ mod system;
 
 #[derive(Clone, PartialEq, Eq, EnumString, AsRefStr)]
 #[strum(serialize_all = "kebab-case")]
-enum WorkstationTab {
+pub enum WorkstationTab {
     System,
     Dependencies,
     DRymcgTech,
