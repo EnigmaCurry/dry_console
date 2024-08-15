@@ -6,6 +6,7 @@ use strum_macros::{AsRefStr, EnumString};
 use yew::prelude::*;
 
 mod dependencies;
+mod install_d_rymcg_tech;
 mod system;
 
 #[derive(Clone, PartialEq, Eq, EnumString, AsRefStr)]
@@ -70,6 +71,9 @@ fn tabs() -> Html {
             </section>
             <section hidden={(*selected) != WorkstationTab::Dependencies} key={*reload_trigger}>
                 <dependencies::DependencyList reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
+            </section>
+            <section hidden={(*selected) != WorkstationTab::DRymcgTech} key={*reload_trigger}>
+                <install_d_rymcg_tech::InstallDRyMcGTech reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
             </section>
         </>
     )
