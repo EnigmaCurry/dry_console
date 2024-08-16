@@ -168,7 +168,6 @@ fn create_fetch_dependencies_callback(
 ) -> Callback<()> {
     Callback::from(move |_| {
         if *has_fetched || selected_tab != WorkstationTab::Dependencies {
-            debug!("abort cb");
             return;
         }
 

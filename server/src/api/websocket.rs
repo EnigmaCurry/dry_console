@@ -83,6 +83,7 @@ pub async fn handle_websocket<T, U, F>(
                         } else {
                             close_code = Some(CloseCode::UnsupportedData);
                             close_message = Some("Unexpected Pong".to_string());
+                            debug!("Unexepected Pong.");
                             break;
                         }
                     },
@@ -91,6 +92,7 @@ pub async fn handle_websocket<T, U, F>(
                             close_code = Some(response.close_code);
                             close_message = Some(response.close_message);
                             if response.close {
+                                debug!("Closing : {:?} {:?}", close_code, close_message);
                                 break;
                             }
                         }

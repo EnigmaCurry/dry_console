@@ -111,14 +111,14 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             *state.lock().await = State::Completed; // Update the state
                             Some(WebSocketResponse {
                                 close: true,
-                                close_code: CloseCode::NormalClosure,
+                                close_code: CloseCode::GoingAway,
                                 close_message: "Process finished".to_string(),
                             })
                         }
-                        _ => Some(WebSocketResponse {
+                        r => Some(WebSocketResponse {
                             close: true,
                             close_code: CloseCode::UnsupportedData,
-                            close_message: "Received unexpected message.".to_string(),
+                            close_message: format!("Received unexpected message: {r:?}"),
                         }),
                     },
                     State::RunningProcess | State::Completed => Some(WebSocketResponse {

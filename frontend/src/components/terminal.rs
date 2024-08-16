@@ -42,8 +42,8 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         let callback_state_clone = callback_state.clone();
         let is_connected_clone = is_connected.clone();
 
-        use_effect(move || {
-            if selected_tab == WorkstationTab::DRymcgTech && !*is_connected_clone {
+        use_effect_with(selected_tab,move |selected_tab| {
+            if *selected_tab == WorkstationTab::DRymcgTech && !*is_connected_clone {
                 let on_message = Callback::from(move |server_msg: ServerMsg| {
                     messages.set({
                         let mut new_messages = (*messages).clone();
@@ -51,20 +51,19 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                         new_messages
                     });
                 });
-
+        
+                debug!("setup_websocket");
                 let setup = setup_websocket("/api/workstation/command_execute/", on_message);
-
+        
                 ws_state_clone.set(Some(Rc::new(RefCell::new(setup.socket))));
                 callback_state_clone.set(Some(setup.on_message_closure));
                 is_connected_clone.set(true); // Mark as connected
             }
-
+        
             move || {
                 if *is_connected_clone {
                     if let Some(ws_rc) = &*ws_state_clone {
-                        // Borrow the WebSocket from the RefCell within Rc
                         let ws_ref = ws_rc.borrow();
-                        // Access the actual WebSocket and close it
                         ws_ref.borrow().close().ok();
                     }
                     ws_state_clone.set(None);
