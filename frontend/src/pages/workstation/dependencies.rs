@@ -162,7 +162,6 @@ fn create_fetch_dependencies_callback(
     dependencies: UseStateHandle<Vec<WorkstationDependency>>,
     first_uninstalled: UseStateHandle<String>,
     is_loading: UseStateHandle<bool>,
-    status_checked: UseStateHandle<bool>,
     has_fetched: UseStateHandle<bool>,
     all_installed: UseStateHandle<bool>,
 ) -> Callback<()> {
@@ -174,12 +173,10 @@ fn create_fetch_dependencies_callback(
         let dependencies = dependencies.clone();
         let first_uninstalled = first_uninstalled.clone();
         let is_loading = is_loading.clone();
-        let status_checked = status_checked.clone();
         let has_fetched = has_fetched.clone();
         let all_installed = all_installed.clone();
 
         is_loading.set(true);
-        status_checked.set(false);
         has_fetched.set(true);
 
         spawn_local(async move {
@@ -230,7 +227,6 @@ fn create_fetch_dependencies_callback(
                     log::error!("Failed to fetch dependencies");
                 }
             }
-            status_checked.set(true);
             is_loading.set(false);
         });
     })
@@ -307,7 +303,6 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
     let dependencies = use_state(Vec::new);
     let first_uninstalled = use_state(String::new);
     let is_loading = use_state(|| true);
-    let status_checked = use_state(|| true);
     let has_fetched = use_state(|| false);
     let all_installed = use_state(|| false);
 
@@ -316,7 +311,6 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
         dependencies.clone(),
         first_uninstalled.clone(),
         is_loading.clone(),
-        status_checked.clone(),
         has_fetched.clone(),
         all_installed.clone(),
     );
