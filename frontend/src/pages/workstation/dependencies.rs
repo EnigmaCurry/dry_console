@@ -323,9 +323,9 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
 
     {
         let fetch_dependencies = fetch_dependencies.clone();
-        let _ = props.reload_trigger;
+        let reload_trigger = props.reload_trigger; // This is used as the cache key
 
-        use_effect(move || {
+        use_effect_with(reload_trigger, move |_| {
             fetch_dependencies.emit(());
             || ()
         });

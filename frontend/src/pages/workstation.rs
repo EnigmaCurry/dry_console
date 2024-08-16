@@ -1,3 +1,4 @@
+use gloo::console::debug;
 use gloo_events::EventListener;
 use gloo_utils::window;
 use patternfly_yew::prelude::*;
@@ -26,34 +27,40 @@ fn tabs() -> Html {
     });
 
     let reload_trigger = use_state(|| 0);
-
     {
         let selected = selected.clone();
         let reload_trigger = reload_trigger.clone();
-        use_effect(move || {
+        use_effect_with((), move |_| {
+            debug!("Registering hashchange listener");
             let window = window();
             let listener = EventListener::new(&window.clone(), "hashchange", move |_event| {
                 let location = window.location();
                 let hash = location.hash().unwrap_or_default();
+                debug!("hashchange event triggered, current hash: {}", &hash);
                 if let Ok(tab) = WorkstationTab::from_str(hash.trim_start_matches('#')) {
                     if tab == WorkstationTab::Dependencies {
+                        debug!("Dependencies tab selected, triggering reload");
                         reload_trigger.set(*reload_trigger + 1); // Trigger reload when Dependencies tab is selected via hash change
                     }
                     selected.set(tab);
                 }
             });
-            listener.forget(); // Forget the listener to keep it active
-            || ()
+            listener.forget(); // Keep the listener active
+
+            // Cleanup when the component unmounts
+            || {
+                debug!("Cleaning up hashchange listener");
+            }
         });
     }
 
     let onselect = {
         let selected = selected.clone();
-        let reload_trigger = reload_trigger.clone();
+        //let reload_trigger = reload_trigger.clone();
         Callback::from(move |index: WorkstationTab| {
             window().location().set_hash(index.as_ref()).unwrap();
             if index == WorkstationTab::Dependencies {
-                reload_trigger.set(*reload_trigger + 1);
+                //reload_trigger.set(*reload_trigger + 1);
             }
             selected.set(index);
         })
