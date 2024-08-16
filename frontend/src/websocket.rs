@@ -6,7 +6,7 @@ use yew::prelude::*;
 
 use dry_console_dto::websocket::ServerMsg;
 
-use crate::random::generate_random_string;
+//use crate::random::generate_random_string;
 
 pub fn setup_websocket(
     url: &str,
@@ -36,12 +36,12 @@ pub fn setup_websocket(
                                     ws_clone_inner.borrow().send_with_str("\"Pong\"").unwrap();
                                 }
                                 ServerMsg::PingReport(r) => {
-                                    let m = r.duration.as_millis();
-                                    log::debug!("{}", format!(
-                                        "Ping time: {}ms -                                      #{}",
-                                        m.to_string(),
-                                        generate_random_string(5)
-                                    ));
+                                    //let m = r.duration.as_millis();
+                                    // log::debug!("{}", format!(
+                                    //     "Ping time: {}ms -                                      #{}",
+                                    //     m.to_string(),
+                                    //     generate_random_string(5)
+                                    // ));
                                 }
                                 _ => {
                                     // Call the custom callback for other messages
