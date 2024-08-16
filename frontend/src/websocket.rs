@@ -7,14 +7,11 @@ use yew::prelude::*;
 use dry_console_dto::websocket::ServerMsg;
 
 //use crate::random::generate_random_string;
-
-pub fn setup_websocket(
-    url: &str,
-    on_message: Callback<ServerMsg>,
-) -> (
-    Rc<RefCell<WebSocket>>,
-    Closure<dyn FnMut(web_sys::MessageEvent)>,
-) {
+pub struct WebSocketSetup {
+    pub socket: Rc<RefCell<WebSocket>>,
+    pub on_message_closure: Closure<dyn FnMut(web_sys::MessageEvent)>,
+}
+pub fn setup_websocket(url: &str, on_message: Callback<ServerMsg>) -> WebSocketSetup {
     let ws_instance = Rc::new(RefCell::new(WebSocket::new(url).unwrap()));
     let ws_clone = ws_instance.clone();
 
@@ -35,14 +32,14 @@ pub fn setup_websocket(
                                 ServerMsg::Ping => {
                                     ws_clone_inner.borrow().send_with_str("\"Pong\"").unwrap();
                                 }
-                                ServerMsg::PingReport(r) => {
-                                    //let m = r.duration.as_millis();
-                                    // log::debug!("{}", format!(
-                                    //     "Ping time: {}ms -                                      #{}",
-                                    //     m.to_string(),
-                                    //     generate_random_string(5)
-                                    // ));
-                                }
+                                //ServerMsg::PingReport(r) => {
+                                //let m = r.duration.as_millis();
+                                // log::debug!("{}", format!(
+                                //     "Ping time: {}ms -                                      #{}",
+                                //     m.to_string(),
+                                //     generate_random_string(5)
+                                // ));
+                                //}
                                 _ => {
                                     // Call the custom callback for other messages
                                     on_message.emit(server_msg);
@@ -65,5 +62,8 @@ pub fn setup_websocket(
         .borrow()
         .set_onmessage(Some(cb.as_ref().unchecked_ref()));
 
-    (ws_instance, cb) // Return the WebSocket and the closure
+    WebSocketSetup {
+        socket: ws_instance,
+        on_message_closure: cb,
+    }
 }

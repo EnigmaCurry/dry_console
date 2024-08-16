@@ -33,8 +33,8 @@ pub async fn handle_websocket<T, U, F>(
     let mut ping_interval = tokio::time::interval(Duration::from_secs(10));
     let mut ping_timeout: Option<Pin<Box<tokio::time::Sleep>>> = None;
 
-    let mut close_code: Option<CloseCode> = None;
-    let mut close_message: Option<String> = None;
+    let mut close_code: Option<CloseCode>;
+    let mut close_message: Option<String>;
 
     loop {
         tokio::select! {
@@ -55,7 +55,7 @@ pub async fn handle_websocket<T, U, F>(
                     false
                 }
             } => {
-                if *last_ping.lock().await != None {
+                if (*last_ping.lock().await).is_some() {
                     close_code = Some(CloseCode::PolicyViolation);
                     close_message = Some("Pong response not received in time".to_string());
                     debug!("Pong response not received within 20s. Disconnecting...");

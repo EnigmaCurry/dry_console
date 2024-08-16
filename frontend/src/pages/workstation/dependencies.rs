@@ -235,7 +235,7 @@ fn create_fetch_dependencies_callback(
 }
 
 fn create_accordion_items(
-    dependencies: &Vec<WorkstationDependency>,
+    dependencies: &[WorkstationDependency],
     first_uninstalled: &str,
     toggle: Callback<String>,
 ) -> Vec<VChild<AccordionItem>> {
@@ -289,8 +289,7 @@ fn create_accordion_items(
                         }}
                     </div>
                 </AccordionItem>
-            }
-            .into() // Convert VChild<AccordionItem> to VNode
+            } // Convert VChild<AccordionItem> to VNode
         })
         .collect()
 }

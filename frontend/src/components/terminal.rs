@@ -1,12 +1,11 @@
-use gloo::console::{debug, info};
+use gloo::console::debug;
 //use patternfly_yew::prelude::*;
 use crate::{pages::workstation::WorkstationTab, websocket::setup_websocket};
 use dry_console_dto::websocket::ServerMsg;
-use serde_json::from_str;
 use std::cell::RefCell;
 use std::rc::Rc;
-use wasm_bindgen::{closure::Closure, JsCast};
-use web_sys::{FileReader, WebSocket};
+use wasm_bindgen::closure::Closure;
+use web_sys::WebSocket;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -53,11 +52,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     });
                 });
 
-                let (ws, callback) =
-                    setup_websocket("/api/workstation/command_execute/", on_message);
+                let setup = setup_websocket("/api/workstation/command_execute/", on_message);
 
-                ws_state_clone.set(Some(Rc::new(RefCell::new(ws))));
-                callback_state_clone.set(Some(callback));
+                ws_state_clone.set(Some(Rc::new(RefCell::new(setup.socket))));
+                callback_state_clone.set(Some(setup.on_message_closure));
                 is_connected_clone.set(true); // Mark as connected
             }
 
