@@ -1,9 +1,10 @@
 use crate::components::ButtonLink;
 use crate::pages::workstation::WorkstationTab;
+use gloo::console::debug;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
-use yew::platform::spawn_local;
+use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::virtual_dom::VChild;
 
@@ -167,6 +168,7 @@ fn create_fetch_dependencies_callback(
 ) -> Callback<()> {
     Callback::from(move |_| {
         if *has_fetched || selected_tab != WorkstationTab::Dependencies {
+            debug!("abort cb");
             return;
         }
 
@@ -315,14 +317,29 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
         all_installed.clone(),
     );
 
+    // Effect to fetch dependencies when `has_fetched` is reset to false
     {
+        let has_fetched = has_fetched.clone();
         let fetch_dependencies = fetch_dependencies.clone();
-        let reload_trigger = props.reload_trigger; // This is used as the cache key
 
-        use_effect_with(reload_trigger, move |_| {
-            fetch_dependencies.emit(());
+        use_effect(move || {
+            if !*has_fetched {
+                fetch_dependencies.emit(());
+            }
             || ()
         });
+    }
+
+    // on_click only resets the `has_fetched` state
+    let on_click = {
+        let has_fetched = has_fetched.clone();
+        Callback::from(move |_: MouseEvent| {
+            has_fetched.set(false); // Reset has_fetched state
+        })
+    };
+
+    if *is_loading {
+        return html! { <LoadingState /> };
     }
 
     let toggle = {
@@ -332,20 +349,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
         })
     };
 
-    if *is_loading {
-        return html! { <LoadingState /> };
-    }
-
     let accordion_items = create_accordion_items(&dependencies, &first_uninstalled, toggle);
-
-    let on_click = {
-        let fetch_dependencies = fetch_dependencies.clone();
-        let has_fetched = has_fetched.clone();
-        Callback::from(move |_: MouseEvent| {
-            has_fetched.set(false);
-            fetch_dependencies.emit(());
-        })
-    };
 
     html! {
         <>
