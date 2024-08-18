@@ -4,8 +4,8 @@ use dry_console_dto::websocket::ServerMsg;
 use gloo::console::debug;
 use std::cell::RefCell;
 use std::rc::Rc;
-use wasm_bindgen::closure::Closure;
-use web_sys::WebSocket;
+use wasm_bindgen::prelude::*;
+use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -36,6 +36,45 @@ impl Reducible for MessagesState {
     }
 }
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+#[wasm_bindgen]
+pub fn scroll_to_line(container_id: &str, mut line_number: i32) {
+    let window = web_sys::window().expect("should have a Window");
+    let document = window.document().expect("should have a Document");
+
+    if let Some(container_element) = document.get_element_by_id(container_id) {
+        let children = container_element.children();
+        let total_lines = children.length() as i32;
+        if line_number < 1 {
+            line_number = 1;
+        } else if line_number >= 2 {
+            line_number = line_number - 1;
+            if line_number >= total_lines {
+                line_number = total_lines;
+            }
+        }
+
+        let line_id = format!("line-{}", line_number);
+
+        if let Some(line_element) = document.get_element_by_id(&line_id) {
+            // Scroll the container such that the line is visible
+            line_element.scroll_into_view_with_bool(true);
+        } else {
+            log(&format!("Line element with id '{}' not found", line_id));
+        }
+    } else {
+        log(&format!(
+            "Container element with id '{}' not found",
+            container_id
+        ));
+    }
+}
+
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let messages = use_reducer(|| MessagesState {
@@ -44,6 +83,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let ws_state = use_state(|| None);
     let callback_state = use_state(|| None);
     let is_connected = use_state(|| false); // Track connection status
+
+    // NodeRefs for terminal and gutter
+    let terminal_ref = use_node_ref();
+    let gutter_ref = use_node_ref();
 
     {
         let selected_tab = props.selected_tab.clone();
@@ -82,9 +125,28 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         });
     }
 
+    let onscroll = {
+        let terminal_ref = terminal_ref.clone();
+        let gutter_ref = gutter_ref.clone();
+        Callback::from(move |_| {
+            if let (Some(terminal), Some(gutter)) = (
+                terminal_ref.cast::<HtmlElement>(),
+                gutter_ref.cast::<HtmlElement>(),
+            ) {
+                let scroll_top = terminal.scroll_top();
+                gutter.set_scroll_top(scroll_top);
+            }
+        })
+    };
+
     html! {
-        <div>
-            { for messages.messages.iter().map(|message| html!{ <p>{message}</p> }) }
+        <div class="terminal">
+            <div class="gutter" ref={gutter_ref}>
+                { for (1..=messages.messages.len()).map(|line_number| html!{ <div class="gutter-line">{line_number}</div> }) }
+            </div>
+            <div class="output" ref={terminal_ref} {onscroll}>
+                { for messages.messages.iter().enumerate().map(|(index, message)| html!{ <p id={format!("line-{}", index + 1)}>{message}</p> }) }
+            </div>
         </div>
     }
 }

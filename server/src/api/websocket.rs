@@ -12,6 +12,8 @@ use tokio::time::Instant;
 
 use tracing::*;
 
+const PING_INTERVAL: u64 = 100;
+
 #[derive(Debug)]
 pub struct WebSocketResponse {
     pub close: bool,
@@ -30,7 +32,7 @@ pub async fn handle_websocket<T, U, F>(
 {
     let last_ping = Arc::new(Mutex::new(None));
 
-    let mut ping_interval = tokio::time::interval(Duration::from_secs(10));
+    let mut ping_interval = tokio::time::interval(Duration::from_millis(PING_INTERVAL));
     let mut ping_timeout: Option<Pin<Box<tokio::time::Sleep>>> = None;
 
     let mut close_code: Option<CloseCode>;
