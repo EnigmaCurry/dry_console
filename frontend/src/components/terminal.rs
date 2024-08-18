@@ -5,7 +5,7 @@ use gloo::console::debug;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlElement, WebSocket};
+use web_sys::{HtmlElement};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -54,7 +54,7 @@ pub fn scroll_to_line(container_id: &str, mut line_number: i32) {
         if line_number < 1 {
             line_number = 1;
         } else if line_number >= 2 {
-            line_number = line_number - 1;
+            line_number -= 1;
             if line_number >= total_lines {
                 line_number = total_lines;
             }

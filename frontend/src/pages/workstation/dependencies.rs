@@ -1,6 +1,5 @@
 use crate::components::ButtonLink;
 use crate::pages::workstation::WorkstationTab;
-use gloo::console::debug;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
