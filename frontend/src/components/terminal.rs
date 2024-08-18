@@ -12,6 +12,7 @@ use yew::prelude::*;
 pub struct TerminalOutputProps {
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
+    pub show_gutter: bool,
 }
 
 enum MsgAction {
@@ -74,7 +75,6 @@ pub fn scroll_to_line(container_id: &str, mut line_number: i32) {
         ));
     }
 }
-
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let messages = use_reducer(|| MessagesState {
@@ -141,9 +141,11 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     html! {
         <div class="terminal">
-            <div class="gutter" ref={gutter_ref}>
-                { for (1..=messages.messages.len()).map(|line_number| html!{ <div class="gutter-line">{line_number}</div> }) }
-            </div>
+            if props.show_gutter {
+                <div class="gutter" ref={gutter_ref}>
+                    { for (1..=messages.messages.len()).map(|line_number| html!{ <div class="gutter-line">{line_number}</div> }) }
+                </div>
+            }
             <div class="output" ref={terminal_ref} {onscroll}>
                 { for messages.messages.iter().enumerate().map(|(index, message)| html!{ <p id={format!("line-{}", index + 1)}>{message}</p> }) }
             </div>
