@@ -31,6 +31,7 @@ pub struct ProcessComplete {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProcessOutput {
+    pub stream: StreamType,
     pub id: Ulid,
     pub line: String,
 }
@@ -111,4 +112,11 @@ impl WebSocketMessage for ClientMsg {
     fn ping_report(duration: Duration) -> Self {
         ClientMsg::PingReport(PingReport { duration })
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum StreamType {
+    Stdout,
+    Stderr,
+    Meta,
 }

@@ -2,6 +2,7 @@ use crate::{
     app::WindowDimensions, pages::workstation::WorkstationTab, websocket::setup_websocket,
 };
 use dry_console_dto::websocket::ServerMsg;
+use dry_console_dto::websocket::StreamType;
 use gloo::console::debug;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -17,12 +18,12 @@ pub struct TerminalOutputProps {
 }
 
 enum MsgAction {
-    AddMessage(String),
+    AddMessage { stream: StreamType, message: String },
     Reset,
 }
 
 struct MessagesState {
-    messages: Vec<String>,
+    messages: Vec<(StreamType, String)>,
 }
 
 impl Reducible for MessagesState {
@@ -30,14 +31,13 @@ impl Reducible for MessagesState {
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         match action {
-            MsgAction::Reset => {
-                let mut messages = self.messages.clone();
-                messages.clear();
-                MessagesState { messages }.into()
+            MsgAction::Reset => MessagesState {
+                messages: Vec::new(),
             }
-            MsgAction::AddMessage(new_message) => {
+            .into(),
+            MsgAction::AddMessage { stream, message } => {
                 let mut messages = self.messages.clone();
-                messages.push(new_message);
+                messages.push((stream, message));
                 MessagesState { messages }.into()
             }
         }
@@ -131,8 +131,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                             {
                                 status_clone.set(TerminalStatus::Ready);
                                 messages_clone.dispatch(MsgAction::Reset);
-                                messages_clone
-                                    .dispatch(MsgAction::AddMessage("# [Ready]".to_string()));
+                                messages_clone.dispatch(MsgAction::AddMessage {
+                                    stream: StreamType::Meta,
+                                    message: "# [Ready]".to_string(),
+                                });
                                 if let Some(ws) = &*ws_state_clone.borrow() {
                                     ws.send_with_str(
                                         "{\"Command\": { \"id\": \"01J5NN55HAWZJS96BJMHQG4XJD\"}}",
@@ -147,20 +149,25 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                         }
                         ServerMsg::ProcessOutput(msg) => {
                             status_clone.set(TerminalStatus::Processing);
-                            messages_clone.dispatch(MsgAction::AddMessage(msg.line));
+                            messages_clone.dispatch(MsgAction::AddMessage {
+                                stream: msg.stream,
+                                message: msg.line,
+                            });
                         }
                         ServerMsg::ProcessComplete(msg) => match msg.code {
                             0 => {
                                 status_clone.set(TerminalStatus::Complete);
-                                messages_clone.dispatch(MsgAction::AddMessage(
-                                    "# [Process complete]".to_string(),
-                                ));
+                                messages_clone.dispatch(MsgAction::AddMessage {
+                                    stream: StreamType::Meta,
+                                    message: "# [Process complete]".to_string(),
+                                });
                             }
                             _ => {
                                 status_clone.set(TerminalStatus::Failed);
-                                messages_clone.dispatch(MsgAction::AddMessage(
-                                    "# [Process failed]".to_string(),
-                                ));
+                                messages_clone.dispatch(MsgAction::AddMessage {
+                                    stream: StreamType::Meta,
+                                    message: "# [Process failed]".to_string(),
+                                });
                             }
                         },
                     };
@@ -171,7 +178,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 let setup = setup_websocket("/api/workstation/command_execute/", on_message);
                 *ws_state.borrow_mut() = Some(setup.socket.borrow().clone()); // Unwrap and clone the WebSocket
                 callback_state.set(Some(setup.on_message_closure));
-                messages.dispatch(MsgAction::AddMessage("# [Connecting...]".to_string()));
+                messages.dispatch(MsgAction::AddMessage {
+                    stream: StreamType::Meta,
+                    message: "# [Connecting...]".to_string(),
+                });
             }
 
             move || {
@@ -183,7 +193,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     callback_state.set(None);
                     if *status != TerminalStatus::Complete && *status != TerminalStatus::Failed {
                         status.set(TerminalStatus::Failed);
-                        messages.dispatch(MsgAction::AddMessage("# [Process failed]".to_string()));
+                        messages.dispatch(MsgAction::AddMessage {
+                            stream: StreamType::Meta,
+                            message: "# [Process failed]".to_string(),
+                        });
                     }
                 }
             }
@@ -229,16 +242,50 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             }
         })
     };
+    let mut line_number = 1;
 
     html! {
         <div class="terminal">
             if props.show_gutter {
                 <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
-                    { for (1..=messages.messages.len()).map(|line_number| html!{ <div class="gutter-line">{line_number}</div> }) }
+                    {
+                        for messages.messages.iter().map(|(stream, _message)| {
+                            let gutter_content = match stream {
+                                StreamType::Stdout => {
+                                    let content = line_number.to_string();
+                                    line_number += 1;
+                                    content
+                                }
+                                StreamType::Stderr => "E".to_string(),         // "E" for StdErr
+                                StreamType::Meta => "#".to_string(),           // "M" for Meta
+                            };
+                            html!{
+                                <div class="gutter-line">{gutter_content}</div>
+                            }
+                        })
+                    }
                 </div>
             }
             <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 1)}>
-                { for messages.messages.iter().enumerate().map(|(index, message)| html!{ <p id={format!("line-{}", index + 1)}>{message}</p> }) }
+                {
+                    for messages.messages.iter().map(|(stream, message)| {
+                        let class_name = match stream {
+                            StreamType::Stdout => "stream-stdout",
+                            StreamType::Stderr => "stream-stderr",
+                            StreamType::Meta => "stream-meta",
+                        };
+                        let id = if *stream == StreamType::Stdout {
+                            let id = format!("line-{}", line_number);
+                            line_number += 1;
+                            id
+                        } else {
+                            "".to_string()
+                        };
+                        html!{
+                            <p id={id} class={class_name}>{message}</p>
+                        }
+                    })
+                }
             </div>
         </div>
     }

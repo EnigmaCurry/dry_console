@@ -1,5 +1,6 @@
 use std::process::Stdio;
 use std::sync::Arc;
+use tokio::time::{sleep, Duration};
 
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
 use crate::broadcast;
@@ -7,10 +8,9 @@ use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
 use dry_console_dto::websocket::{
-    ClientMsg, CloseCode, Process, ProcessComplete, ProcessOutput, ServerMsg,
+    ClientMsg, CloseCode, Process, ProcessComplete, ProcessOutput, ServerMsg, StreamType,
 };
-use tokio::io::AsyncBufReadExt;
-use tokio::io::BufReader;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
@@ -59,8 +59,10 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             let process_id = Ulid::new();
                             let script = r#"
                             #!/bin/sh
-                            for i in $(seq 5); do
+                            echo "Hii" >/dev/stderr
+                            for i in $(seq 25); do
                                echo $i
+                               echo "uhh" >/dev/stderr
                                sleep 0.1
                             done
                             "#;
@@ -68,6 +70,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                 .arg("-c")
                                 .arg(script)
                                 .stdout(Stdio::piped())
+                                .stderr(Stdio::piped())
                                 .spawn()
                                 .expect("Failed to start process");
 
@@ -78,34 +81,84 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                 })))
                                 .await
                                 .ok();
+                            // Handle stdout and stderr concurrently
+                            let stdout = process.stdout.take().expect("Failed to take stdout");
+                            let stderr = process.stderr.take().expect("Failed to take stderr");
 
-                            // Handle the stdout
-                            if let Some(stdout) = process.stdout.take() {
-                                let reader = BufReader::new(stdout);
-                                let mut reader_stream =
-                                    tokio_stream::wrappers::LinesStream::new(reader.lines());
+                            let stdout_reader = BufReader::new(stdout).lines();
+                            let stderr_reader = BufReader::new(stderr).lines();
 
-                                while let Some(line_result) = reader_stream.next().await {
-                                    match line_result {
-                                        Ok(line_content) => {
-                                            socket_guard
-                                                .send(Message::Item(ServerMsg::ProcessOutput(
-                                                    ProcessOutput {
-                                                        id: process_id,
-                                                        line: line_content,
-                                                    },
-                                                )))
-                                                .await
-                                                .ok();
+                            let mut stdout_stream =
+                                tokio_stream::wrappers::LinesStream::new(stdout_reader);
+                            let mut stderr_stream =
+                                tokio_stream::wrappers::LinesStream::new(stderr_reader);
+
+                            let mut stdout_stream = stdout_stream.fuse();
+                            let mut stderr_stream = stderr_stream.fuse();
+
+                            debug!("here");
+                            let mut stdout_ended = false;
+                            let mut stderr_ended = false;
+
+                            loop {
+                                tokio::select! {
+                                    stdout_line = stdout_stream.next(), if !stdout_ended => {
+                                        match stdout_line {
+                                            Some(Ok(line_content)) => {
+                                                debug!("stdout_line: {:?}", line_content);
+                                                socket_guard
+                                                    .send(Message::Item(ServerMsg::ProcessOutput(
+                                                        ProcessOutput {
+                                                            stream: StreamType::Stdout,
+                                                            id: process_id,
+                                                            line: line_content,
+                                                        },
+                                                    )))
+                                                    .await
+                                                    .ok();
+                                            }
+                                            Some(Err(e)) => {
+                                                debug!("Error reading stdout: {:?}", e);
+                                            }
+                                            None => {
+                                                debug!("stdout_stream ended, setting stdout_ended = true");
+                                                stdout_ended = true;
+                                            }
                                         }
-                                        Err(e) => {
-                                            eprintln!("Error reading line: {}", e);
+                                    }
+                                    stderr_line = stderr_stream.next(), if !stderr_ended => {
+                                        match stderr_line {
+                                            Some(Ok(line_content)) => {
+                                                debug!("stderr_line: {:?}", line_content);
+                                                socket_guard
+                                                    .send(Message::Item(ServerMsg::ProcessOutput(
+                                                        ProcessOutput {
+                                                            stream: StreamType::Stderr,
+                                                            id: process_id,
+                                                            line: line_content,
+                                                        },
+                                                    )))
+                                                    .await
+                                                    .ok();
+                                            }
+                                            Some(Err(e)) => {
+                                                debug!("Error reading stderr: {:?}", e);
+                                            }
+                                            None => {
+                                                debug!("stderr_stream ended, setting stderr_ended = true");
+                                                stderr_ended = true;
+                                            }
+                                        }
+                                    }
+                                    else => {
+                                        debug!("Exiting the loop. stdout_ended: {}, stderr_ended: {}", stdout_ended, stderr_ended);
+                                        if stdout_ended && stderr_ended {
+                                            break;
                                         }
                                     }
                                 }
                             }
-
-                            // Wait for the process to finish
+                            debug!("done");                               // Wait for the process to finish
                             let status = process
                                 .wait()
                                 .await
