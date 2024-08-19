@@ -59,7 +59,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             let process_id = Ulid::new();
                             let script = r#"
                             #!/bin/sh
-                            for i in $(seq 48); do
+                            for i in $(seq 5); do
                                echo $i
                                sleep 0.1
                             done

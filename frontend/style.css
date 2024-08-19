@@ -107,9 +107,9 @@ hr {
 
 .terminal {
     display: flex;
-    border-radius: 8px; 
-    border: 2px solid #333;
-    padding: 10px;
+    border-radius: 10px; 
+    border: 10px solid #333;
+    padding: 0;
     background-color: #000;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
 }
@@ -124,9 +124,8 @@ hr {
 }
 
 .terminal .gutter {
-    margin-top: 1em;
-    border-top-left-radius: 10px;
-    border-bottom-left-radius: 10px; 
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px; 
     user-select: none;
     background-color: #2d0303;
     text-align: right;
@@ -134,12 +133,16 @@ hr {
     padding-right: 10px;
     overflow: hidden;
     padding-left: 0.5em;
+    box-shadow: 
+        -2px 0 0 0 #f7a9a9,    /* Left shadow */
+        0 -2px 0 0 #f7a9a9,     /* Top shadow */
+        0 2px 0 0 #f7a9a9;      /* Bottom shadow */
+        0 2px 0 0 #f7a9a9;      /* Bottom shadow */
 }
 
 html:not(.pf-v5-theme-dark) .terminal .gutter {
     background-color: #534b4b;
     color: #bda9a9;
-    outline: 0.5em double #484343;
 }
 
 .terminal .output {
@@ -147,16 +150,6 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     color: white;
     padding-left: 10px;
     width: 100%;
-    border-top: 1em solid black;
-    border-bottom: 1em solid black;
-    border-left: 1px double #ccc;
+    /*border-left: 1px double #ccc;*/
     overflow: scroll;
-}
-
-/* Mobile styles */
-@media screen and (max-height: 600px) {
-    .terminal .gutter,
-    .terminal .output {
-        max-height: 15em;
-    }
 }

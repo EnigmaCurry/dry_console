@@ -233,11 +233,11 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     html! {
         <div class="terminal">
             if props.show_gutter {
-                <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
+                <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
                     { for (1..=messages.messages.len()).map(|line_number| html!{ <div class="gutter-line">{line_number}</div> }) }
                 </div>
             }
-            <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 2)}>
+            <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 1)}>
                 { for messages.messages.iter().enumerate().map(|(index, message)| html!{ <p id={format!("line-{}", index + 1)}>{message}</p> }) }
             </div>
         </div>
