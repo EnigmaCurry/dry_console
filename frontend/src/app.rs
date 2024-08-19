@@ -3,6 +3,7 @@ use crate::components::ButtonLink;
 use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
 pub use dry_console_dto::session::SessionState;
+use gloo::console::debug;
 use gloo_events::EventListener;
 use gloo_net::http::Request;
 use gloo_storage::Storage;
@@ -80,8 +81,58 @@ async fn check_session_state() -> Result<SessionState, Error> {
     }
 }
 
+#[derive(Clone, PartialEq)]
+pub struct WindowDimensions {
+    pub width: f64,
+    pub height: f64,
+}
+
 #[function_component(Application)]
 pub fn app() -> Html {
+    let width_handle = use_state(|| {
+        window()
+            .and_then(|w| w.inner_width().ok())
+            .and_then(|width| width.as_f64())
+            .unwrap_or(0.0)
+    });
+
+    let height_handle = use_state(|| {
+        window()
+            .and_then(|w| w.inner_height().ok())
+            .and_then(|height| height.as_f64())
+            .unwrap_or(0.0)
+    });
+
+    {
+        let width_handle = width_handle.clone();
+        let height_handle = height_handle.clone();
+
+        use_effect_with((), move |_| {
+            let on_resize = Callback::from(move |_| {
+                if let Some(window) = window() {
+                    if let Ok(new_width) = window.inner_width() {
+                        width_handle.set(new_width.as_f64().unwrap_or(0.0));
+                    }
+                    if let Ok(new_height) = window.inner_height() {
+                        height_handle.set(new_height.as_f64().unwrap_or(0.0));
+                    }
+                }
+            });
+
+            let listener = EventListener::new(&window().unwrap(), "resize", move |_event| {
+                on_resize.emit(());
+            });
+            listener.forget();
+
+            || {}
+        });
+    }
+
+    let screen_dimensions = WindowDimensions {
+        width: *width_handle,
+        height: *height_handle,
+    };
+
     let session_state = use_state(SessionState::default);
     let checking_session = use_state(|| true);
 
@@ -103,8 +154,8 @@ pub fn app() -> Html {
             || ()
         });
     }
-
     html! {
+        <ContextProvider<WindowDimensions> context={screen_dimensions}>
         <BackdropViewer>
             <ToastViewer>
                 <Router<AppRoute> default={AppRoute::Workstation}>
@@ -121,6 +172,7 @@ pub fn app() -> Html {
                 </Router<AppRoute>>
             </ToastViewer>
         </BackdropViewer>
+        </ContextProvider<WindowDimensions>>
     }
 }
 

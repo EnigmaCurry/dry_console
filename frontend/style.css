@@ -107,31 +107,39 @@ hr {
 
 .terminal {
     display: flex;
+    border-radius: 8px; 
+    border: 2px solid #333;
+    padding: 10px;
+    background-color: #000;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .terminal .gutter,
 .terminal .output {
     line-height: 1;
-    max-height: calc((24 * 1em) + 4em); /* 24 rows + one line buffer */
     font-family: monospace;
     padding: 0;
     margin: 0;
+    padding-bottom: 1em;
 }
 
 .terminal .gutter {
+    margin-top: 1em;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px; 
     user-select: none;
     background-color: #2d0303;
     text-align: right;
     color: #ac7c7c;
     padding-right: 10px;
     overflow: hidden;
-    padding-top: 1em;
     padding-left: 0.5em;
 }
 
 html:not(.pf-v5-theme-dark) .terminal .gutter {
     background-color: #534b4b;
     color: #bda9a9;
+    outline: 0.5em double #484343;
 }
 
 .terminal .output {
@@ -139,13 +147,11 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     color: white;
     padding-left: 10px;
     width: 100%;
-    overflow-y: scroll;
-    border: 1px solid #ccc;
     border-top: 1em solid black;
     border-bottom: 1em solid black;
-    padding-bottom: 1em;
+    border-left: 1px double #ccc;
+    overflow: scroll;
 }
-
 
 /* Mobile styles */
 @media screen and (max-height: 600px) {

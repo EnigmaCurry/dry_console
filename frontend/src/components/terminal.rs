@@ -1,4 +1,6 @@
-use crate::{pages::workstation::WorkstationTab, websocket::setup_websocket};
+use crate::{
+    app::WindowDimensions, pages::workstation::WorkstationTab, websocket::setup_websocket,
+};
 use dry_console_dto::websocket::ServerMsg;
 use gloo::console::debug;
 use std::cell::RefCell;
@@ -93,6 +95,7 @@ enum TerminalStatus {
 
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
+    let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
     let messages = use_reducer(|| MessagesState {
         messages: Vec::new(),
     });
@@ -100,6 +103,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         use_state(|| Rc::new(RefCell::new(None)));
     let callback_state = use_state(|| None);
     let status = use_state(|| TerminalStatus::Initialized);
+    let num_lines = use_state(|| 1);
 
     // NodeRefs for terminal and gutter
     let terminal_ref = use_node_ref();
@@ -186,6 +190,32 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         });
     }
 
+    //Update gutter height dynamically:
+    {
+        let messages_len = messages.messages.len();
+        let screen_dimensions = screen_dimensions.clone();
+        let num_lines = num_lines.clone();
+        use_effect_with(
+            [messages.messages.len(), screen_dimensions.height as usize],
+            move |_| {
+                if screen_dimensions.height < 900.0 {
+                    if messages_len > 13 {
+                        num_lines.set(13);
+                    } else if messages_len > 0 {
+                        num_lines.set(messages_len);
+                    }
+                } else {
+                    if messages_len > 24 {
+                        num_lines.set(24);
+                    } else if messages_len > 0 {
+                        num_lines.set(messages_len);
+                    }
+                }
+                || ()
+            },
+        );
+    }
+
     let onscroll = {
         let terminal_ref = terminal_ref.clone();
         let gutter_ref = gutter_ref.clone();
@@ -203,11 +233,11 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     html! {
         <div class="terminal">
             if props.show_gutter {
-                <div class="gutter" ref={gutter_ref}>
+                <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
                     { for (1..=messages.messages.len()).map(|line_number| html!{ <div class="gutter-line">{line_number}</div> }) }
                 </div>
             }
-            <div class="output" ref={terminal_ref} {onscroll}>
+            <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 2)}>
                 { for messages.messages.iter().enumerate().map(|(index, message)| html!{ <p id={format!("line-{}", index + 1)}>{message}</p> }) }
             </div>
         </div>
