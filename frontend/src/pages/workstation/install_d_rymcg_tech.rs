@@ -13,7 +13,7 @@ pub struct InstallDRyMcGTechProps {
 pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     html! {
         <>
-            <TerminalOutput show_gutter={false} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
+            <TerminalOutput show_gutter={true} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
         </>
     }
 }

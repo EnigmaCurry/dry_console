@@ -120,16 +120,18 @@ hr {
 
 .terminal .gutter {
     user-select: none;
-    background-color: #f0f0f0;
+    background-color: #2d0303;
     text-align: right;
-    color: #666;
+    color: #ac7c7c;
     padding-right: 10px;
     overflow: hidden;
+    padding-top: 1em;
+    padding-left: 0.5em;
 }
 
-.terminal .gutter-line {
-    padding-top: 1em;
-    padding-right: 5px;
+html:not(.pf-v5-theme-dark) .terminal .gutter {
+    background-color: #534b4b;
+    color: #bda9a9;
 }
 
 .terminal .output {
@@ -142,4 +144,13 @@ hr {
     border-top: 1em solid black;
     border-bottom: 1em solid black;
     padding-bottom: 1em;
+}
+
+
+/* Mobile styles */
+@media screen and (max-height: 600px) {
+    .terminal .gutter,
+    .terminal .output {
+        max-height: 15em;
+    }
 }
