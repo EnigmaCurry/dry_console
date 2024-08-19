@@ -6,7 +6,9 @@ use crate::broadcast;
 use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
-use dry_console_dto::websocket::{ClientMsg, CloseCode, ProcessComplete, ProcessOutput, ServerMsg};
+use dry_console_dto::websocket::{
+    ClientMsg, CloseCode, Process, ProcessComplete, ProcessOutput, ServerMsg,
+};
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::Command;
@@ -57,9 +59,9 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             let process_id = Ulid::new();
                             let script = r#"
                             #!/bin/sh
-                            for i in $(seq 10); do
+                            for i in $(seq 24); do
                                echo $i
-                               sleep 1
+                               sleep 0.1
                             done
                             "#;
                             let mut process = Command::new("/bin/sh")
@@ -68,6 +70,14 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                 .stdout(Stdio::piped())
                                 .spawn()
                                 .expect("Failed to start process");
+
+                            // Send the client info about the process just started:
+                            socket_guard
+                                .send(Message::Item(ServerMsg::Process(Process {
+                                    id: process_id,
+                                })))
+                                .await
+                                .ok();
 
                             // Handle the stdout
                             if let Some(stdout) = process.stdout.take() {

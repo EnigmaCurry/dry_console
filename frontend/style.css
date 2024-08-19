@@ -112,8 +112,7 @@ hr {
 .terminal .gutter,
 .terminal .output {
     line-height: 1;
-    max-height: calc(24 * 1em); /* 24 rows */
-    overflow-y: scroll;
+    max-height: calc((24 * 1em) + 4em); /* 24 rows + one line buffer */
     font-family: monospace;
     padding: 0;
     margin: 0;
@@ -129,13 +128,18 @@ hr {
 }
 
 .terminal .gutter-line {
+    padding-top: 1em;
     padding-right: 5px;
 }
 
 .terminal .output {
-    border: 1px solid #ccc;
     background-color: black;
     color: white;
     padding-left: 10px;
     width: 100%;
+    overflow-y: scroll;
+    border: 1px solid #ccc;
+    border-top: 1em solid black;
+    border-bottom: 1em solid black;
+    padding-bottom: 1em;
 }

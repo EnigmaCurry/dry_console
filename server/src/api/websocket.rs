@@ -12,7 +12,7 @@ use tokio::time::Instant;
 
 use tracing::*;
 
-const PING_INTERVAL: u64 = 100;
+const PING_INTERVAL: u64 = 5000;
 
 #[derive(Debug)]
 pub struct WebSocketResponse {
