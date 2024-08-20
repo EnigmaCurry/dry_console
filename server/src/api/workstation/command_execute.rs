@@ -212,18 +212,18 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             *state.lock().await = State::Completed;
                             None
                         },
-                        _ => {
+                        m => {
                             Some(WebSocketResponse {
                                 close: true,
                                 close_code: CloseCode::UnsupportedData,
-                                close_message: "Received unexpected message.".to_string(),
+                                close_message: format!("Received unexpected message: {:?}", m),
                             })}
                     }
                 },
                 State::Completed => Some(WebSocketResponse {
                     close: true,
                     close_code: CloseCode::UnsupportedData,
-                    close_message: "Received unexpected message.".to_string(),
+                    close_message: format!("Received unexpected message: {:?}", msg),
                 }),
             }
         })

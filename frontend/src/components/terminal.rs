@@ -3,11 +3,9 @@ use crate::{
 };
 use dry_console_dto::websocket::ServerMsg;
 use dry_console_dto::websocket::StreamType;
-use gloo::console::debug;
 use patternfly_yew::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use wasm_bindgen::prelude::*;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
@@ -199,14 +197,12 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     match server_msg {
                         ServerMsg::Ping | ServerMsg::Pong {} => {}
                         ServerMsg::PingReport(_r) => {
-                            if *status_inner == TerminalStatus::Initialized
-                                || *status_inner == TerminalStatus::Connecting
-                            {
+                            if *status_inner == TerminalStatus::Connecting {
                                 status_inner.set(TerminalStatus::Ready);
                                 messages_inner.dispatch(MsgAction::Reset);
                                 messages_inner.dispatch(MsgAction::AddMessage {
                                     stream: StreamType::Meta,
-                                    message: "# [Ready]".to_string(),
+                                    message: "# [Ready (Connected)]".to_string(),
                                 });
                                 if let Some(ws) = &*ws_state_inner.borrow() {
                                     ws.send_with_str(
@@ -284,6 +280,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     let mut line_number_gutter = 1;
     let mut line_number_output = 1;
+    let should_show_gutter = *status != TerminalStatus::Initialized && props.show_gutter;
 
     html! {
         <div class="terminal">
@@ -298,7 +295,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 </div>
             </div>
             <div class="content">
-                if props.show_gutter {
+                if should_show_gutter {
                     <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
                         {
                             for messages.messages.iter().map(|(stream, _message)| {
