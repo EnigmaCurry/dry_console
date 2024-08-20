@@ -4,6 +4,7 @@ use crate::{
 use dry_console_dto::websocket::ServerMsg;
 use dry_console_dto::websocket::StreamType;
 use gloo::console::debug;
+use patternfly_yew::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
@@ -44,43 +45,19 @@ impl Reducible for MessagesState {
     }
 }
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn scroll_to_line(container_id: &str, mut line_number: i32) {
-    //debug!("scroll_to_line: ", line_number);
-    let window = web_sys::window().expect("should have a Window");
-    let document = window.document().expect("should have a Document");
-
-    if let Some(container_element) = document.get_element_by_id(container_id) {
-        let children = container_element.children();
-        let total_lines = children.length() as i32;
-        if line_number < 1 {
-            line_number = 1;
-        } else if line_number >= 2 {
-            line_number -= 1;
-            if line_number >= total_lines {
-                line_number = total_lines;
-            }
-        }
-
-        let line_id = format!("line-{}", line_number);
-
-        if let Some(line_element) = document.get_element_by_id(&line_id) {
-            // Scroll the container such that the line is visible
-            line_element.scroll_into_view_with_bool(true);
+pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
+    if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
+        // Calculate the scroll position based on line height and line number
+        let line_height = 20; // Adjust this according to your CSS
+        let scroll_position = if line_number <= 0 {
+            0
+        } else if line_number == i32::MAX {
+            element.scroll_height()
         } else {
-            log(&format!("Line element with id '{}' not found", line_id));
-        }
-    } else {
-        log(&format!(
-            "Container element with id '{}' not found",
-            container_id
-        ));
+            line_number * line_height
+        };
+
+        element.set_scroll_top(scroll_position);
     }
 }
 
@@ -245,48 +222,81 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     };
     let mut line_number = 1;
 
+    let scroll_to_top = {
+        let terminal_ref = terminal_ref.clone();
+        Callback::from(move |_: MouseEvent| {
+            scroll_to_line(&terminal_ref.clone(), 0);
+        })
+    };
+
+    let scroll_to_bottom = {
+        let terminal_ref = terminal_ref.clone();
+        Callback::from(move |_: MouseEvent| {
+            scroll_to_line(&terminal_ref.clone(), i32::MAX);
+        })
+    };
+    // Effect to scroll to the bottom on first render
+    {
+        let terminal_ref = terminal_ref.clone();
+        use_effect(move || {
+            scroll_to_line(&terminal_ref, i32::MAX);
+            || ()
+        });
+    }
     html! {
         <div class="terminal">
-            if props.show_gutter {
-                <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
-                    {
-                        for messages.messages.iter().map(|(stream, _message)| {
-                            let gutter_content = match stream {
-                                StreamType::Stdout => {
-                                    let content = line_number.to_string();
-                                    line_number += 1;
-                                    content
+            <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
+                <div class="pf-u-display-flex">
+                    <Button>{"Run command"}</Button>
+                    <Button>{"Reset"}</Button>
+                </div>
+                <div class="pf-u-display-flex">
+                    <Button onclick={scroll_to_top}>{"Top"}</Button>
+                    <Button onclick={scroll_to_bottom}>{"Bottom"}</Button>
+                </div>
+            </div>
+            <div class="content">
+                if props.show_gutter {
+                    <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
+                        {
+                            for messages.messages.iter().map(|(stream, _message)| {
+                                let gutter_content = match stream {
+                                    StreamType::Stdout => {
+                                        let content = line_number.to_string();
+                                        line_number += 1;
+                                        content
+                                    }
+                                    StreamType::Stderr => "E".to_string(),         // "E" for StdErr
+                                    StreamType::Meta => "#".to_string(),           // "M" for Meta
+                                };
+                                html!{
+                                    <div class="gutter-line">{gutter_content}</div>
                                 }
-                                StreamType::Stderr => "E".to_string(),         // "E" for StdErr
-                                StreamType::Meta => "#".to_string(),           // "M" for Meta
+                            })
+                        }
+                    </div>
+                }
+                <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 1)}>
+                    {
+                        for messages.messages.iter().map(|(stream, message)| {
+                            let class_name = match stream {
+                                StreamType::Stdout => "stream-stdout",
+                                StreamType::Stderr => "stream-stderr",
+                                StreamType::Meta => "stream-meta",
+                            };
+                            let id = if *stream == StreamType::Stdout {
+                                let id = format!("line-{}", line_number);
+                                line_number += 1;
+                                id
+                            } else {
+                                "".to_string()
                             };
                             html!{
-                                <div class="gutter-line">{gutter_content}</div>
+                                <p id={id} class={class_name}>{message}</p>
                             }
                         })
                     }
                 </div>
-            }
-            <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 1)}>
-                {
-                    for messages.messages.iter().map(|(stream, message)| {
-                        let class_name = match stream {
-                            StreamType::Stdout => "stream-stdout",
-                            StreamType::Stderr => "stream-stderr",
-                            StreamType::Meta => "stream-meta",
-                        };
-                        let id = if *stream == StreamType::Stdout {
-                            let id = format!("line-{}", line_number);
-                            line_number += 1;
-                            id
-                        } else {
-                            "".to_string()
-                        };
-                        html!{
-                            <p id={id} class={class_name}>{message}</p>
-                        }
-                    })
-                }
             </div>
         </div>
     }
