@@ -51,6 +51,7 @@ pub enum ServerMsg {
 /// Enum of message types that the client may send to the server.
 pub enum ClientMsg {
     Command(Command),
+    Cancel,
     Ping,
     Pong,
     PingReport(PingReport),

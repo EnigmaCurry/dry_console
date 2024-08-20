@@ -259,6 +259,29 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         })
     };
 
+    let reset_terminal = {
+        let ws_state = ws_state.clone();
+        let callback_state = callback_state.clone();
+        let status = status.clone();
+        let messages = messages.clone();
+        Callback::from(move |_: MouseEvent| {
+            if let Some(ws) = &*ws_state.borrow() {
+                ws.send_with_str("\"Cancel\"").unwrap();
+            }
+            // Close the WebSocket if it exists
+            if let Some(ws) = &*ws_state.borrow() {
+                ws.close().ok(); // Attempt to close the WebSocket
+            }
+            // Reset the WebSocket state and clear the callback
+            *ws_state.borrow_mut() = None;
+            callback_state.set(None);
+            // Reset the status to Initialized
+            status.set(TerminalStatus::Initialized);
+            // Clear the messages
+            messages.dispatch(MsgAction::Reset);
+        })
+    };
+
     let mut line_number_gutter = 1;
     let mut line_number_output = 1;
 
@@ -267,7 +290,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                 <div class="pf-u-display-flex">
                     <Button onclick={run_command.clone()}>{"🚀 Run command"}</Button>
-                    <Button>{"💥 Reset"}</Button>
+                    <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
                 </div>
                 <div class="pf-u-display-flex">
                     <Button onclick={scroll_to_top.clone()}>{"⬆️ Top"}</Button>
