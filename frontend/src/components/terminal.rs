@@ -52,6 +52,7 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn scroll_to_line(container_id: &str, mut line_number: i32) {
+    //debug!("scroll_to_line: ", line_number);
     let window = web_sys::window().expect("should have a Window");
     let document = window.document().expect("should have a Document");
 
@@ -173,7 +174,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     };
                 });
 
-                debug!("setup_websocket");
+                //Setup websocket:
                 status.set(TerminalStatus::Connecting);
                 let setup = setup_websocket("/api/workstation/command_execute/", on_message);
                 *ws_state.borrow_mut() = Some(setup.socket.borrow().clone()); // Unwrap and clone the WebSocket

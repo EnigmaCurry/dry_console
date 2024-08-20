@@ -3,7 +3,6 @@ use crate::components::ButtonLink;
 use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
 pub use dry_console_dto::session::SessionState;
-use gloo::console::debug;
 use gloo_events::EventListener;
 use gloo_net::http::Request;
 use gloo_storage::Storage;
@@ -303,7 +302,7 @@ fn sidebar(
 
 #[function_component(AppPage)]
 fn page(props: &AppPageProps) -> Html {
-    log::debug!("rendering page");
+    //log::debug!("rendering page");
     let brand = html! { <a href="/">{"dry_console"}</a> };
 
     let darkmode = use_state_eq(|| {

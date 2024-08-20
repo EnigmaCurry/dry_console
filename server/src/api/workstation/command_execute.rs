@@ -1,6 +1,5 @@
 use std::process::Stdio;
 use std::sync::Arc;
-use tokio::time::{sleep, Duration};
 
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
 use crate::broadcast;
@@ -88,15 +87,14 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             let stdout_reader = BufReader::new(stdout).lines();
                             let stderr_reader = BufReader::new(stderr).lines();
 
-                            let mut stdout_stream =
+                            let stdout_stream =
                                 tokio_stream::wrappers::LinesStream::new(stdout_reader);
-                            let mut stderr_stream =
+                            let stderr_stream =
                                 tokio_stream::wrappers::LinesStream::new(stderr_reader);
 
                             let mut stdout_stream = stdout_stream.fuse();
                             let mut stderr_stream = stderr_stream.fuse();
 
-                            debug!("here");
                             let mut stdout_ended = false;
                             let mut stderr_ended = false;
 
@@ -105,7 +103,6 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                     stdout_line = stdout_stream.next(), if !stdout_ended => {
                                         match stdout_line {
                                             Some(Ok(line_content)) => {
-                                                debug!("stdout_line: {:?}", line_content);
                                                 socket_guard
                                                     .send(Message::Item(ServerMsg::ProcessOutput(
                                                         ProcessOutput {
@@ -118,10 +115,10 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                                     .ok();
                                             }
                                             Some(Err(e)) => {
-                                                debug!("Error reading stdout: {:?}", e);
+                                                eprintln!("Error reading stdout: {:?}", e);
                                             }
                                             None => {
-                                                debug!("stdout_stream ended, setting stdout_ended = true");
+                                                //debug!("stdout_stream ended, setting stdout_ended = true");
                                                 stdout_ended = true;
                                             }
                                         }
@@ -129,7 +126,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                     stderr_line = stderr_stream.next(), if !stderr_ended => {
                                         match stderr_line {
                                             Some(Ok(line_content)) => {
-                                                debug!("stderr_line: {:?}", line_content);
+                                                //debug!("stderr_line: {:?}", line_content);
                                                 socket_guard
                                                     .send(Message::Item(ServerMsg::ProcessOutput(
                                                         ProcessOutput {
@@ -142,23 +139,23 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                                     .ok();
                                             }
                                             Some(Err(e)) => {
-                                                debug!("Error reading stderr: {:?}", e);
+                                                eprintln!("Error reading stderr: {:?}", e);
                                             }
                                             None => {
-                                                debug!("stderr_stream ended, setting stderr_ended = true");
+                                                //debug!("stderr_stream ended, setting stderr_ended = true");
                                                 stderr_ended = true;
                                             }
                                         }
                                     }
                                     else => {
-                                        debug!("Exiting the loop. stdout_ended: {}, stderr_ended: {}", stdout_ended, stderr_ended);
+                                        //debug!("Exiting the loop. stdout_ended: {}, stderr_ended: {}", stdout_ended, stderr_ended);
                                         if stdout_ended && stderr_ended {
                                             break;
                                         }
                                     }
                                 }
                             }
-                            debug!("done");                               // Wait for the process to finish
+                            debug!("done"); // Wait for the process to finish
                             let status = process
                                 .wait()
                                 .await

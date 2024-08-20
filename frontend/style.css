@@ -116,7 +116,7 @@ hr {
 
 .terminal .gutter,
 .terminal .output {
-    line-height: 1;
+    line-height: 1.3em;
     font-family: monospace;
     padding: 0;
     margin: 0;
@@ -152,4 +152,11 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     width: 100%;
     /*border-left: 1px double #ccc;*/
     overflow: scroll;
+}
+
+.terminal .output .stream-stderr {
+    background-color: #753228;
+}
+.terminal .output .stream-meta {
+    background-color: #332c22;
 }

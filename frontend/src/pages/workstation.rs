@@ -31,7 +31,7 @@ fn tabs() -> Html {
         let selected = selected.clone();
         let reload_trigger = reload_trigger.clone();
         use_effect_with((), move |_| {
-            debug!("Registering hashchange listener");
+            //debug!("Registering hashchange listener");
             let window = window();
             let listener = EventListener::new(&window.clone(), "hashchange", move |_event| {
                 let location = window.location();
