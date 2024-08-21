@@ -1,11 +1,16 @@
-use crate::{
-    app::WindowDimensions, pages::workstation::WorkstationTab, websocket::setup_websocket,
-};
+use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
 use dry_console_dto::websocket::ServerMsg;
 use dry_console_dto::websocket::StreamType;
+use gloo::console::debug;
+use gloo::console::error;
 use patternfly_yew::prelude::*;
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
+use wasm_bindgen::JsValue;
+use web_sys::MessageEvent;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
@@ -59,7 +64,139 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
+struct WebSocketState {
+    websocket: Option<WebSocket>,
+    status: TerminalStatus,
+    messages: Vec<(StreamType, String)>,
+}
+// Reducer actions to manage WebSocketState
+#[derive(Debug)]
+enum WebSocketAction {
+    Initialize,
+    Connecting(WebSocket),
+    Connected,
+    SendMessage(String),
+    ReceiveMessage(StreamType, String),
+    Processing,
+    Complete,
+    Failed(String),
+    Reset,
+}
+impl Reducible for WebSocketState {
+    type Action = WebSocketAction;
+
+    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        debug!(format!("Reducer called with action: {:?}", action));
+        debug!(format!("Current state before action: {:?}", *self));
+
+        let new_state: Rc<WebSocketState> = match action {
+            WebSocketAction::Initialize => {
+                debug!("Action: Initialize");
+                WebSocketState {
+                    websocket: None,
+                    status: TerminalStatus::Initialized,
+                    messages: Vec::new(),
+                }
+                .into()
+            }
+            WebSocketAction::Connecting(ws) => {
+                debug!("Action: Connecting");
+                WebSocketState {
+                    websocket: Some(ws),
+                    status: TerminalStatus::Connecting,
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::Connected => {
+                debug!("Action: Connected");
+                WebSocketState {
+                    websocket: self.websocket.clone(),
+                    status: TerminalStatus::Ready,
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::SendMessage(message) => {
+                debug!("Action: SendMessage, message: {}", message.clone());
+                if let Some(ws) = &self.websocket {
+                    ws.send_with_str(&message).ok();
+                }
+                WebSocketState {
+                    websocket: self.websocket.clone(),
+                    status: self.status.clone(),
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::ReceiveMessage(stream, message) => {
+                debug!(format!(
+                    "Action: ReceiveMessage, stream: {:?}, message: {}",
+                    stream, message
+                ));
+                let mut messages = self.messages.clone();
+                messages.push((stream, message));
+                WebSocketState {
+                    websocket: self.websocket.clone(),
+                    status: if self.status == TerminalStatus::Connecting {
+                        TerminalStatus::Ready
+                    } else {
+                        self.status.clone()
+                    },
+                    messages,
+                }
+                .into()
+            }
+            WebSocketAction::Processing => {
+                debug!("Action: Processing");
+                WebSocketState {
+                    websocket: self.websocket.clone(),
+                    status: TerminalStatus::Processing,
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::Complete => {
+                debug!("Action: Complete");
+                WebSocketState {
+                    websocket: None,
+                    status: TerminalStatus::Complete,
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::Failed(error_message) => {
+                debug!("Action: Failed, error_message: {}", error_message.clone());
+                let mut messages = self.messages.clone();
+                messages.push((
+                    StreamType::Meta,
+                    format!("# [Process failed]: {}", error_message),
+                ));
+                WebSocketState {
+                    websocket: None,
+                    status: TerminalStatus::Failed,
+                    messages,
+                }
+                .into()
+            }
+            WebSocketAction::Reset => {
+                debug!("Action: Reset");
+                WebSocketState {
+                    websocket: None,
+                    status: TerminalStatus::Initialized,
+                    messages: Vec::new(),
+                }
+                .into()
+            }
+        };
+
+        debug!(format!("New state after action: {:?}", *new_state));
+        new_state
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
 enum TerminalStatus {
     Initialized,
     Connecting,
@@ -74,18 +211,20 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let messages = use_reducer(|| MessagesState {
         messages: Vec::new(),
     });
-    let ws_state: UseStateHandle<Rc<RefCell<Option<WebSocket>>>> =
-        use_state(|| Rc::new(RefCell::new(None)));
-    let callback_state = use_state(|| None);
+    let callback_state = use_state(|| None::<Callback<MouseEvent>>);
     let status = use_state(|| TerminalStatus::Initialized);
     let num_lines = use_state(|| 1);
 
-    // NodeRefs for terminal and gutter
     let terminal_ref = use_node_ref();
     let gutter_ref = use_node_ref();
 
-    // Remove WebSocket setup from use_effect_with
-    // This effect now only handles WebSocket cleanup when the tab changes or component unmounts
+    let ws_state = use_reducer(|| WebSocketState {
+        websocket: None,
+        status: TerminalStatus::Initialized,
+        messages: Vec::new(),
+    });
+
+    // Cleanup websocket on tab change
     {
         let status = status.clone();
         let ws_state = ws_state.clone();
@@ -95,10 +234,9 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         use_effect_with(props.selected_tab.clone(), move |_| {
             move || {
                 if *status != TerminalStatus::Initialized {
-                    if let Some(ws) = &*ws_state.borrow() {
+                    if let Some(ws) = &ws_state.websocket {
                         ws.close().ok(); // Close the WebSocket
                     }
-                    *ws_state.borrow_mut() = None; // Set WebSocket to None
                     callback_state.set(None);
                     if *status != TerminalStatus::Complete && *status != TerminalStatus::Failed {
                         status.set(TerminalStatus::Failed);
@@ -138,6 +276,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         );
     }
 
+    // Sync the scroll of the gutter to the output:
     let onscroll = {
         let terminal_ref = terminal_ref.clone();
         let gutter_ref = gutter_ref.clone();
@@ -151,21 +290,18 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             }
         })
     };
-
     let scroll_to_top = {
         let terminal_ref = terminal_ref.clone();
         Callback::from(move |_: MouseEvent| {
             scroll_to_line(&terminal_ref, 0);
         })
     };
-
     let scroll_to_bottom = {
         let terminal_ref = terminal_ref.clone();
         Callback::from(move |_: MouseEvent| {
             scroll_to_line(&terminal_ref, i32::MAX);
         })
     };
-
     // Effect to scroll to the bottom on first render
     {
         let terminal_ref = terminal_ref.clone();
@@ -176,105 +312,77 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     }
 
     // "Run command" button callback to set up WebSocket and change status
-    let run_command = {
-        let status = status.clone();
-        let ws_state = ws_state.clone();
-        let callback_state = callback_state.clone();
-        let messages = messages.clone();
 
-        Callback::from(move |_: MouseEvent| {
-            let status_outer = status.clone(); // Clone for use in the outer scope
-            let messages_outer = messages.clone();
-            let ws_state_outer = ws_state.clone();
-            let callback_state_outer = callback_state.clone();
-
-            if *status_outer == TerminalStatus::Initialized {
-                let status_inner = status_outer.clone(); // Clone for use in the inner closure
-                let messages_inner = messages_outer.clone();
-                let ws_state_inner = ws_state_outer.clone();
-
-                let on_message = Callback::from(move |server_msg: ServerMsg| {
-                    match server_msg {
-                        ServerMsg::Ping | ServerMsg::Pong {} => {}
-                        ServerMsg::PingReport(_r) => {
-                            if *status_inner == TerminalStatus::Connecting {
-                                status_inner.set(TerminalStatus::Ready);
-                                messages_inner.dispatch(MsgAction::Reset);
-                                messages_inner.dispatch(MsgAction::AddMessage {
-                                    stream: StreamType::Meta,
-                                    message: "# [Ready (Connected)]".to_string(),
-                                });
-                                if let Some(ws) = &*ws_state_inner.borrow() {
-                                    ws.send_with_str(
-                                        "{\"Command\": { \"id\": \"01J5NN55HAWZJS96BJMHQG4XJD\"}}",
-                                    )
-                                    .unwrap();
-                                }
-                            }
-                        }
-                        ServerMsg::Process(_process) => {
-                            status_inner.set(TerminalStatus::Processing);
-                            messages_inner.dispatch(MsgAction::Reset);
-                        }
-                        ServerMsg::ProcessOutput(msg) => {
-                            status_inner.set(TerminalStatus::Processing);
-                            messages_inner.dispatch(MsgAction::AddMessage {
-                                stream: msg.stream,
-                                message: msg.line,
-                            });
-                        }
-                        ServerMsg::ProcessComplete(msg) => match msg.code {
-                            0 => {
-                                status_inner.set(TerminalStatus::Complete);
-                                messages_inner.dispatch(MsgAction::AddMessage {
-                                    stream: StreamType::Meta,
-                                    message: "# [Process complete]".to_string(),
-                                });
-                            }
-                            _ => {
-                                status_inner.set(TerminalStatus::Failed);
-                                messages_inner.dispatch(MsgAction::AddMessage {
-                                    stream: StreamType::Meta,
-                                    message: "# [Process failed]".to_string(),
-                                });
-                            }
-                        },
-                    };
-                });
-
-                // Set up WebSocket connection when "Run command" is clicked
-                status_outer.set(TerminalStatus::Connecting);
-                let setup = setup_websocket("/api/workstation/command_execute/", on_message);
-                *ws_state_outer.borrow_mut() = Some(setup.socket.borrow().clone()); // Unwrap and clone the WebSocket
-                callback_state_outer.set(Some(setup.on_message_closure));
-                messages_outer.dispatch(MsgAction::AddMessage {
-                    stream: StreamType::Meta,
-                    message: "# [Connecting...]".to_string(),
-                });
-            }
-        })
-    };
-
+    // Reset reinitializes websocket and terminal
     let reset_terminal = {
         let ws_state = ws_state.clone();
-        let callback_state = callback_state.clone();
-        let status = status.clone();
-        let messages = messages.clone();
         Callback::from(move |_: MouseEvent| {
-            if let Some(ws) = &*ws_state.borrow() {
-                ws.send_with_str("\"Cancel\"").unwrap();
+            if let Some(ws) = &ws_state.websocket {
+                ws.send_with_str("\"Cancel\"").ok();
+                ws.close().ok();
             }
-            // Close the WebSocket if it exists
-            if let Some(ws) = &*ws_state.borrow() {
-                ws.close().ok(); // Attempt to close the WebSocket
+            ws_state.dispatch(WebSocketAction::Reset);
+        })
+    };
+    let run_command = {
+        let ws_state = ws_state.clone();
+        Callback::from(move |_: MouseEvent| {
+            // Close any existing WebSocket before starting a new one
+            if let Some(ws) = &ws_state.websocket {
+                ws.close().ok();
             }
-            // Reset the WebSocket state and clear the callback
-            *ws_state.borrow_mut() = None;
-            callback_state.set(None);
-            // Reset the status to Initialized
-            status.set(TerminalStatus::Initialized);
-            // Clear the messages
-            messages.dispatch(MsgAction::Reset);
+            ws_state.dispatch(WebSocketAction::Reset);
+
+            // Attempt to connect the WebSocket
+            if let Ok(ws) = WebSocket::new("/api/workstation/command_execute/") {
+                let ws_clone = ws.clone();
+                ws_state.dispatch(WebSocketAction::Connecting(ws));
+
+                let onopen_callback = {
+                    let ws_state = ws_state.clone();
+                    Closure::wrap(Box::new(move |_| {
+                        ws_state.dispatch(WebSocketAction::Connected);
+                    }) as Box<dyn FnMut(JsValue)>)
+                };
+                ws_clone.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
+                onopen_callback.forget();
+
+                let onmessage_callback = {
+                    let ws_state = ws_state.clone();
+                    Closure::wrap(Box::new(move |event: MessageEvent| {
+                        if let Some(msg) = event.data().as_string() {
+                            // Handle incoming messages and update state
+                            if msg.contains("PingReport") {
+                                ws_state.dispatch(WebSocketAction::ReceiveMessage(
+                                    StreamType::Meta,
+                                    msg,
+                                ));
+                            } else if msg.contains("Complete") {
+                                ws_state.dispatch(WebSocketAction::Complete);
+                            } else if msg.contains("Failed") {
+                                ws_state.dispatch(WebSocketAction::Failed(msg));
+                            } else {
+                                ws_state.dispatch(WebSocketAction::ReceiveMessage(
+                                    StreamType::Stdout,
+                                    msg,
+                                ));
+                            }
+                        }
+                    }) as Box<dyn FnMut(MessageEvent)>)
+                };
+                ws_clone.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
+                onmessage_callback.forget();
+
+                let onerror_callback = {
+                    let ws_state = ws_state.clone();
+                    Closure::wrap(Box::new(move |error: ErrorEvent| {
+                        ws_state
+                            .dispatch(WebSocketAction::Failed(format!("{:?}", error.message())));
+                    }) as Box<dyn FnMut(ErrorEvent)>)
+                };
+                ws_clone.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
+                onerror_callback.forget();
+            }
         })
     };
 
@@ -298,7 +406,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 if should_show_gutter {
                     <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
                         {
-                            for messages.messages.iter().map(|(stream, _message)| {
+                            for ws_state.messages.iter().map(|(stream, _message)| {
                                 let gutter_content = match stream {
                                     StreamType::Stdout => {
                                         let content = line_number_gutter.to_string();
@@ -318,7 +426,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
                 <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 1)}>
                     {
-                        for messages.messages.iter().map(|(stream, message)| {
+                        for ws_state.messages.iter().map(|(stream, message)| {
                             let class_name = match stream {
                                 StreamType::Stdout => "stream-stdout",
                                 StreamType::Stderr => "stream-stderr",
