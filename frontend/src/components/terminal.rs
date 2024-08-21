@@ -1,15 +1,22 @@
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
-use dry_console_dto::websocket::ServerMsg;
+use dry_console_dto::websocket::Command;
+use dry_console_dto::websocket::PingReport;
 use dry_console_dto::websocket::StreamType;
+use dry_console_dto::websocket::{ClientMsg, ServerMsg};
 use gloo::console::debug;
 use gloo::console::error;
 use patternfly_yew::prelude::*;
+use serde_json::from_str;
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::rc::Rc;
+use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
+use web_sys::js_sys;
+use web_sys::Blob;
+use web_sys::FileReader;
 use web_sys::MessageEvent;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
@@ -74,21 +81,24 @@ struct WebSocketState {
 #[derive(Debug)]
 enum WebSocketAction {
     Initialize,
-    Connecting(WebSocket),
+    Connect(WebSocket),
     Connected,
-    SendMessage(String),
-    ReceiveMessage(StreamType, String),
+    SendCommand(Ulid),
+    ReceivePingReport(PingReport),
+    ReceiveProcessOutput(StreamType, String),
+    ReceiveProcess(Ulid),
     Processing,
     Complete,
     Failed(String),
     Reset,
+    SendPong,
 }
 impl Reducible for WebSocketState {
     type Action = WebSocketAction;
 
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        debug!(format!("Reducer called with action: {:?}", action));
-        debug!(format!("Current state before action: {:?}", *self));
+        //debug!(format!("Reducer called with action: {:?}", action));
+        //debug!(format!("Current state before action: {:?}", *self));
 
         let new_state: Rc<WebSocketState> = match action {
             WebSocketAction::Initialize => {
@@ -100,8 +110,8 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::Connecting(ws) => {
-                debug!("Action: Connecting");
+            WebSocketAction::Connect(ws) => {
+                debug!("Action: Connect");
                 WebSocketState {
                     websocket: Some(ws),
                     status: TerminalStatus::Connecting,
@@ -113,15 +123,40 @@ impl Reducible for WebSocketState {
                 debug!("Action: Connected");
                 WebSocketState {
                     websocket: self.websocket.clone(),
-                    status: TerminalStatus::Ready,
+                    status: TerminalStatus::Connected,
                     messages: self.messages.clone(),
                 }
                 .into()
             }
-            WebSocketAction::SendMessage(message) => {
-                debug!("Action: SendMessage, message: {}", message.clone());
+            WebSocketAction::ReceivePingReport(r) => {
+                debug!(format!("Action: ReceivePingReport {:?}", r));
+                WebSocketState {
+                    websocket: self.websocket.clone(),
+                    status: if self.status == TerminalStatus::Connecting {
+                        if let Some(ws) = &self.websocket {
+                            if let Ok(serialized_msg) =
+                                serde_json::to_string(&Command { id: Ulid::new() })
+                            {
+                                debug!(format!("sending command serialized: {}", serialized_msg));
+                                ws.send_with_str(&serialized_msg).ok();
+                            }
+                        }
+                        TerminalStatus::Ready
+                    } else {
+                        self.status.clone()
+                    },
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::SendCommand(id) => {
+                debug!("Action: SendCommand, id: {:?}", id.clone().to_string());
                 if let Some(ws) = &self.websocket {
-                    ws.send_with_str(&message).ok();
+                    if let Ok(serialized_msg) =
+                        serde_json::to_string(&ClientMsg::Command(Command { id }))
+                    {
+                        ws.send_with_str(&serialized_msg).ok();
+                    };
                 }
                 WebSocketState {
                     websocket: self.websocket.clone(),
@@ -130,20 +165,25 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::ReceiveMessage(stream, message) => {
+            WebSocketAction::ReceiveProcess(id) => {
+                debug!(format!("Action: ReceiveProcess, id: {:?}", id));
+                WebSocketState {
+                    websocket: self.websocket.clone(),
+                    status: self.status.clone(),
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::ReceiveProcessOutput(stream, message) => {
                 debug!(format!(
-                    "Action: ReceiveMessage, stream: {:?}, message: {}",
+                    "Action: ReceiveProcessOutput, stream: {:?}, message: {}",
                     stream, message
                 ));
                 let mut messages = self.messages.clone();
                 messages.push((stream, message));
                 WebSocketState {
                     websocket: self.websocket.clone(),
-                    status: if self.status == TerminalStatus::Connecting {
-                        TerminalStatus::Ready
-                    } else {
-                        self.status.clone()
-                    },
+                    status: self.status.clone(),
                     messages,
                 }
                 .into()
@@ -182,12 +222,28 @@ impl Reducible for WebSocketState {
             }
             WebSocketAction::Reset => {
                 debug!("Action: Reset");
+                if let Some(ws) = &self.websocket {
+                    debug!("Closing socket");
+                    ws.close().ok();
+                }
                 WebSocketState {
                     websocket: None,
                     status: TerminalStatus::Initialized,
                     messages: Vec::new(),
                 }
                 .into()
+            }
+            WebSocketAction::SendPong => {
+                //debug!("Action: SendPong");
+                if let Some(ws) = &self.websocket {
+                    let msg = ServerMsg::Pong;
+                    if let Ok(serialized_msg) = serde_json::to_string(&msg) {
+                        ws.send_with_str(&serialized_msg).ok();
+                    } else {
+                        error!("Failed to serialize ServerMsg::Pong");
+                    }
+                }
+                self.clone()
             }
         };
 
@@ -200,6 +256,7 @@ impl Reducible for WebSocketState {
 enum TerminalStatus {
     Initialized,
     Connecting,
+    Connected,
     Ready,
     Processing,
     Failed,
@@ -311,8 +368,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         });
     }
 
-    // "Run command" button callback to set up WebSocket and change status
-
     // Reset reinitializes websocket and terminal
     let reset_terminal = {
         let ws_state = ws_state.clone();
@@ -324,64 +379,99 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             ws_state.dispatch(WebSocketAction::Reset);
         })
     };
+
+    // "Run command" button callback to set up WebSocket and change status
     let run_command = {
         let ws_state = ws_state.clone();
         Callback::from(move |_: MouseEvent| {
+            debug!("Run command button clicked");
+
             // Close any existing WebSocket before starting a new one
             if let Some(ws) = &ws_state.websocket {
+                debug!("Closing existing WebSocket");
                 ws.close().ok();
             }
             ws_state.dispatch(WebSocketAction::Reset);
 
             // Attempt to connect the WebSocket
+            debug!("Attempting to connect WebSocket");
             if let Ok(ws) = WebSocket::new("/api/workstation/command_execute/") {
+                debug!("WebSocket connection established");
                 let ws_clone = ws.clone();
-                ws_state.dispatch(WebSocketAction::Connecting(ws));
-
-                let onopen_callback = {
-                    let ws_state = ws_state.clone();
-                    Closure::wrap(Box::new(move |_| {
-                        ws_state.dispatch(WebSocketAction::Connected);
-                    }) as Box<dyn FnMut(JsValue)>)
-                };
-                ws_clone.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
-                onopen_callback.forget();
+                ws_state.dispatch(WebSocketAction::Connect(ws));
 
                 let onmessage_callback = {
                     let ws_state = ws_state.clone();
                     Closure::wrap(Box::new(move |event: MessageEvent| {
-                        if let Some(msg) = event.data().as_string() {
-                            // Handle incoming messages and update state
-                            if msg.contains("PingReport") {
-                                ws_state.dispatch(WebSocketAction::ReceiveMessage(
-                                    StreamType::Meta,
-                                    msg,
-                                ));
-                            } else if msg.contains("Complete") {
-                                ws_state.dispatch(WebSocketAction::Complete);
-                            } else if msg.contains("Failed") {
-                                ws_state.dispatch(WebSocketAction::Failed(msg));
-                            } else {
-                                ws_state.dispatch(WebSocketAction::ReceiveMessage(
-                                    StreamType::Stdout,
-                                    msg,
-                                ));
-                            }
+                        //debug!("Message received from WebSocket");
+                        if let Some(blob) = event.data().dyn_into::<Blob>().ok() {
+                            // Handle Blob message
+                            let ws_state = ws_state.clone();
+
+                            // Create the FileReader inside the closure so it's not shared
+                            let reader = FileReader::new().unwrap();
+                            let reader_clone = reader.clone();
+                            let onloadend_callback =
+                                Closure::wrap(Box::new(move |_: web_sys::ProgressEvent| {
+                                    let result = reader_clone.result().unwrap(); // Get the result from FileReader
+
+                                    if let Ok(text) = result.dyn_into::<js_sys::JsString>() {
+                                        //debug!(format!("Raw Blob message as text: {}", text));
+                                        handle_message(ws_state.clone(), text.into());
+                                    } else {
+                                        error!("Failed to convert result to text");
+                                    }
+                                })
+                                    as Box<dyn FnMut(_)>);
+
+                            reader.set_onloadend(Some(onloadend_callback.as_ref().unchecked_ref()));
+                            reader.read_as_text(&blob).unwrap();
+                            onloadend_callback.forget();
+                        } else {
+                            error!("Received unsupported WebSocket message type");
                         }
                     }) as Box<dyn FnMut(MessageEvent)>)
                 };
+                fn handle_message(ws_state: UseReducerHandle<WebSocketState>, msg: String) {
+                    match from_str::<ServerMsg>(&msg) {
+                        Ok(server_msg) => match server_msg {
+                            ServerMsg::Ping => {
+                                ws_state.dispatch(WebSocketAction::SendPong);
+                            }
+                            ServerMsg::PingReport(r) => {
+                                ws_state.dispatch(WebSocketAction::ReceivePingReport(r));
+                            }
+                            ServerMsg::Process(p) => {
+                                ws_state.dispatch(WebSocketAction::ReceiveProcess(p.id));
+                            }
+                            ServerMsg::ProcessOutput(o) => {
+                                ws_state.dispatch(WebSocketAction::ReceiveProcessOutput(
+                                    o.stream, o.line,
+                                ));
+                            }
+                            _ => {}
+                        },
+                        Err(e) => {
+                            error!(format!("Failed to parse message: {}, error: {}", msg, e));
+                            ws_state.dispatch(WebSocketAction::Failed(msg));
+                        }
+                    }
+                }
                 ws_clone.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
                 onmessage_callback.forget();
 
                 let onerror_callback = {
                     let ws_state = ws_state.clone();
                     Closure::wrap(Box::new(move |error: ErrorEvent| {
+                        debug!(format!("WebSocket error: {}", error.message()));
                         ws_state
                             .dispatch(WebSocketAction::Failed(format!("{:?}", error.message())));
                     }) as Box<dyn FnMut(ErrorEvent)>)
                 };
                 ws_clone.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
                 onerror_callback.forget();
+            } else {
+                debug!("Failed to establish WebSocket connection");
             }
         })
     };

@@ -33,4 +33,5 @@ yew-router = "0.17.0"
 dry_console_dto = { path = "../dto" }
 rand = "0.8.5"
 gloo-timers = { version = "0.3.0", features = ["futures"] }
+ulid = "1.1.3"
 

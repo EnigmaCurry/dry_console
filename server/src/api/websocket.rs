@@ -12,7 +12,7 @@ use tokio::time::Instant;
 
 use tracing::*;
 
-const PING_INTERVAL: u64 = 5000;
+const PING_INTERVAL: u64 = 15000;
 
 #[derive(Debug)]
 pub struct WebSocketResponse {
@@ -31,10 +31,10 @@ pub async fn handle_websocket<T, U, F>(
     F: FnMut(Message<U>) -> Pin<Box<dyn Future<Output = Option<WebSocketResponse>> + Send>>,
 {
     let last_ping = Arc::new(Mutex::new(None));
-
     let mut ping_interval = tokio::time::interval(Duration::from_millis(PING_INTERVAL));
     let mut ping_timeout: Option<Pin<Box<tokio::time::Sleep>>> = None;
 
+    let mut consecutive_missed_pongs = 0;
     let mut close_code: Option<CloseCode>;
     let mut close_message: Option<String>;
 
@@ -42,12 +42,22 @@ pub async fn handle_websocket<T, U, F>(
         tokio::select! {
             _ = ping_interval.tick() => {
                 let mut socket_guard = socket.lock().await;
+
+                if consecutive_missed_pongs > 3 {
+                    close_code = Some(CloseCode::PolicyViolation);
+                    close_message = Some("Missed 3 consecutive pongs. Disconnecting...".to_string());
+                    debug!("{}", close_message.as_ref().unwrap());
+                    break;
+                }
+
                 *last_ping.lock().await = Some(Instant::now());
                 if let Some(socket) = socket_guard.as_mut() {
                     socket.send(Message::Item(T::PING)).await.ok();
                     //debug!("Ping message sent!");
                     ping_timeout = Some(Box::pin(tokio::time::sleep(Duration::from_secs(20))));
                 }
+
+                consecutive_missed_pongs += 1;
             },
             _ = async {
                 if let Some(timeout) = &mut ping_timeout {
@@ -82,10 +92,11 @@ pub async fn handle_websocket<T, U, F>(
                                 socket.send(Message::Item(T::ping_report(Instant::now().duration_since(instant)))).await.ok();
                             }
                             ping_timeout = None;
+                            consecutive_missed_pongs = 0;
                         } else {
                             close_code = Some(CloseCode::UnsupportedData);
                             close_message = Some("Unexpected Pong".to_string());
-                            debug!("Unexepected Pong.");
+                            debug!("Unexpected Pong.");
                             break;
                         }
                     },
