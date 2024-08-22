@@ -5,6 +5,8 @@ use dry_console_dto::websocket::StreamType;
 use dry_console_dto::websocket::{ClientMsg, ServerMsg};
 use gloo::console::debug;
 use gloo::console::error;
+use gloo_storage::LocalStorage;
+use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
 use std::borrow::Borrow;
@@ -21,11 +23,12 @@ use web_sys::MessageEvent;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
+const SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY: &str = "terminal:show_line_numbers";
+
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
-    pub show_gutter: bool,
 }
 
 enum MsgAction {
@@ -265,12 +268,10 @@ enum TerminalStatus {
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
-    let messages = use_reducer(|| MessagesState {
-        messages: Vec::new(),
-    });
-    let callback_state = use_state(|| None::<Callback<MouseEvent>>);
-    let status = use_state(|| TerminalStatus::Initialized);
     let num_lines = use_state(|| 1);
+    let show_line_numbers_local_pref =
+        LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(true);
+    let show_line_numbers = use_state(|| show_line_numbers_local_pref);
 
     let terminal_ref = use_node_ref();
     let gutter_ref = use_node_ref();
@@ -283,28 +284,28 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     // Cleanup websocket on tab change
     {
-        let status = status.clone();
-        let ws_state = ws_state.clone();
-        let callback_state = callback_state.clone();
-        let messages = messages.clone();
+        // let status = status.clone();
+        // let ws_state = ws_state.clone();
+        // let callback_state = callback_state.clone();
+        // let messages = messages.clone();
 
-        use_effect_with(props.selected_tab.clone(), move |_| {
-            move || {
-                if *status != TerminalStatus::Initialized {
-                    if let Some(ws) = &ws_state.websocket {
-                        ws.close().ok(); // Close the WebSocket
-                    }
-                    callback_state.set(None);
-                    if *status != TerminalStatus::Complete && *status != TerminalStatus::Failed {
-                        status.set(TerminalStatus::Failed);
-                        messages.dispatch(MsgAction::AddMessage {
-                            stream: StreamType::Meta,
-                            message: "# [Process failed]".to_string(),
-                        });
-                    }
-                }
-            }
-        });
+        // use_effect_with(props.selected_tab.clone(), move |_| {
+        //     move || {
+        //         if *status != TerminalStatus::Initialized {
+        //             if let Some(ws) = &ws_state.websocket {
+        //                 ws.close().ok(); // Close the WebSocket
+        //             }
+        //             callback_state.set(None);
+        //             if *status != TerminalStatus::Complete && *status != TerminalStatus::Failed {
+        //                 status.set(TerminalStatus::Failed);
+        //                 messages.dispatch(MsgAction::AddMessage {
+        //                     stream: StreamType::Meta,
+        //                     message: "# [Process failed]".to_string(),
+        //                 });
+        //             }
+        //         }
+        //     }
+        // });
     }
 
     // Update gutter height dynamically
@@ -348,14 +349,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             scroll_to_line(&terminal_ref, i32::MAX);
         })
     };
-    // Effect to scroll to the bottom on first render
-    {
-        let terminal_ref = terminal_ref.clone();
-        use_effect(move || {
-            scroll_to_line(&terminal_ref, i32::MAX);
-            || ()
-        });
-    }
 
     // Reset reinitializes websocket and terminal
     let reset_terminal = {
@@ -467,22 +460,43 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     let mut line_number_gutter = 1;
     let mut line_number_output = 1;
-    let should_show_gutter = *status != TerminalStatus::Initialized && props.show_gutter;
 
+    let settings_link = html! {
+        <Button>{"📻️ Settings"}</Button>
+    };
+    let toggle_line_numbers = {
+        let show_line_numbers = show_line_numbers.clone();
+        Callback::from(move |value: bool| {
+            show_line_numbers.set(value);
+            LocalStorage::set(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY, value)
+                .expect("Failed to store setting in local storage");
+        })
+    };
+    let settings_panel = html_nested!(
+        <PopoverBody
+            header={html!("")}
+            footer={html!("")}
+        >
+            <Bullseye>
+            <Switch label="Show line numbers" checked={*show_line_numbers} onchange={toggle_line_numbers.clone()} />
+            </Bullseye>
+            </PopoverBody>
+    );
     html! {
         <div class="terminal">
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                 <div class="pf-u-display-flex">
                     <Button onclick={run_command.clone()}>{"🚀 Run command"}</Button>
                     <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
-                </div>
+            </div>
                 <div class="pf-u-display-flex">
+                    <Popover target={settings_link} body={settings_panel} />
                     <Button onclick={scroll_to_top.clone()}>{"⬆️ Top"}</Button>
                     <Button onclick={scroll_to_bottom.clone()}>{"⬇️ Bottom"}</Button>
                 </div>
             </div>
             <div class="content">
-                if should_show_gutter {
+                if *show_line_numbers && ws_state.status != TerminalStatus::Initialized {
                     <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
                         {
                             for ws_state.messages.iter().map(|(stream, _message)| {

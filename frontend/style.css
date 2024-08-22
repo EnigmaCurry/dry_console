@@ -146,20 +146,14 @@ hr {
 }
 
 .terminal .gutter {
-    border-top-left-radius: 3px;
-    border-bottom-left-radius: 3px; 
     user-select: none;
-    background-color: #2d0303;
+    background-color: #262424;
     text-align: right;
     color: #ac7c7c;
     padding-right: 10px;
     overflow: hidden;
     padding-left: 0.5em;
-    box-shadow: 
-        -2px 0 0 0 #f7a9a9,    /* Left shadow */
-        0 -2px 0 0 #f7a9a9,     /* Top shadow */
-        0 2px 0 0 #f7a9a9,      /* Bottom shadow */
-        0 2px 0 0 #f7a9a9;      /* Bottom shadow */
+    box-shadow: -2px 0 0 0 #f7a9a9;
 }
 
 html:not(.pf-v5-theme-dark) .terminal .gutter {
