@@ -60,7 +60,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             let script = r#"
                         #!/bin/sh
                         echo "Hii" >/dev/stderr
-                        for i in $(seq 10); do
+                        for i in $(seq 100); do
                             echo $i
                             #echo "uhh" >/dev/stderr
                             sleep 1

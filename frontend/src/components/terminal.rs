@@ -309,28 +309,17 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     // Update gutter height dynamically
     {
-        let messages_len = messages.messages.len();
+        let messages_len = ws_state.messages.len();
         let screen_dimensions = screen_dimensions.clone();
         let num_lines = num_lines.clone();
-        use_effect_with(
-            [messages.messages.len(), screen_dimensions.height as usize],
-            move |_| {
-                if screen_dimensions.height < 900.0 {
-                    if messages_len > 13 {
-                        num_lines.set(13);
-                    } else if messages_len > 0 {
-                        num_lines.set(messages_len);
-                    }
-                } else {
-                    if messages_len > 24 {
-                        num_lines.set(24);
-                    } else if messages_len > 0 {
-                        num_lines.set(messages_len);
-                    }
-                }
-                || ()
-            },
-        );
+        use_effect_with(screen_dimensions.height as usize, move |_| {
+            if screen_dimensions.height < 900.0 {
+                num_lines.set(13);
+            } else {
+                num_lines.set(24);
+            }
+            || ()
+        });
     }
 
     // Sync the scroll of the gutter to the output:
@@ -494,7 +483,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             </div>
             <div class="content">
                 if should_show_gutter {
-                    <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines + 1)}>
+                    <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
                         {
                             for ws_state.messages.iter().map(|(stream, _message)| {
                                 let gutter_content = match stream {
@@ -514,7 +503,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     </div>
                 }
 
-                <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines + 1)}>
+                <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines)}>
                     {
                         for ws_state.messages.iter().map(|(stream, message)| {
                             let class_name = match stream {
