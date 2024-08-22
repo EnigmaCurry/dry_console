@@ -150,18 +150,27 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                                     }
                                                 }
                                             }
-                                            cancel_signal = cancel_rx.changed() => {
+                                            _ = cancel_rx.changed() => {
                                                 if *cancel_rx.borrow() {
                                                     process.kill().await.expect("Failed to kill process");
                                                     let mut socket_ref = socket.lock().await;
-                                                    let socket_guard = socket_ref.as_mut().unwrap();
-                                                    socket_guard
-                                                        .send(Message::Item(ServerMsg::ProcessComplete(ProcessComplete {
-                                                            id: process_id,
-                                                            code: 128,
-                                                        })))
-                                                        .await
-                                                        .ok();
+                                                    if let Some(mut socket_guard) = socket_ref.take() {
+                                                        socket_guard
+                                                            .send(Message::Item(ServerMsg::ProcessComplete(ProcessComplete {
+                                                                id: process_id,
+                                                                code: 128,
+                                                            })))
+                                                            .await
+                                                            .ok();
+                                                        // Drop the socket_guard here to avoid the move error
+                                                        drop(socket_guard);
+
+                                                        // Re-lock the socket and close it separately
+                                                        let mut socket_ref = socket.lock().await;
+                                                        if let Some(socket_guard) = socket_ref.take() {
+                                                            let _ = socket_guard.close().await;
+                                                        }
+                                                    }
                                                     break;
                                                 }
                                             }
