@@ -104,7 +104,7 @@ impl Reducible for WebSocketState {
 
         let new_state: Rc<WebSocketState> = match action {
             WebSocketAction::Initialize => {
-                debug!("Action: Initialize");
+                //debug!("Action: Initialize");
                 WebSocketState {
                     websocket: None,
                     status: TerminalStatus::Initialized,
@@ -113,7 +113,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::Connect(ws) => {
-                debug!("Action: Connect");
+                //debug!("Action: Connect");
                 WebSocketState {
                     websocket: Some(ws),
                     status: TerminalStatus::Connecting,
@@ -122,7 +122,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::Connected => {
-                debug!("Action: Connected");
+                //debug!("Action: Connected");
                 WebSocketState {
                     websocket: self.websocket.clone(),
                     status: TerminalStatus::Connected,
@@ -131,7 +131,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::ReceivePingReport(r) => {
-                debug!(format!("Action: ReceivePingReport {:?}", r));
+                //debug!(format!("Action: ReceivePingReport {:?}", r));
                 WebSocketState {
                     websocket: self.websocket.clone(),
                     status: if self.status == TerminalStatus::Connecting {
@@ -139,7 +139,7 @@ impl Reducible for WebSocketState {
                             if let Ok(serialized_msg) =
                                 serde_json::to_string(&Command { id: Ulid::new() })
                             {
-                                debug!(format!("sending command serialized: {}", serialized_msg));
+                                //debug!(format!("sending command serialized: {}", serialized_msg));
                                 ws.send_with_str(&serialized_msg).ok();
                             }
                         }
@@ -152,7 +152,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::SendCommand(id) => {
-                debug!("Action: SendCommand, id: {:?}", id.clone().to_string());
+                //debug!("Action: SendCommand, id: {:?}", id.clone().to_string());
                 if let Some(ws) = &self.websocket {
                     if let Ok(serialized_msg) =
                         serde_json::to_string(&ClientMsg::Command(Command { id }))
@@ -168,7 +168,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::ReceiveProcess(id) => {
-                debug!(format!("Action: ReceiveProcess, id: {:?}", id));
+                //debug!(format!("Action: ReceiveProcess, id: {:?}", id));
                 WebSocketState {
                     websocket: self.websocket.clone(),
                     status: TerminalStatus::Processing,
@@ -177,10 +177,10 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::ReceiveProcessOutput(stream, message) => {
-                debug!(format!(
-                    "Action: ReceiveProcessOutput, stream: {:?}, message: {}",
-                    stream, message
-                ));
+                //debug!(format!(
+                //    "Action: ReceiveProcessOutput, stream: {:?}, message: {}",
+                //    stream, message
+                //));
                 let mut messages = self.messages.clone();
                 messages.push((stream, message));
                 WebSocketState {
@@ -191,10 +191,10 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::ReceiveProcessComplete(id, code) => {
-                debug!(format!(
-                    "Action: ReceiveProcessComplete, id: {:?}, code: {}",
-                    id, code
-                ));
+                //debug!(format!(
+                //                    "Action: ReceiveProcessComplete, id: {:?}, code: {}",
+                //    id, code
+                //));
                 WebSocketState {
                     websocket: self.websocket.clone(),
                     status: if code == 0 {
@@ -207,7 +207,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::Failed(error_message) => {
-                debug!("Action: Failed, error_message: {}", error_message.clone());
+                //debug!("Action: Failed, error_message: {}", error_message.clone());
                 let mut messages = self.messages.clone();
                 messages.push((
                     StreamType::Meta,
@@ -221,7 +221,7 @@ impl Reducible for WebSocketState {
                 .into()
             }
             WebSocketAction::Reset => {
-                debug!("Action: Reset");
+                //debug!("Action: Reset");
                 if let Some(ws) = &self.websocket {
                     debug!("Closing socket");
                     ws.close().ok();
@@ -247,7 +247,7 @@ impl Reducible for WebSocketState {
             }
         };
 
-        debug!(format!("New state after action: {:?}", *new_state));
+        //debug!(format!("New state after action: {:?}", *new_state));
         new_state
     }
 }
@@ -372,19 +372,19 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let run_command = {
         let ws_state = ws_state.clone();
         Callback::from(move |_: MouseEvent| {
-            debug!("Run command button clicked");
+            //debug!("Run command button clicked");
 
             // Close any existing WebSocket before starting a new one
             if let Some(ws) = &ws_state.websocket {
-                debug!("Closing existing WebSocket");
+                //debug!("Closing existing WebSocket");
                 ws.close().ok();
             }
             ws_state.dispatch(WebSocketAction::Reset);
 
             // Attempt to connect the WebSocket
-            debug!("Attempting to connect WebSocket");
+            //debug!("Attempting to connect WebSocket");
             if let Ok(ws) = WebSocket::new("/api/workstation/command_execute/") {
-                debug!("WebSocket connection established");
+                //debug!("WebSocket connection established");
                 let ws_clone = ws.clone();
                 ws_state.dispatch(WebSocketAction::Connect(ws));
 
@@ -421,7 +421,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     }) as Box<dyn FnMut(MessageEvent)>)
                 };
                 fn handle_message(ws_state: UseReducerHandle<WebSocketState>, msg: String) {
-                    debug!(format!("ServerMsg: {}", msg));
+                    //debug!(format!("ServerMsg: {}", msg));
                     match from_str::<ServerMsg>(&msg) {
                         Ok(server_msg) => match server_msg {
                             ServerMsg::Ping => {
