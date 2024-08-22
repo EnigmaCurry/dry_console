@@ -89,9 +89,8 @@ enum WebSocketAction {
     SendCommand(Ulid),
     ReceivePingReport(PingReport),
     ReceiveProcessOutput(StreamType, String),
+    ReceiveProcessComplete(String, usize),
     ReceiveProcess(Ulid),
-    Processing,
-    Complete,
     Failed(String),
     Reset,
     SendPong,
@@ -172,7 +171,7 @@ impl Reducible for WebSocketState {
                 debug!(format!("Action: ReceiveProcess, id: {:?}", id));
                 WebSocketState {
                     websocket: self.websocket.clone(),
-                    status: self.status.clone(),
+                    status: TerminalStatus::Processing,
                     messages: self.messages.clone(),
                 }
                 .into()
@@ -191,20 +190,18 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::Processing => {
-                debug!("Action: Processing");
+            WebSocketAction::ReceiveProcessComplete(id, code) => {
+                debug!(format!(
+                    "Action: ReceiveProcessComplete, id: {:?}, code: {}",
+                    id, code
+                ));
                 WebSocketState {
                     websocket: self.websocket.clone(),
-                    status: TerminalStatus::Processing,
-                    messages: self.messages.clone(),
-                }
-                .into()
-            }
-            WebSocketAction::Complete => {
-                debug!("Action: Complete");
-                WebSocketState {
-                    websocket: None,
-                    status: TerminalStatus::Complete,
+                    status: if code == 0 {
+                        TerminalStatus::Complete
+                    } else {
+                        TerminalStatus::Failed
+                    },
                     messages: self.messages.clone(),
                 }
                 .into()
@@ -351,13 +348,22 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     };
 
     // Reset reinitializes websocket and terminal
+    fn cancel_websocket(ws_state: &WebSocketState) {
+        if let Some(ws) = &ws_state.websocket {
+            ws.send_with_str("\"Cancel\"").ok();
+            //ws.close().ok();
+        }
+    }
+    let cancel_process = {
+        let ws_state = ws_state.clone();
+        Callback::from(move |_: MouseEvent| {
+            cancel_websocket(&ws_state);
+        })
+    };
     let reset_terminal = {
         let ws_state = ws_state.clone();
         Callback::from(move |_: MouseEvent| {
-            if let Some(ws) = &ws_state.websocket {
-                ws.send_with_str("\"Cancel\"").ok();
-                ws.close().ok();
-            }
+            cancel_websocket(&ws_state);
             ws_state.dispatch(WebSocketAction::Reset);
         })
     };
@@ -415,6 +421,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     }) as Box<dyn FnMut(MessageEvent)>)
                 };
                 fn handle_message(ws_state: UseReducerHandle<WebSocketState>, msg: String) {
+                    debug!(format!("ServerMsg: {}", msg));
                     match from_str::<ServerMsg>(&msg) {
                         Ok(server_msg) => match server_msg {
                             ServerMsg::Ping => {
@@ -429,6 +436,12 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                             ServerMsg::ProcessOutput(o) => {
                                 ws_state.dispatch(WebSocketAction::ReceiveProcessOutput(
                                     o.stream, o.line,
+                                ));
+                            }
+                            ServerMsg::ProcessComplete(c) => {
+                                ws_state.dispatch(WebSocketAction::ReceiveProcessComplete(
+                                    c.id.to_string(),
+                                    c.code.try_into().unwrap_or(128),
                                 ));
                             }
                             _ => {}
@@ -487,7 +500,11 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                 <div class="pf-u-display-flex">
                     <Button onclick={run_command.clone()}>{"🚀 Run command"}</Button>
-                    <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
+                    if ws_state.status != TerminalStatus::Initialized && ws_state.status != TerminalStatus::Processing {
+                        <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
+                    } else if ws_state.status == TerminalStatus::Processing {
+                        <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
+                    }
             </div>
                 <div class="pf-u-display-flex">
                     <Popover target={settings_link} body={settings_panel} />
