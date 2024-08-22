@@ -119,6 +119,7 @@ hr {
     text-align: center;
     display: flex;
     justify-content: space-between;
+    background-color: #1e1c1c
     
 }
 .terminal .toolbar > div {

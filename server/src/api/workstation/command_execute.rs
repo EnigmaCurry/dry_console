@@ -8,6 +8,7 @@ use dry_console_dto::websocket::{
 };
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::watch;
@@ -15,6 +16,8 @@ use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use tracing::debug;
 use ulid::Ulid;
+
+const TIMEOUT_INTERVAL: u64 = 5000;
 
 pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
     Router::new().merge(command_execute(shutdown))
@@ -47,7 +50,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
             let socket = socket.clone(); // Clone the Arc for use in the spawned task
             let mut cancel_rx = cancel_rx.clone();
             let cancel_tx = cancel_tx.clone();
-
+            let mut timeout_interval = tokio::time::interval(Duration::from_millis(TIMEOUT_INTERVAL));
             Box::pin(async move {
                 let mut state_ref = state.lock().await;
                 match *state_ref {
@@ -63,7 +66,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                         for i in $(seq 100); do
                             echo $i
                             #echo "uhh" >/dev/stderr
-                            sleep 1
+                            sleep 0.1
                         done
                         "#;
                             let mut process = Command::new("/bin/sh")
@@ -90,7 +93,6 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
                             let stdout_reader = BufReader::new(stdout).lines();
                             let stderr_reader = BufReader::new(stderr).lines();
-
                             tokio::spawn({
                                 let socket = socket.clone(); // Clone the Arc again for the task
                                 async move {
@@ -102,6 +104,14 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
                                     loop {
                                         tokio::select! {
+                                            _ = timeout_interval.tick() => {
+                                                debug!("Checking");
+                                                if stdout_ended && stderr_ended {
+                                                    break;
+                                                } else {
+                                                    debug!("not yet! {} {}", stdout_ended, stderr_ended);
+                                                }
+                                            },
                                             stdout_line = stdout_stream.next(), if !stdout_ended => {
                                                 match stdout_line {
                                                     Some(Ok(line_content)) => {
@@ -162,13 +172,11 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                                             })))
                                                             .await
                                                             .ok();
-                                                        // Drop the socket_guard here to avoid the move error
-                                                        drop(socket_guard);
-
-                                                        // Re-lock the socket and close it separately
-                                                        let mut socket_ref = socket.lock().await;
                                                         if let Some(socket_guard) = socket_ref.take() {
                                                             let _ = socket_guard.close().await;
+                                                            debug!("WebSocket closed!");
+                                                        } else {
+                                                            debug!("WebSocket already closed!");
                                                         }
                                                     }
                                                     break;
@@ -177,21 +185,31 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                             else => {
                                                 if stdout_ended && stderr_ended {
                                                     break;
+                                                } else {
+                                                    debug!("not yet! {} {}", stdout_ended, stderr_ended);
                                                 }
                                             }
                                         }
                                     }
+                                    debug!("loop ends here");
 
                                     let status = process.wait().await.expect("Failed to wait on child process");
                                     let mut socket_ref = socket.lock().await;
-                                    let socket_guard = socket_ref.as_mut().unwrap();
-                                    socket_guard
-                                        .send(Message::Item(ServerMsg::ProcessComplete(ProcessComplete {
-                                            id: process_id,
-                                            code: status.code().unwrap_or(128),
-                                        })))
-                                        .await
-                                        .ok();
+                                    if let Some(mut socket_guard) = socket_ref.take() {
+                                        socket_guard
+                                            .send(Message::Item(ServerMsg::ProcessComplete(ProcessComplete {
+                                                id: process_id,
+                                                code: status.code().unwrap_or(128),
+                                            })))
+                                            .await
+                                            .ok();
+                                        if let Some(socket_guard) = socket_ref.take() {
+                                            let _ = socket_guard.close().await;
+                                            debug!("WebSocket closed!");
+                                        } else {
+                                            debug!("WebSocket already closed!");
+                                        }
+                                    }
 
                                     let mut state_ref = state.lock().await;
                                     *state_ref = State::Completed;
@@ -201,7 +219,6 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             None
                         }
                         Message::Item(ClientMsg::Cancel) => {
-                            debug!("to cancel!");
                             let _ = cancel_tx.send(true);
                             *state.lock().await = State::Completed;
                             None
@@ -215,7 +232,6 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                     State::RunningProcess => {
                         match msg {
                             Message::Item(ClientMsg::Cancel) => {
-                                debug!("to cancel!");
                                 let _ = cancel_tx.send(true);
                                 *state.lock().await = State::Completed;
                                 None
