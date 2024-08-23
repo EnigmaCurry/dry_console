@@ -12,6 +12,7 @@ use uzers::{get_current_uid, get_user_by_uid};
 use which::which;
 
 pub mod command_execute;
+pub mod commands;
 mod dependencies;
 pub mod platform;
 

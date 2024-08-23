@@ -61,15 +61,13 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
 
                             let process_id = Ulid::new();
                             let script = r#"
-                        #!/bin/sh
                         echo "Hii" >/dev/stderr
                         for i in $(seq 100); do
                             echo $i
-                            #echo "uhh" >/dev/stderr
                             sleep 0.1
                         done
                         "#;
-                            let mut process = Command::new("/bin/sh")
+                            let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)
                                 .stdout(Stdio::piped())
