@@ -1,21 +1,18 @@
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
 use dry_console_dto::websocket::Command;
 use dry_console_dto::websocket::PingReport;
+use dry_console_dto::websocket::ServerMsg;
 use dry_console_dto::websocket::StreamType;
-use dry_console_dto::websocket::{ClientMsg, ServerMsg};
 use gloo::console::debug;
 use gloo::console::error;
 use gloo_storage::LocalStorage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::rc::Rc;
 use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::JsValue;
 use web_sys::js_sys;
 use web_sys::Blob;
 use web_sys::FileReader;
@@ -29,33 +26,6 @@ const SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY: &str = "terminal:show_line_numbers";
 pub struct TerminalOutputProps {
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
-}
-
-enum MsgAction {
-    AddMessage { stream: StreamType, message: String },
-    Reset,
-}
-
-struct MessagesState {
-    messages: Vec<(StreamType, String)>,
-}
-
-impl Reducible for MessagesState {
-    type Action = MsgAction;
-
-    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
-        match action {
-            MsgAction::Reset => MessagesState {
-                messages: Vec::new(),
-            }
-            .into(),
-            MsgAction::AddMessage { stream, message } => {
-                let mut messages = self.messages.clone();
-                messages.push((stream, message));
-                MessagesState { messages }.into()
-            }
-        }
-    }
 }
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
@@ -83,10 +53,7 @@ struct WebSocketState {
 // Reducer actions to manage WebSocketState
 #[derive(Debug)]
 enum WebSocketAction {
-    Initialize,
     Connect(WebSocket),
-    Connected,
-    SendCommand(Ulid),
     ReceivePingReport(PingReport),
     ReceiveProcessOutput(StreamType, String),
     ReceiveProcessComplete(String, usize),
@@ -103,15 +70,6 @@ impl Reducible for WebSocketState {
         //debug!(format!("Current state before action: {:?}", *self));
 
         let new_state: Rc<WebSocketState> = match action {
-            WebSocketAction::Initialize => {
-                //debug!("Action: Initialize");
-                WebSocketState {
-                    websocket: None,
-                    status: TerminalStatus::Initialized,
-                    messages: Vec::new(),
-                }
-                .into()
-            }
             WebSocketAction::Connect(ws) => {
                 //debug!("Action: Connect");
                 WebSocketState {
@@ -121,16 +79,7 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::Connected => {
-                //debug!("Action: Connected");
-                WebSocketState {
-                    websocket: self.websocket.clone(),
-                    status: TerminalStatus::Connected,
-                    messages: self.messages.clone(),
-                }
-                .into()
-            }
-            WebSocketAction::ReceivePingReport(r) => {
+            WebSocketAction::ReceivePingReport(_r) => {
                 //debug!(format!("Action: ReceivePingReport {:?}", r));
                 WebSocketState {
                     websocket: self.websocket.clone(),
@@ -151,23 +100,7 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::SendCommand(id) => {
-                //debug!("Action: SendCommand, id: {:?}", id.clone().to_string());
-                if let Some(ws) = &self.websocket {
-                    if let Ok(serialized_msg) =
-                        serde_json::to_string(&ClientMsg::Command(Command { id }))
-                    {
-                        ws.send_with_str(&serialized_msg).ok();
-                    };
-                }
-                WebSocketState {
-                    websocket: self.websocket.clone(),
-                    status: self.status.clone(),
-                    messages: self.messages.clone(),
-                }
-                .into()
-            }
-            WebSocketAction::ReceiveProcess(id) => {
+            WebSocketAction::ReceiveProcess(_id) => {
                 //debug!(format!("Action: ReceiveProcess, id: {:?}", id));
                 WebSocketState {
                     websocket: self.websocket.clone(),
@@ -190,7 +123,7 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::ReceiveProcessComplete(id, code) => {
+            WebSocketAction::ReceiveProcessComplete(_id, code) => {
                 //debug!(format!(
                 //                    "Action: ReceiveProcessComplete, id: {:?}, code: {}",
                 //    id, code
@@ -256,14 +189,13 @@ impl Reducible for WebSocketState {
 enum TerminalStatus {
     Initialized,
     Connecting,
-    Connected,
     Ready,
     Processing,
     Failed,
     Complete,
 }
 #[function_component(TerminalOutput)]
-pub fn terminal_output(props: &TerminalOutputProps) -> Html {
+pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
     let num_lines = use_state(|| 1);
     let show_line_numbers_local_pref =
@@ -307,7 +239,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     // Update gutter height dynamically
     {
-        let messages_len = ws_state.messages.len();
         let screen_dimensions = screen_dimensions.clone();
         let num_lines = num_lines.clone();
         use_effect_with(screen_dimensions.height as usize, move |_| {
@@ -401,7 +332,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     let ws_state = ws_state.clone();
                     Closure::wrap(Box::new(move |event: MessageEvent| {
                         //debug!("Message received from WebSocket");
-                        if let Some(blob) = event.data().dyn_into::<Blob>().ok() {
+                        if let Ok(blob) = event.data().dyn_into::<Blob>() {
                             // Handle Blob message
                             let ws_state = ws_state.clone();
 

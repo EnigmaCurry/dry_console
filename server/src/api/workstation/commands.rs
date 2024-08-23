@@ -1,9 +1,6 @@
 use crate::api::token::generate_deterministic_ulid_from_seed;
 use dry_console_dto::script::ScriptEntry;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use strum::{Display, VariantNames};
-use ulid::Ulid;
 
 #[derive(VariantNames, Display)]
 pub enum CommandLibrary {
@@ -11,7 +8,7 @@ pub enum CommandLibrary {
 }
 
 pub fn new_script(variant: &str, script: &str) -> ScriptEntry {
-    let id = generate_deterministic_ulid_from_seed(&variant);
+    let id = generate_deterministic_ulid_from_seed(variant);
     ScriptEntry {
         id,
         script: script.to_string(),

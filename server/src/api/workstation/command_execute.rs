@@ -14,7 +14,7 @@ use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use tracing::debug;
+use tracing::{debug, info};
 use ulid::Ulid;
 
 const TIMEOUT_INTERVAL: u64 = 2000;
@@ -46,6 +46,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
         let (cancel_tx, cancel_rx) = watch::channel(false);
 
         handle_websocket(socket.clone(), shutdown, move |msg| {
+            info!("WebSocket open!");
             let state = state.clone();
             let socket = socket.clone(); // Clone the Arc for use in the spawned task
             let mut cancel_rx = cancel_rx.clone();
