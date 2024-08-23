@@ -247,7 +247,7 @@ impl Reducible for WebSocketState {
             }
         };
 
-        debug!(format!("New state after action: {:?}", *new_state));
+        //debug!(format!("New state after action: {:?}", *new_state));
         new_state
     }
 }
@@ -269,7 +269,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let show_line_numbers_local_pref =
         LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(true);
     let show_line_numbers = use_state(|| show_line_numbers_local_pref);
-
+    let user_attempted_scroll = use_state(|| false);
     let terminal_ref = use_node_ref();
     let gutter_ref = use_node_ref();
 
@@ -324,7 +324,9 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let onscroll = {
         let terminal_ref = terminal_ref.clone();
         let gutter_ref = gutter_ref.clone();
+        let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_| {
+            user_attempted_scroll.set(true);
             if let (Some(terminal), Some(gutter)) = (
                 terminal_ref.cast::<HtmlElement>(),
                 gutter_ref.cast::<HtmlElement>(),
@@ -336,13 +338,17 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     };
     let scroll_to_top = {
         let terminal_ref = terminal_ref.clone();
+        let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_: MouseEvent| {
+            user_attempted_scroll.set(true);
             scroll_to_line(&terminal_ref, 0);
         })
     };
     let scroll_to_bottom = {
         let terminal_ref = terminal_ref.clone();
+        let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_: MouseEvent| {
+            user_attempted_scroll.set(false);
             scroll_to_line(&terminal_ref, i32::MAX);
         })
     };
@@ -362,8 +368,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     };
     let reset_terminal = {
         let ws_state = ws_state.clone();
+        let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_: MouseEvent| {
             cancel_websocket(&ws_state);
+            user_attempted_scroll.set(false);
             ws_state.dispatch(WebSocketAction::Reset);
         })
     };
@@ -371,9 +379,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     // "Run command" button callback to set up WebSocket and change status
     let run_command = {
         let ws_state = ws_state.clone();
+        let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_: MouseEvent| {
             //debug!("Run command button clicked");
-
+            user_attempted_scroll.set(false);
             // Close any existing WebSocket before starting a new one
             if let Some(ws) = &ws_state.websocket {
                 //debug!("Closing existing WebSocket");
@@ -495,6 +504,19 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             </Bullseye>
             </PopoverBody>
     );
+
+    {
+        let user_attempted_scroll = user_attempted_scroll.clone();
+        let terminal_ref = terminal_ref.clone();
+        let messages_len = ws_state.messages.len();
+        use_effect_with(messages_len, move |_| {
+            if !*user_attempted_scroll {
+                scroll_to_line(&terminal_ref, i32::MAX);
+            }
+            || ()
+        });
+    }
+
     html! {
         <div class="terminal">
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">

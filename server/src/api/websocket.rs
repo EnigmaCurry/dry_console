@@ -42,7 +42,6 @@ pub async fn handle_websocket<T, U, F>(
         tokio::select! {
             _ = ping_interval.tick() => {
                 let mut socket_guard = socket.lock().await;
-                debug!("ping!");
                 if consecutive_missed_pongs > 3 {
                     close_code = Some(CloseCode::PolicyViolation);
                     close_message = Some("Missed 3 consecutive pongs. Disconnecting...".to_string());

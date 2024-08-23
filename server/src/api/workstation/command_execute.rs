@@ -103,13 +103,9 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                     loop {
                                         tokio::select! {
                                             _ = timeout_interval.tick() => {
-                                                debug!("Checking");
                                                 if stdout_ended && stderr_ended {
                                                     break;
-                                                } else {
-                                                    debug!("not yet! {} {}", stdout_ended, stderr_ended);
-                                                }
-                                            },
+                                                }                                             },
                                             stdout_line = stdout_stream.next(), if !stdout_ended => {
                                                 match stdout_line {
                                                     Some(Ok(line_content)) => {
@@ -183,13 +179,10 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                             else => {
                                                 if stdout_ended && stderr_ended {
                                                     break;
-                                                } else {
-                                                    debug!("not yet! {} {}", stdout_ended, stderr_ended);
                                                 }
                                             }
                                         }
                                     }
-                                    debug!("loop ends here");
 
                                     let status = process.wait().await.expect("Failed to wait on child process");
                                     let mut socket_ref = socket.lock().await;
