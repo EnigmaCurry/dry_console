@@ -499,16 +499,15 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         <div class="terminal">
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                 <div class="pf-u-display-flex">
-                    <Button onclick={run_command.clone()}>{"🚀 Run command"}</Button>
-                    if ws_state.status != TerminalStatus::Initialized && ws_state.status != TerminalStatus::Processing {
-                        if ws_state.status == TerminalStatus::Complete {
-                            <Button onclick={reset_terminal.clone()}>{"👍️ Reset"}</Button>
+                        if ws_state.status == TerminalStatus::Initialized {
+                          <Button onclick={run_command.clone()}>{"🚀 Run command"}</Button>
+                        } else if ws_state.status == TerminalStatus::Processing {
+                          <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
+                        } else if ws_state.status == TerminalStatus::Complete {
+                            <Button onclick={reset_terminal.clone()}>{"👍️ Done"}</Button>
                         } else {
                             <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
                         }
-                    } else if ws_state.status == TerminalStatus::Processing {
-                        <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
-                    }
             </div>
                 <div class="pf-u-display-flex">
                     <Popover target={settings_link} body={settings_panel} />

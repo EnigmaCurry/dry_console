@@ -17,7 +17,7 @@ use tokio_stream::StreamExt;
 use tracing::debug;
 use ulid::Ulid;
 
-const TIMEOUT_INTERVAL: u64 = 5000;
+const TIMEOUT_INTERVAL: u64 = 2000;
 
 pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
     Router::new().merge(command_execute(shutdown))
