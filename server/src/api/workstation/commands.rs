@@ -4,7 +4,7 @@ use strum::{Display, VariantNames};
 
 #[derive(VariantNames, Display)]
 pub enum CommandLibrary {
-    Hii,
+    TestExampleOne,
 }
 
 pub fn new_script(variant: &str, script: &str) -> ScriptEntry {
@@ -19,7 +19,7 @@ impl CommandLibrary {
     pub fn get(&self) -> ScriptEntry {
         let variant = self.to_string();
         match self {
-            CommandLibrary::Hii => new_script(
+            CommandLibrary::TestExampleOne => new_script(
                 &variant,
                 r#"
                 echo "Hii" >/dev/stderr

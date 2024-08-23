@@ -21,6 +21,7 @@ use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
 const SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY: &str = "terminal:show_line_numbers";
+const BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY: &str = "terminal:background_color_sucess";
 
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
@@ -201,6 +202,9 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     let show_line_numbers_local_pref =
         LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(true);
     let show_line_numbers = use_state(|| show_line_numbers_local_pref);
+    let background_color_success_local_pref =
+        LocalStorage::get::<bool>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY).unwrap_or(true);
+    let background_color_success = use_state(|| background_color_success_local_pref);
     let user_attempted_scroll = use_state(|| false);
     let terminal_ref = use_node_ref();
     let gutter_ref = use_node_ref();
@@ -425,14 +429,23 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                 .expect("Failed to store setting in local storage");
         })
     };
+    let toggle_background_success = {
+        let background_color_success = background_color_success.clone();
+        Callback::from(move |value: bool| {
+            background_color_success.set(value);
+            LocalStorage::set(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY, value)
+                .expect("Failed to store setting in local storage");
+        })
+    };
     let settings_panel = html_nested!(
         <PopoverBody
             header={html!("")}
             footer={html!("")}
         >
-            <Bullseye>
-            <Switch label="Show line numbers" checked={*show_line_numbers} onchange={toggle_line_numbers.clone()} />
-            </Bullseye>
+            <List r#type={ListType::Bordered}>
+            <ListItem><Switch label="Show line numbers" checked={*show_line_numbers} onchange={toggle_line_numbers.clone()} /></ListItem>
+            <ListItem><Switch label="Background color indicates success/failure" checked={*background_color_success} onchange={toggle_background_success.clone()} /></ListItem>
+            </List>
             </PopoverBody>
     );
 
@@ -447,6 +460,15 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
             || ()
         });
     }
+
+    let output_class = match *background_color_success {
+        true => match ws_state.status {
+            TerminalStatus::Complete => "output success",
+            TerminalStatus::Failed => "output failure",
+            _ => "output",
+        },
+        false => "output",
+    };
 
     html! {
         <div class="terminal">
@@ -489,8 +511,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                         }
                     </div>
                 }
-
-                <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines)}>
+               <div class={output_class} ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines)}>
                     {
                         for ws_state.messages.iter().map(|(stream, message)| {
                             let class_name = match stream {

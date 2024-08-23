@@ -1,4 +1,5 @@
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
+use crate::api::workstation::commands::CommandLibrary;
 use crate::broadcast;
 use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
@@ -61,13 +62,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             drop(state_ref); // Drop the lock on state to run the command
 
                             let process_id = Ulid::new();
-                            let script = r#"
-                        echo "Hii" >/dev/stderr
-                        for i in $(seq 100); do
-                            echo $i
-                            sleep 0.1
-                        done
-                        "#;
+                            let script = CommandLibrary::TestExampleOne.get().script;
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)

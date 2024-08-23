@@ -146,6 +146,14 @@ hr {
     padding-bottom: 1em;
 }
 
+.terminal .output.success {
+    background-color: #416d5899;
+}
+
+.terminal .output.failure {
+    background-color: #a60d3140;
+}
+
 .terminal .gutter {
     user-select: none;
     background-color: #262424;
