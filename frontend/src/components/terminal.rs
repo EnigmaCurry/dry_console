@@ -15,13 +15,19 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use web_sys::js_sys;
 use web_sys::Blob;
+use web_sys::Element;
 use web_sys::FileReader;
+use web_sys::HtmlInputElement;
 use web_sys::MessageEvent;
+use web_sys::Window;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
 const SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY: &str = "terminal:show_line_numbers";
-const BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY: &str = "terminal:background_color_sucess";
+const BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY: &str = "terminal:background_color_change";
+const BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY: &str = "terminal:background_color_success";
+const BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY: &str = "terminal:background_color_failure";
+const BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY: &str = "terminal:background_color_normal";
 
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
@@ -199,12 +205,26 @@ enum TerminalStatus {
 pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
     let num_lines = use_state(|| 1);
-    let show_line_numbers_local_pref =
-        LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(true);
-    let show_line_numbers = use_state(|| show_line_numbers_local_pref);
-    let background_color_success_local_pref =
-        LocalStorage::get::<bool>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY).unwrap_or(true);
-    let background_color_success = use_state(|| background_color_success_local_pref);
+    let show_line_numbers =
+        use_state(|| LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(true));
+    let background_color_change = use_state(|| {
+        LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(true)
+    });
+    let background_color_success = use_state(|| {
+        LocalStorage::get::<String>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY)
+            .unwrap_or("#416d58".to_string())
+    });
+    let background_color_success_clone = background_color_success.clone();
+    let background_color_failure = use_state(|| {
+        LocalStorage::get::<String>(BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY)
+            .unwrap_or("#a60d31".to_string())
+    });
+    let background_color_failure_clone = background_color_failure.clone();
+    let background_color_normal = use_state(|| {
+        LocalStorage::get::<String>(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY)
+            .unwrap_or("#000".to_string())
+    });
+    let background_color_failure_clone = background_color_failure.clone();
     let user_attempted_scroll = use_state(|| false);
     let terminal_ref = use_node_ref();
     let gutter_ref = use_node_ref();
@@ -429,24 +449,73 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                 .expect("Failed to store setting in local storage");
         })
     };
-    let toggle_background_success = {
-        let background_color_success = background_color_success.clone();
+    let toggle_background_change = {
+        let background_color_change = background_color_change.clone();
         Callback::from(move |value: bool| {
-            background_color_success.set(value);
-            LocalStorage::set(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY, value)
+            background_color_change.set(value);
+            LocalStorage::set(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY, value)
                 .expect("Failed to store setting in local storage");
         })
     };
+    let update_success_color = Callback::from(move |event: Event| {
+        let input: HtmlInputElement = event.target_unchecked_into();
+        background_color_success_clone.set(input.value());
+        LocalStorage::set(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY, input.value())
+            .expect("Failed to store setting in local storage");
+    });
+
+    let update_failure_color = Callback::from(move |event: Event| {
+        let input: HtmlInputElement = event.target_unchecked_into();
+        background_color_failure_clone.set(input.value());
+        LocalStorage::set(BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY, input.value())
+            .expect("Failed to store setting in local storage");
+    });
     let settings_panel = html_nested!(
         <PopoverBody
             header={html!("")}
             footer={html!("")}
         >
             <List r#type={ListType::Bordered}>
-            <ListItem><Switch label="Show line numbers" checked={*show_line_numbers} onchange={toggle_line_numbers.clone()} /></ListItem>
-            <ListItem><Switch label="Background color indicates success/failure" checked={*background_color_success} onchange={toggle_background_success.clone()} /></ListItem>
+                <ListItem>
+                    <Switch
+                        label="Show line numbers"
+                        checked={*show_line_numbers}
+                        onchange={toggle_line_numbers.clone()}
+                    />
+                </ListItem>
+                <ListItem>
+                    <Switch
+                        label="Background color indicates success/failure"
+                        checked={*background_color_change}
+                        onchange={toggle_background_change.clone()}
+                    />
+                </ListItem>
+                <ListItem>
+                    <div class={if *background_color_change { "visible flex-container" } else { "hidden" }}>
+                        <input
+                            type="color"
+                            id="successColor"
+                            name="successColor"
+                            value={<std::string::String as Clone>::clone(&*background_color_success)}
+                            onchange={update_success_color.clone()}
+                        />
+                        <label for="successColor">{"Success Color"}</label>
+                    </div>
+                </ListItem>
+                <ListItem>
+                    <div class={if *background_color_change { "visible flex-container" } else { "hidden" }}>
+                        <input
+                            type="color"
+                            id="failureColor"
+                            name="failureColor"
+                            value={<std::string::String as Clone>::clone(&*background_color_failure)}
+                            onchange={update_failure_color.clone()}
+                        />
+                        <label for="failureColor">{"Failure Color"}</label>
+                    </div>
+                </ListItem>
             </List>
-            </PopoverBody>
+        </PopoverBody>
     );
 
     {
@@ -461,13 +530,13 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         });
     }
 
-    let output_class = match *background_color_success {
+    let output_background_color = match *background_color_change {
         true => match ws_state.status {
-            TerminalStatus::Complete => "output success",
-            TerminalStatus::Failed => "output failure",
-            _ => "output",
+            TerminalStatus::Complete => &background_color_success,
+            TerminalStatus::Failed => &background_color_failure,
+            _ => &background_color_normal,
         },
-        false => "output",
+        false => &background_color_normal,
     };
 
     html! {
@@ -511,7 +580,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                         }
                     </div>
                 }
-               <div class={output_class} ref={terminal_ref} {onscroll} style={format!("max-height: {}em", *num_lines)}>
+        <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em; background-color: {}", *num_lines, **output_background_color)}>
                     {
                         for ws_state.messages.iter().map(|(stream, message)| {
                             let class_name = match stream {
