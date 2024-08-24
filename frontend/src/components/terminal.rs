@@ -597,7 +597,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                 debug!(format!("element: {:?}", element));
                 if let Some(content_element) = element.query_selector(".content").unwrap() {
                     // Cast `Element` to `HtmlElement` to use `inner_text()`
-                    if let Some(content) = content_element.dyn_into::<HtmlElement>().ok() {
+                    if let Ok(content) = content_element.dyn_into::<HtmlElement>() {
                         let text = content.inner_text();
                         if let Some(window) = window() {
                             let navigator = window.navigator();
