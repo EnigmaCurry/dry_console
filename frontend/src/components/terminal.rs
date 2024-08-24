@@ -592,42 +592,63 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     ) -> Callback<MouseEvent> {
         Callback::from(move |_| {
             if let Some(element) = code_block_ref.cast::<HtmlElement>() {
-                let text = element.inner_text();
-                // Use the Clipboard API via JavaScript interop
-                if let Some(window) = window() {
-                    let navigator = window.navigator();
+                debug!(format!("element: {:?}", element));
+                if let Some(content_element) = element.query_selector(".content").unwrap() {
+                    // Cast `Element` to `HtmlElement` to use `inner_text()`
+                    if let Some(content) = content_element.dyn_into::<HtmlElement>().ok() {
+                        let text = content.inner_text();
+                        if let Some(window) = window() {
+                            let navigator = window.navigator();
+                            let clipboard =
+                                Reflect::get(&navigator, &JsString::from("clipboard")).unwrap();
 
-                    // Access clipboard via JavaScript interop
-                    let clipboard = Reflect::get(&navigator, &JsString::from("clipboard")).unwrap();
-                    if clipboard.is_undefined() {
-                        log::error!("Clipboard API is not supported in this browser");
-                    } else {
-                        let clipboard: web_sys::Clipboard = clipboard.dyn_into().unwrap();
-                        let promise: Promise = clipboard.write_text(&text);
-
-                        // Handle the promise and update the button text
-                        let set_button_text = set_button_text.clone();
-                        let future = JsFuture::from(promise);
-                        wasm_bindgen_futures::spawn_local(async move {
-                            if future.await.is_ok() {
-                                set_button_text.set("✅".to_string());
-                                // Reset text back to "Copy" after a short delay
-                                wasm_bindgen_futures::spawn_local(async move {
-                                    gloo::timers::future::TimeoutFuture::new(2000).await;
-                                    set_button_text.set("📋".to_string());
-                                });
+                            if clipboard.is_undefined() {
+                                error!("Clipboard API is not supported in this browser");
                             } else {
-                                log::error!("Failed to copy text");
+                                let clipboard: web_sys::Clipboard = clipboard.dyn_into().unwrap();
+                                let promise: Promise = clipboard.write_text(&text);
+
+                                let set_button_text = set_button_text.clone();
+                                let future = JsFuture::from(promise);
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    if future.await.is_ok() {
+                                        set_button_text.set("✅".to_string());
+                                        wasm_bindgen_futures::spawn_local(async move {
+                                            gloo::timers::future::TimeoutFuture::new(2000).await;
+                                            set_button_text.set("📋".to_string());
+                                        });
+                                    } else {
+                                        error!("Failed to copy text");
+                                    }
+                                });
                             }
-                        });
+                        } else {
+                            error!("window not found.");
+                        }
+                    } else {
+                        error!("Failed to cast content_element to HtmlElement.");
                     }
+                } else {
+                    error!("Failed to find .content.");
                 }
+            } else {
+                error!("code block not found.");
             }
         })
     }
 
+    #[derive(Properties, PartialEq, Clone)]
+    pub struct CommandAreaProps {
+        pub background_color: String,
+        pub foreground_color: String,
+    }
     #[function_component(CommandArea)]
-    fn command_area() -> Html {
+    fn command_area(
+        CommandAreaProps {
+            background_color,
+            foreground_color,
+        }: &CommandAreaProps,
+    ) -> Html {
         let code_block_ref = NodeRef::default();
         let button_text = use_state(|| "📋".to_string());
         let expanded = use_state_eq(|| false);
@@ -637,18 +658,19 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         html! {
             <div class="command_area" style="position: relative;">
                 <div class="header">
-                {"💻️ Run these terminal commands"}
+                {"💻️ Run terminal process"}
                 </div>
                 <Stack gutter=true>
                 <StackItem>
-                <div style="margin-left: 2em; margin-block-start: 2em;">
+                <div class="command_description">
                 <p>{"Command description goes here."}</p>
                 </div>
-                <ExpandableSectionToggle toggle_text_expanded={"Hide commands"} toggle_text_hidden={"Show commands"} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
+                <ExpandableSectionToggle toggle_text_expanded={"Hide script"} toggle_text_hidden={"Show script"} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
                 </StackItem>
                 <StackItem>
                 <ExpandableSection detached=true expanded={*expanded}>
                 <div class="code_container" ref={code_block_ref.clone()}>
+                <div class="content" style={format!("background-color: {}; color: {}", background_color, foreground_color)}>
                 <CodeBlock>
                 <CodeBlockCode>
             {r#"echo "Hii" >/dev/stderr
@@ -659,11 +681,12 @@ done
 "#}
             </CodeBlockCode>
                 </CodeBlock>
+            </div>
+            <button title="Copy script" class="copy-button" onclick={copy_code(code_block_ref.clone(), button_text.clone())}><div class="copy-button-text">{ (*button_text).clone() }</div></button>
                 </div>
-                </ExpandableSection>
+                                </ExpandableSection>
                 </StackItem>
                 </Stack>
-                <button title="Copy script" class="copy-button" onclick={copy_code(code_block_ref.clone(), button_text.clone())}>{ (*button_text).clone() }</button>
             </div>
         }
     }
@@ -690,10 +713,11 @@ done
     };
 
     let output_stdout_color = &text_color_stdout;
+    let output_copy_button_text = use_state(|| "📋".to_string());
 
     html! {
         <div class="terminal">
-            <CommandArea/>
+            <CommandArea background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                 <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {
@@ -714,54 +738,57 @@ done
                     }
                 </div>
             </div>
-            <div class="content">
-                if *show_line_numbers && ws_state.status != TerminalStatus::Initialized {
-                    <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
-                        {
-                            for ws_state.messages.iter().map(|(stream, _message)| {
-                                let gutter_content = match stream {
-                                    StreamType::Stdout => {
-                                        let content = line_number_gutter.to_string();
-                                        line_number_gutter += 1;
-                                        content
-                                    }
-                                    StreamType::Stderr => "E".to_string(),         // "E" for StdErr
-                                    StreamType::Meta => "#".to_string(),           // "M" for Meta
-                                };
-                                html!{
-                                    <div class="gutter-line">{gutter_content}</div>
-                                }
-                            })
-                        }
-                    </div>
-                }
-        <div class="output" ref={terminal_ref} {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
-                    {
-                        for ws_state.messages.iter().map(|(stream, message)| {
-                            let class_name = match stream {
-                                StreamType::Stdout => "stream-stdout",
-                                StreamType::Stderr => "stream-stderr",
-                                StreamType::Meta => "stream-meta",
-                            };
-                            let id = if *stream == StreamType::Stdout {
-                                let id = format!("line-{}", line_number_output);
-                                line_number_output += 1;
-                                id
-                            } else {
-                                "".to_string()
-                            };
-                            let style = match stream {
-                                StreamType::Stderr => format!("color: {}", *text_color_stderr),
-                                StreamType::Stdout => "".to_string(),
-                                StreamType::Meta => "".to_string()
-                            };
-                            html!{
-                                <p id={id} class={class_name} {style}>{message}</p>
+            <div class="terminal_display" ref={terminal_ref.clone()}>
+            if *show_line_numbers && ws_state.status != TerminalStatus::Initialized {
+                <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
+                {
+                    for ws_state.messages.iter().map(|(stream, _message)| {
+                        let gutter_content = match stream {
+                            StreamType::Stdout => {
+                                let content = line_number_gutter.to_string();
+                                line_number_gutter += 1;
+                                content
                             }
-                        })
-                    }
+                            StreamType::Stderr => "E".to_string(),         // "E" for StdErr
+                            StreamType::Meta => "#".to_string(),           // "M" for Meta
+                        };
+                        html!{
+                            <div class="gutter-line">{gutter_content}</div>
+                        }
+                    })
+                }
                 </div>
-            </div>
+            }
+        if ws_state.status == TerminalStatus::Complete || ws_state.status == TerminalStatus::Failed {
+            <button title="Copy output" class="copy-button" onclick={copy_code(terminal_ref.clone(), output_copy_button_text.clone())}><div class="copy-button-text">{ (*output_copy_button_text).clone() }</div></button>
+        }
+        <div class="content" {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
+        {
+            for ws_state.messages.iter().map(|(stream, message)| {
+                let class_name = match stream {
+                    StreamType::Stdout => "stream-stdout",
+                    StreamType::Stderr => "stream-stderr",
+                    StreamType::Meta => "stream-meta",
+                };
+                let id = if *stream == StreamType::Stdout {
+                    let id = format!("line-{}", line_number_output);
+                    line_number_output += 1;
+                    id
+                } else {
+                    "".to_string()
+                };
+                let style = match stream {
+                    StreamType::Stderr => format!("color: {}", *text_color_stderr),
+                    StreamType::Stdout => "".to_string(),
+                    StreamType::Meta => "".to_string()
+                };
+                html!{
+                    <span id={id} class={class_name} {style}>{message}</span>
+                }
+            })
+        }
+        </div>
+        </div>
         </div>
     }
 }

@@ -143,14 +143,14 @@ html:not(.pf-v5-theme-dark) .terminal {
     margin: 0.5em;
 }
 
-.terminal .content {
+.terminal .terminal_display {
     display: flex;
-    flex-grow: 1;
+    position: relative;
     flex-direction: row;
 }
 
 .terminal .gutter,
-.terminal .output {
+.terminal .content {
     display: flex;
     flex-direction: column;
     line-height: 1.3em;
@@ -161,7 +161,7 @@ html:not(.pf-v5-theme-dark) .terminal {
     padding-block-end: 1em;
 }
 
-.terminal .output:empty {
+.terminal .content:empty {
     padding: 0;
 }
 
@@ -181,8 +181,8 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     color: #bda9a9;
 }
 
-.terminal .output {
-    background-color: black;
+.terminal .content {
+    position: relative;
     color: white;
     padding-left: 10px;
     width: 100%;
@@ -191,7 +191,7 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     flex-grow: 1;
 }
 
-.terminal .output .stream-meta {
+.terminal .content .stream-meta {
     background-color: #332c22;
 }
 
@@ -253,7 +253,8 @@ html:not(.pf-v5-theme-dark) label {
     user-select: none;
     color: #1ad91a;
     max-height: 24em;
-    overflow: scroll;
+    overflow-y: scroll;
+    overflow-x: hidden;
 }
 html:not(.pf-v5-theme-dark) .command_area .code_container {
     color: #000;
@@ -265,27 +266,40 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
 .command_area .pf-v5-c-expandable-section__toggle {
     padding-left: 2em;
 }
-.command_area .pf-v5-c-code-block__content {
-    background-color: ##141a1a;
+.command_area .code_container {
+    background-color: #141a1a;
 }
+.command_area .code_container .pf-v5-c-code-block {
+    background: transparent;
+}
+
 .command_area .pf-v5-c-expandable-section__toggle-text {
     font-weight: bold;
 }
+.command_area .command_description {
+    margin-left: 2em;
+    margin-block-start: 1em;
+}
 .copy-button {
-    scale: 2;
     position: absolute;
-    top: 2em;
-    right: 1em;
+    top: 0;
+    right: 0;
+    display: inline-flex;
+    z-index: 10;
+    justify-content: flex-end;
     background-color: rgba(0, 0, 0, 0);
     color: white;
     border: none;
-    padding: 5px 10px;
+    padding: 0 10px 0 0;
     border-radius: 5px;
     cursor: pointer;
-    opacity: 0.75;
+    opacity: 0.85;
     transition: opacity 0.3s ease;
 }
-
+.copy-button-text {
+    transform: scale(2)  translate(5%, -5%);
+    transform-origin: top right;
+}
 .copy-button:hover {
     opacity: 1;
 }
