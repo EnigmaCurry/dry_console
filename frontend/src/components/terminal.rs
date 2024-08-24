@@ -13,7 +13,12 @@ use std::rc::Rc;
 use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
+use web_sys::js_sys::JsString;
+use web_sys::js_sys::Promise;
+use web_sys::js_sys::Reflect;
+use web_sys::window;
 use web_sys::Blob;
 use web_sys::Element;
 use web_sys::FileReader;
@@ -481,7 +486,6 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         LocalStorage::set(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY, input.value())
             .expect("Failed to store setting in local storage");
     });
-
     let settings_panel = html_nested!(
         <PopoverBody
             header={html!("")}
@@ -541,6 +545,85 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
             </List>
         </PopoverBody>
     );
+    fn copy_code(
+        code_block_ref: NodeRef,
+        set_button_text: yew::UseStateHandle<String>,
+    ) -> Callback<MouseEvent> {
+        Callback::from(move |_| {
+            if let Some(element) = code_block_ref.cast::<HtmlElement>() {
+                let text = element.inner_text();
+                // Use the Clipboard API via JavaScript interop
+                if let Some(window) = window() {
+                    let navigator = window.navigator();
+
+                    // Access clipboard via JavaScript interop
+                    let clipboard = Reflect::get(&navigator, &JsString::from("clipboard")).unwrap();
+                    if clipboard.is_undefined() {
+                        log::error!("Clipboard API is not supported in this browser");
+                    } else {
+                        let clipboard: web_sys::Clipboard = clipboard.dyn_into().unwrap();
+                        let promise: Promise = clipboard.write_text(&text);
+
+                        // Handle the promise and update the button text
+                        let set_button_text = set_button_text.clone();
+                        let future = JsFuture::from(promise);
+                        wasm_bindgen_futures::spawn_local(async move {
+                            if future.await.is_ok() {
+                                set_button_text.set("✅".to_string());
+                                // Reset text back to "Copy" after a short delay
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    gloo::timers::future::TimeoutFuture::new(2000).await;
+                                    set_button_text.set("📋".to_string());
+                                });
+                            } else {
+                                log::error!("Failed to copy text");
+                            }
+                        });
+                    }
+                }
+            }
+        })
+    }
+
+    #[function_component(CommandArea)]
+    fn command_area() -> Html {
+        let code_block_ref = NodeRef::default();
+        let button_text = use_state(|| "📋".to_string());
+        let expanded = use_state_eq(|| false);
+        let ontoggle = use_callback(expanded.clone(), |(), expanded| {
+            expanded.set(!**expanded);
+        });
+        let command_description = "Description of this command goes here";
+        html! {
+            <div class="command_area" style="position: relative;">
+                <div class="header">
+                {"💻️ Run shell script"}
+                </div>
+                <Stack gutter=true>
+                <StackItem>
+                <ExpandableSectionToggle toggle_text_expanded={command_description} toggle_text_hidden={command_description} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
+                </StackItem>
+                <StackItem>
+                <ExpandableSection detached=true expanded={*expanded}>
+                <div class="code_container" ref={code_block_ref.clone()}>
+                <CodeBlock>
+                <CodeBlockCode>
+            {r#"echo "Hii" >/dev/stderr
+for i in $(seq 100); do
+  echo $i
+  sleep 0.1
+done
+"#}
+            </CodeBlockCode>
+                </CodeBlock>
+                </div>
+                </ExpandableSection>
+                </StackItem>
+                </Stack>
+                <button title="Copy script" class="copy-button" onclick={copy_code(code_block_ref.clone(), button_text.clone())}>{ (*button_text).clone() }</button>
+            </div>
+        }
+    }
 
     {
         let user_attempted_scroll = user_attempted_scroll.clone();
@@ -565,10 +648,11 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
 
     html! {
         <div class="terminal">
+            <CommandArea/>
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                 <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {
-                          <Button onclick={run_command.clone()}>{"🚀 Run command"}</Button>
+                          <Button onclick={run_command.clone()}>{"🚀 Run script"}</Button>
                         } else if ws_state.status == TerminalStatus::Processing {
                           <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {

@@ -63,7 +63,6 @@ code {
     padding: .2em .5em;
     background-color: #343941;
     color: #fff;
-    border-radius: 6px;
     font-size: 85%;
     white-space: break-spaces;
     margin: 0;
@@ -215,3 +214,46 @@ input[type="color"] {
     width: 50px;
     height: 30px;
 }
+
+.command_area .header {
+    font-weight: bold;
+    background-color: darkblue;
+    padding: 0 0 0 1em;
+    border-radius: 0px 0px 4px 4px;
+    border: 3px solid #48358c;
+    border-top-style: none;
+    border-bottom-style: groove;
+    border-left-style: none;
+    border-right-style: none;
+    user-select: none;
+}
+
+.command_area .code_container {
+    position: relative;
+    user-select: none;
+}
+.command_area .pf-v5-c-expandable-section__content {
+    margin-block-start: 0;
+}
+.command_area .pf-v5-c-expandable-section__toggle {
+    padding-left: 2em;
+}
+.copy-button {
+    scale: 2;
+    position: absolute;
+    top: 2em;
+    right: 1em;
+    background-color: rgba(0, 0, 0, 0);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    opacity: 0.25;
+    transition: opacity 0.3s ease;
+}
+
+.copy-button:hover {
+    opacity: 1;
+}
+
