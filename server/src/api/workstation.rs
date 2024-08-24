@@ -11,8 +11,8 @@ use utoipa::ToSchema;
 use uzers::{get_current_uid, get_user_by_uid};
 use which::which;
 
+pub mod command;
 pub mod command_execute;
-pub mod commands;
 mod dependencies;
 pub mod platform;
 
@@ -21,6 +21,7 @@ pub fn router(shutdown: broadcast::Sender<()>) -> Router<SharedState> {
         .merge(workstation())
         .merge(required_dependencies())
         .merge(dependencies())
+        .merge(command::command())
         .merge(command_execute::main(shutdown))
 }
 

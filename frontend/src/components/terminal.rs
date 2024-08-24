@@ -193,7 +193,7 @@ impl Reducible for WebSocketState {
             }
         };
 
-        //debug!(format!("New state after action: {:?}", *new_state));
+        debug!(format!("New state after action: {:?}", *new_state));
         new_state
     }
 }
@@ -219,7 +219,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     });
     let background_color_success = use_state(|| {
         LocalStorage::get::<String>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY)
-            .unwrap_or("#496f5f".to_string())
+            .unwrap_or("#275346".to_string())
     });
     let background_color_success_clone = background_color_success.clone();
     let background_color_failure = use_state(|| {
@@ -365,91 +365,84 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
 
             // Attempt to connect the WebSocket
             //debug!("Attempting to connect WebSocket");
-            if let Ok(ws) = WebSocket::new("/api/workstation/command_execute/") {
-                //debug!("WebSocket connection established");
-                let ws_clone = ws.clone();
-                ws_state.dispatch(WebSocketAction::Connect(ws));
 
-                let onmessage_callback = {
-                    let ws_state = ws_state.clone();
-                    Closure::wrap(Box::new(move |event: MessageEvent| {
-                        //debug!("Message received from WebSocket");
-                        if let Ok(blob) = event.data().dyn_into::<Blob>() {
-                            // Handle Blob message
-                            let ws_state = ws_state.clone();
+            let ws = WebSocket::new("/api/workstation/command_execute/").unwrap();
+            let ws_clone = ws.clone();
+            ws_state.dispatch(WebSocketAction::Connect(ws));
 
-                            // Create the FileReader inside the closure so it's not shared
-                            let reader = FileReader::new().unwrap();
-                            let reader_clone = reader.clone();
-                            let onloadend_callback =
-                                Closure::wrap(Box::new(move |_: web_sys::ProgressEvent| {
-                                    let result = reader_clone.result().unwrap(); // Get the result from FileReader
+            // Set up the onerror callback to catch connection errors
+            let onerror_callback = {
+                let ws_state = ws_state.clone();
+                Closure::wrap(Box::new(move |error: ErrorEvent| {
+                    debug!(format!("WebSocket error: {}", error.message()));
+                    ws_state.dispatch(WebSocketAction::Failed(format!("{:?}", error.message())));
+                }) as Box<dyn FnMut(ErrorEvent)>)
+            };
+            ws_clone.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
+            onerror_callback.forget();
 
-                                    if let Ok(text) = result.dyn_into::<js_sys::JsString>() {
-                                        //debug!(format!("Raw Blob message as text: {}", text));
-                                        handle_message(ws_state.clone(), text.into());
-                                    } else {
-                                        error!("Failed to convert result to text");
-                                    }
-                                })
-                                    as Box<dyn FnMut(_)>);
+            // Set up the onmessage callback
+            let onmessage_callback = {
+                let ws_state = ws_state.clone();
+                Closure::wrap(Box::new(move |event: MessageEvent| {
+                    if let Ok(blob) = event.data().dyn_into::<Blob>() {
+                        let ws_state = ws_state.clone();
 
-                            reader.set_onloadend(Some(onloadend_callback.as_ref().unchecked_ref()));
-                            reader.read_as_text(&blob).unwrap();
-                            onloadend_callback.forget();
-                        } else {
-                            error!("Received unsupported WebSocket message type");
+                        let reader = FileReader::new().unwrap();
+                        let reader_clone = reader.clone();
+                        let onloadend_callback =
+                            Closure::wrap(Box::new(move |_: web_sys::ProgressEvent| {
+                                let result = reader_clone.result().unwrap();
+
+                                if let Ok(text) = result.dyn_into::<js_sys::JsString>() {
+                                    handle_message(ws_state.clone(), text.into());
+                                } else {
+                                    error!("Failed to convert result to text");
+                                }
+                            }) as Box<dyn FnMut(_)>);
+
+                        reader.set_onloadend(Some(onloadend_callback.as_ref().unchecked_ref()));
+                        reader.read_as_text(&blob).unwrap();
+                        onloadend_callback.forget();
+                    } else {
+                        error!("Received unsupported WebSocket message type");
+                    }
+                }) as Box<dyn FnMut(MessageEvent)>)
+            };
+
+            fn handle_message(ws_state: UseReducerHandle<WebSocketState>, msg: String) {
+                match from_str::<ServerMsg>(&msg) {
+                    Ok(server_msg) => match server_msg {
+                        ServerMsg::Ping => {
+                            ws_state.dispatch(WebSocketAction::SendPong);
                         }
-                    }) as Box<dyn FnMut(MessageEvent)>)
-                };
-                fn handle_message(ws_state: UseReducerHandle<WebSocketState>, msg: String) {
-                    //debug!(format!("ServerMsg: {}", msg));
-                    match from_str::<ServerMsg>(&msg) {
-                        Ok(server_msg) => match server_msg {
-                            ServerMsg::Ping => {
-                                ws_state.dispatch(WebSocketAction::SendPong);
-                            }
-                            ServerMsg::PingReport(r) => {
-                                ws_state.dispatch(WebSocketAction::ReceivePingReport(r));
-                            }
-                            ServerMsg::Process(p) => {
-                                ws_state.dispatch(WebSocketAction::ReceiveProcess(p.id));
-                            }
-                            ServerMsg::ProcessOutput(o) => {
-                                ws_state.dispatch(WebSocketAction::ReceiveProcessOutput(
-                                    o.stream, o.line,
-                                ));
-                            }
-                            ServerMsg::ProcessComplete(c) => {
-                                ws_state.dispatch(WebSocketAction::ReceiveProcessComplete(
-                                    c.id.to_string(),
-                                    c.code.try_into().unwrap_or(128),
-                                ));
-                            }
-                            _ => {}
-                        },
-                        Err(e) => {
-                            error!(format!("Failed to parse message: {}, error: {}", msg, e));
-                            ws_state.dispatch(WebSocketAction::Failed(msg));
+                        ServerMsg::PingReport(r) => {
+                            ws_state.dispatch(WebSocketAction::ReceivePingReport(r));
                         }
+                        ServerMsg::Process(p) => {
+                            ws_state.dispatch(WebSocketAction::ReceiveProcess(p.id));
+                        }
+                        ServerMsg::ProcessOutput(o) => {
+                            ws_state
+                                .dispatch(WebSocketAction::ReceiveProcessOutput(o.stream, o.line));
+                        }
+                        ServerMsg::ProcessComplete(c) => {
+                            ws_state.dispatch(WebSocketAction::ReceiveProcessComplete(
+                                c.id.to_string(),
+                                c.code.try_into().unwrap_or(128),
+                            ));
+                        }
+                        _ => {}
+                    },
+                    Err(e) => {
+                        error!(format!("Failed to parse message: {}, error: {}", msg, e));
+                        ws_state.dispatch(WebSocketAction::Failed(msg));
                     }
                 }
-                ws_clone.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
-                onmessage_callback.forget();
-
-                let onerror_callback = {
-                    let ws_state = ws_state.clone();
-                    Closure::wrap(Box::new(move |error: ErrorEvent| {
-                        debug!(format!("WebSocket error: {}", error.message()));
-                        ws_state
-                            .dispatch(WebSocketAction::Failed(format!("{:?}", error.message())));
-                    }) as Box<dyn FnMut(ErrorEvent)>)
-                };
-                ws_clone.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
-                onerror_callback.forget();
-            } else {
-                debug!("Failed to establish WebSocket connection");
             }
+
+            ws_clone.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
+            onmessage_callback.forget();
         })
     };
 
@@ -728,6 +721,8 @@ done
                           <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {
                             <Button onclick={reset_terminal.clone()}>{"👍️ Done"}</Button>
+                        } else if ws_state.status == TerminalStatus::Connecting {
+                            <Button onclick={reset_terminal.clone()}>{"⏳️ Reset"}</Button>
                         } else {
                             <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
                         }
