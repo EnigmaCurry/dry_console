@@ -28,6 +28,7 @@ const BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY: &str = "terminal:background_colo
 const BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY: &str = "terminal:background_color_success";
 const BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY: &str = "terminal:background_color_failure";
 const BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY: &str = "terminal:background_color_normal";
+const TEXT_COLOR_NORMAL_LOCALSTORAGE_KEY: &str = "terminal:text_color_normal";
 
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
@@ -224,7 +225,12 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         LocalStorage::get::<String>(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY)
             .unwrap_or("#000".to_string())
     });
-    let background_color_failure_clone = background_color_failure.clone();
+    let background_color_normal_clone = background_color_normal.clone();
+    let text_color_normal = use_state(|| {
+        LocalStorage::get::<String>(TEXT_COLOR_NORMAL_LOCALSTORAGE_KEY)
+            .unwrap_or("#fff".to_string())
+    });
+    let text_color_normal_clone = text_color_normal.clone();
     let user_attempted_scroll = use_state(|| false);
     let terminal_ref = use_node_ref();
     let gutter_ref = use_node_ref();
@@ -463,13 +469,19 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         LocalStorage::set(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY, input.value())
             .expect("Failed to store setting in local storage");
     });
-
     let update_failure_color = Callback::from(move |event: Event| {
         let input: HtmlInputElement = event.target_unchecked_into();
         background_color_failure_clone.set(input.value());
         LocalStorage::set(BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY, input.value())
             .expect("Failed to store setting in local storage");
     });
+    let update_normal_background_color = Callback::from(move |event: Event| {
+        let input: HtmlInputElement = event.target_unchecked_into();
+        background_color_normal_clone.set(input.value());
+        LocalStorage::set(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY, input.value())
+            .expect("Failed to store setting in local storage");
+    });
+
     let settings_panel = html_nested!(
         <PopoverBody
             header={html!("")}
@@ -482,6 +494,18 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                         checked={*show_line_numbers}
                         onchange={toggle_line_numbers.clone()}
                     />
+                </ListItem>
+                <ListItem>
+                    <div class={"visible flex-container"}>
+                        <input
+                            type="color"
+                            id="normalBackgroundColor"
+                            name="normalBackgroundColor"
+                            value={<std::string::String as Clone>::clone(&*background_color_normal)}
+                            onchange={update_normal_background_color.clone()}
+                        />
+                        <label for="normalBackgroundColor">{"Normal Background Color"}</label>
+                    </div>
                 </ListItem>
                 <ListItem>
                     <Switch

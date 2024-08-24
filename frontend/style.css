@@ -146,6 +146,10 @@ hr {
     padding-bottom: 1em;
 }
 
+.terminal .output:empty {
+    padding: 0;
+}
+
 .terminal .gutter {
     user-select: none;
     background-color: #262424;
