@@ -42,6 +42,7 @@ pub struct TerminalOutputProps {
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
+        debug!(element.clone());
         // Calculate the scroll position based on line height and line number
         let line_height = 20; // Adjust this according to your CSS
         let scroll_position = if line_number <= 0 {
@@ -51,7 +52,7 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
         } else {
             line_number * line_height
         };
-
+        debug!(format!("scroll! {}", scroll_position));
         element.set_scroll_top(scroll_position);
     }
 }
@@ -243,6 +244,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     let text_color_stderr_clone = text_color_stderr.clone();
     let user_attempted_scroll = use_state(|| false);
     let terminal_ref = use_node_ref();
+    let terminal_content_ref = use_node_ref();
     let gutter_ref = use_node_ref();
 
     let ws_state = use_reducer(|| WebSocketState {
@@ -293,13 +295,13 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
 
     // Sync the scroll of the gutter to the output:
     let onscroll = {
-        let terminal_ref = terminal_ref.clone();
+        let terminal_content_ref = terminal_content_ref.clone();
         let gutter_ref = gutter_ref.clone();
         let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_| {
             user_attempted_scroll.set(true);
             if let (Some(terminal), Some(gutter)) = (
-                terminal_ref.cast::<HtmlElement>(),
+                terminal_content_ref.cast::<HtmlElement>(),
                 gutter_ref.cast::<HtmlElement>(),
             ) {
                 let scroll_top = terminal.scroll_top();
@@ -308,19 +310,19 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         })
     };
     let scroll_to_top = {
-        let terminal_ref = terminal_ref.clone();
+        let content_ref = terminal_content_ref.clone();
         let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_: MouseEvent| {
             user_attempted_scroll.set(true);
-            scroll_to_line(&terminal_ref, 0);
+            scroll_to_line(&content_ref, 0);
         })
     };
     let scroll_to_bottom = {
-        let terminal_ref = terminal_ref.clone();
+        let content_ref = terminal_content_ref.clone();
         let user_attempted_scroll = user_attempted_scroll.clone();
         Callback::from(move |_: MouseEvent| {
             user_attempted_scroll.set(false);
-            scroll_to_line(&terminal_ref, i32::MAX);
+            scroll_to_line(&content_ref, i32::MAX);
         })
     };
 
@@ -693,11 +695,11 @@ done
 
     {
         let user_attempted_scroll = user_attempted_scroll.clone();
-        let terminal_ref = terminal_ref.clone();
+        let content_ref = terminal_content_ref.clone();
         let messages_len = ws_state.messages.len();
         use_effect_with(messages_len, move |_| {
             if !*user_attempted_scroll {
-                scroll_to_line(&terminal_ref, i32::MAX);
+                scroll_to_line(&content_ref, i32::MAX);
             }
             || ()
         });
@@ -762,7 +764,7 @@ done
         if ws_state.status == TerminalStatus::Complete || ws_state.status == TerminalStatus::Failed {
             <button title="Copy output" class="copy-button" onclick={copy_code(terminal_ref.clone(), output_copy_button_text.clone())}><div class="copy-button-text">{ (*output_copy_button_text).clone() }</div></button>
         }
-        <div class="content" {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
+        <div class="content" ref={terminal_content_ref.clone()} {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
         {
             for ws_state.messages.iter().map(|(stream, message)| {
                 let class_name = match stream {
