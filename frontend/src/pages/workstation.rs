@@ -67,7 +67,7 @@ fn tabs() -> Html {
     };
 
     html! (
-        <>
+        <div class="tabs">
             <Tabs<WorkstationTab> detached=true {onselect} selected={(*selected).clone()} r#box=true>
                 <Tab<WorkstationTab> index={WorkstationTab::System} title="System"/>
                 <Tab<WorkstationTab> index={WorkstationTab::Dependencies} title="Dependencies"/>
@@ -82,7 +82,7 @@ fn tabs() -> Html {
             <section hidden={(*selected) != WorkstationTab::DRymcgTech} key={*reload_trigger}>
                 <install_d_rymcg_tech::InstallDRyMcGTech reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
             </section>
-        </>
+        </div>
     )
 }
 
