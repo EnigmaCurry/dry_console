@@ -256,19 +256,6 @@ fn sidebar(
     onthemeswitch: Callback<bool>,
     session_state: UseStateHandle<crate::app::SessionState>,
 ) -> Html {
-    // let nav_items = AppRoute::iter()
-    //     .map(|route| {
-    //         let route_name: &'static str = route.clone().into();
-    //         html_nested! {
-    //             <NavItem>
-    //                 <NavRouterItem<AppRoute> to={route}>
-    //                     {route_name}
-    //                 </NavRouterItem<AppRoute>>
-    //             </NavItem>
-    //         }
-    //     })
-    //     .collect::<Html>();
-
     html_nested! {
         <Nav>
             <NavList>
@@ -362,7 +349,8 @@ fn page(props: &AppPageProps) -> Html {
         });
     }
 
-    let open = !matches!(*window_width, width if width < 1200.0);
+    //let open = !matches!(*window_width, width if width < 1200.0);
+    let open = false;
 
     let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone(), props.session_state.clone())}</PageSidebar>};
     let tools = html!(
