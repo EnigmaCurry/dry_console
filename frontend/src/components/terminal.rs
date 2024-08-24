@@ -20,11 +20,9 @@ use web_sys::js_sys::Promise;
 use web_sys::js_sys::Reflect;
 use web_sys::window;
 use web_sys::Blob;
-use web_sys::Element;
 use web_sys::FileReader;
 use web_sys::HtmlInputElement;
 use web_sys::MessageEvent;
-use web_sys::Window;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
