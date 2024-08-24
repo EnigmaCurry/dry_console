@@ -210,14 +210,15 @@ enum TerminalStatus {
 pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
     let num_lines = use_state(|| 1);
-    let show_line_numbers =
-        use_state(|| LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(true));
+    let show_line_numbers = use_state(|| {
+        LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(false)
+    });
     let background_color_change = use_state(|| {
         LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(true)
     });
     let background_color_success = use_state(|| {
         LocalStorage::get::<String>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY)
-            .unwrap_or("#5c7054".to_string())
+            .unwrap_or("#496f5f".to_string())
     });
     let background_color_success_clone = background_color_success.clone();
     let background_color_failure = use_state(|| {
@@ -237,7 +238,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
     let text_color_stdout_clone = text_color_stdout.clone();
     let text_color_stderr = use_state(|| {
         LocalStorage::get::<String>(TEXT_COLOR_STDERR_LOCALSTORAGE_KEY)
-            .unwrap_or("#753228".to_string())
+            .unwrap_or("#dc8add".to_string())
     });
     let text_color_stderr_clone = text_color_stderr.clone();
     let user_attempted_scroll = use_state(|| false);
@@ -633,7 +634,6 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
         let ontoggle = use_callback(expanded.clone(), |(), expanded| {
             expanded.set(!**expanded);
         });
-        let command_description = "Description of this command goes here";
         html! {
             <div class="command_area" style="position: relative;">
                 <div class="header">
@@ -641,7 +641,10 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                 </div>
                 <Stack gutter=true>
                 <StackItem>
-                <ExpandableSectionToggle toggle_text_expanded={command_description} toggle_text_hidden={command_description} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
+                <div style="margin-left: 2em; margin-block-start: 2em;">
+                <p>{"Command description goes here."}</p>
+                </div>
+                <ExpandableSectionToggle toggle_text_expanded={"Hide commands"} toggle_text_hidden={"Show commands"} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
                 </StackItem>
                 <StackItem>
                 <ExpandableSection detached=true expanded={*expanded}>
