@@ -36,6 +36,7 @@ const TEXT_COLOR_STDERR_LOCALSTORAGE_KEY: &str = "terminal:text_color_stderr";
 
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
+    pub script: String,
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
 }
@@ -200,6 +201,7 @@ impl Reducible for WebSocketState {
 
 #[derive(PartialEq, Debug, Clone)]
 enum TerminalStatus {
+    Uninitialized,
     Initialized,
     Connecting,
     Ready,
@@ -208,7 +210,7 @@ enum TerminalStatus {
     Complete,
 }
 #[function_component(TerminalOutput)]
-pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
+pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
     let num_lines = use_state(|| 1);
     let show_line_numbers = use_state(|| {
@@ -249,7 +251,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
 
     let ws_state = use_reducer(|| WebSocketState {
         websocket: None,
-        status: TerminalStatus::Initialized,
+        status: TerminalStatus::Uninitialized,
         messages: Vec::new(),
     });
 
@@ -668,12 +670,7 @@ pub fn terminal_output(_props: &TerminalOutputProps) -> Html {
                 <div class="content" style={format!("background-color: {}; color: {}", background_color, foreground_color)}>
                 <CodeBlock>
                 <CodeBlockCode>
-            {r#"echo "Hii" >/dev/stderr
-for i in $(seq 100); do
-  echo $i
-  sleep 0.1
-done
-"#}
+            {r#"uninitialized"#}
             </CodeBlockCode>
                 </CodeBlock>
             </div>
@@ -714,8 +711,10 @@ done
         <div class="terminal">
             <CommandArea background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
-                <div class="pf-u-display-flex">
-                        if ws_state.status == TerminalStatus::Initialized {
+            <div class="pf-u-display-flex">
+                        if ws_state.status == TerminalStatus::Uninitialized {
+                            {"Uninitialized"}
+                        } else if ws_state.status == TerminalStatus::Initialized {
                           <Button onclick={run_command.clone()}>{"🚀 Run process"}</Button>
                         } else if ws_state.status == TerminalStatus::Processing {
                           <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
