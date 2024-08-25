@@ -15,7 +15,7 @@ mod session;
 pub mod test;
 pub mod token;
 pub mod websocket;
-mod workstation;
+pub mod workstation;
 use crate::api::auth::Backend;
 use crate::app_state::SharedState;
 use crate::broadcast;

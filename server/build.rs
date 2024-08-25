@@ -1,4 +1,7 @@
+use convert_case::{Case, Casing};
+use std::collections::HashSet;
 use std::env;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -136,4 +139,45 @@ fn main() {
     // Write the end of the function definition
     writeln!(file, "    ]").unwrap();
     writeln!(file, "}}").unwrap();
+
+    include_shell_scripts(out_dir, project_root);
+}
+fn include_shell_scripts(out_dir: String, project_root: String) {
+    let dest_path = Path::new(&out_dir).join("generated_command_library.rs");
+
+    let script_dir = Path::new(&project_root).join("script/src/scripts");
+    let script_dir = script_dir.canonicalize().unwrap();
+
+    let mut output = String::new();
+
+    output.push_str("use crate::api::workstation::command::CommandLibraryExt;\n\n");
+    output.push_str("impl CommandLibraryExt for CommandLibrary {\n");
+    output.push_str("    fn get_script(&self) -> &'static str {\n");
+    output.push_str("        match self {\n");
+
+    let mut found_variants = HashSet::new();
+
+    for entry in fs::read_dir(script_dir).expect("Failed to read script directory") {
+        let entry = entry.expect("Failed to read directory entry");
+        let path = entry.path();
+
+        if path.extension().and_then(|s| s.to_str()) == Some("sh") {
+            if let Some(file_name) = path.file_stem().and_then(|s| s.to_str()) {
+                let variant_name = file_name.to_case(Case::Pascal);
+                found_variants.insert(variant_name.clone());
+
+                output.push_str(&format!(
+                    "            CommandLibrary::{variant_name} => include_str!(\"{file_path}\"),\n",
+                    variant_name = variant_name,
+                    file_path = path.to_str().unwrap(),
+                ));
+            }
+        }
+    }
+
+    output.push_str("        }\n");
+    output.push_str("    }\n");
+    output.push_str("}\n");
+
+    fs::write(dest_path, output).expect("Failed to write generated file");
 }

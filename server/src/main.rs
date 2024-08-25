@@ -10,6 +10,7 @@ use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use clap::Parser;
+use dry_console_script::CommandLibrary;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
@@ -17,6 +18,7 @@ use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::info;
+
 const API_PREFIX: &str = "/api";
 
 pub type AppRouter = Router<SharedState>;
@@ -26,6 +28,7 @@ pub type AppMethodRouter = MethodRouter<SharedState, Infallible>;
 // static assets
 ////////////////////////////////////////////////////////////////////////////////
 include!(concat!(env!("OUT_DIR"), "/generated_includes.rs"));
+include!(concat!(env!("OUT_DIR"), "/generated_command_library.rs"));
 const CLIENT_INDEX_HTML: &[u8] = include_bytes!("../../dist/index.html");
 const CLIENT_JS: &[u8] = include_bytes!("../../dist/frontend.js");
 const CLIENT_WASM: &[u8] = include_bytes!("../../dist/frontend_bg.wasm");

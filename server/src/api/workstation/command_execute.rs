@@ -1,5 +1,6 @@
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
 use crate::api::workstation::command::CommandLibrary;
+use crate::api::workstation::command::CommandLibraryExt;
 use crate::broadcast;
 use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};
@@ -17,7 +18,6 @@ use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use tracing::{debug, info};
 use ulid::Ulid;
-
 const TIMEOUT_INTERVAL: u64 = 2000;
 
 pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
@@ -62,7 +62,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             drop(state_ref); // Drop the lock on state to run the command
 
                             let process_id = Ulid::new();
-                            let script = CommandLibrary::TestExampleOne.get().script;
+                            let script = CommandLibrary::TestExampleOne.get_script();
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)
