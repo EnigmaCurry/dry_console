@@ -1,13 +1,12 @@
 use crate::response::{AppError, AppJson, JsonResult};
 use crate::{api::token::generate_deterministic_ulid_from_seed, routing::route, AppRouter};
-use axum::Router;
 use axum::{extract::Path, routing::get};
 use dry_console_dto::script::ScriptEntry;
-use hyper::StatusCode;
+use indoc::indoc;
 use std::str::FromStr;
-use strum::{Display, EnumString, VariantNames};
+use strum::{AsRefStr, Display, EnumString, VariantNames};
 
-#[derive(EnumString, VariantNames, Display)]
+#[derive(EnumString, VariantNames, Display, AsRefStr)]
 pub enum CommandLibrary {
     TestExampleOne,
 }
@@ -25,22 +24,13 @@ impl CommandLibrary {
     pub fn get(&self) -> ScriptEntry {
         let variant = self.to_string();
         match self {
-            CommandLibrary::TestExampleOne => new_script(
-                &variant,
-                "Count to 100",
-                r#"echo "Hii" >/dev/stderr
-for i in $(seq 100); do
-    echo $i
-    sleep 0.1
-done
-"#,
-            ),
+            CommandLibrary::TestExampleOne => {
+                let filename = format!("./scripts/{}.sh", self.as_ref());
+                let script = include_str!(filename);
+                new_script(&variant, "Count to 100", &script)
+            }
         }
     }
-}
-
-pub fn main() -> AppRouter {
-    Router::new().merge(command())
 }
 
 #[utoipa::path(
