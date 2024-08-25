@@ -10,7 +10,6 @@ use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use clap::Parser;
-use dry_console_script::CommandLibrary;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;

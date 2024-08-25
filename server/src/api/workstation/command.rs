@@ -3,11 +3,12 @@ use crate::response::{AppError, AppJson, JsonResult};
 use crate::{routing::route, AppRouter};
 use axum::{extract::Path, routing::get};
 pub use dry_console_dto::script::ScriptEntry;
-pub use dry_console_script::CommandLibrary;
 use std::str::FromStr;
+use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
 
-pub trait CommandLibraryExt {
-    fn get_script(&self) -> &'static str;
+#[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter)]
+pub enum CommandLibrary {
+    TestExampleOne,
 }
 
 #[utoipa::path(
@@ -26,10 +27,12 @@ pub fn command() -> AppRouter {
         match CommandLibrary::from_str(&command) {
             Ok(command) => {
                 let script = command.get_script();
+                let id = generate_deterministic_ulid_from_seed(&script);
+                let description = "missing".to_string();
                 let script_entry = ScriptEntry {
-                    id: generate_deterministic_ulid_from_seed(script),
-                    description: "missing description".to_string(),
-                    script: script.to_string(),
+                    id,
+                    description,
+                    script,
                 };
                 Ok(AppJson(script_entry))
             }

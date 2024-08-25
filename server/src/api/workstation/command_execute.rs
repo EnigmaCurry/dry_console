@@ -1,6 +1,5 @@
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
 use crate::api::workstation::command::CommandLibrary;
-use crate::api::workstation::command::CommandLibraryExt;
 use crate::broadcast;
 use crate::{api::route, AppRouter};
 use axum::{response::IntoResponse, routing::get, Router};

@@ -676,7 +676,6 @@ dependencies = [
  "convert_case",
  "cookie",
  "dry_console_dto",
- "dry_console_script",
  "enum-iterator",
  "futures",
  "hostname",
@@ -725,24 +724,6 @@ dependencies = [
  "ulid",
  "utoipa",
  "utoipauto",
-]
-
-[[package]]
-name = "dry_console_script"
-version = "0.2.3"
-dependencies = [
- "convert_case",
- "dry_console_dto",
- "num_enum",
- "os-release",
- "serde",
- "serde_json",
- "sha2",
- "strum",
- "ulid",
- "utoipa",
- "utoipauto",
- "walkdir",
 ]
 
 [[package]]

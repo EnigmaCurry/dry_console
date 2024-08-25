@@ -145,14 +145,18 @@ fn main() {
 fn include_shell_scripts(out_dir: String, project_root: String) {
     let dest_path = Path::new(&out_dir).join("generated_command_library.rs");
 
-    let script_dir = Path::new(&project_root).join("script/src/scripts");
-    let script_dir = script_dir.canonicalize().unwrap();
+    let mut script_dir = Path::new(&project_root).join("server/src/api/workstation/scripts");
+    if let Ok(d) = script_dir.canonicalize() {
+        script_dir = d;
+    } else {
+        panic!("Could not find script directory.");
+    }
 
     let mut output = String::new();
 
-    output.push_str("use crate::api::workstation::command::CommandLibraryExt;\n\n");
-    output.push_str("impl CommandLibraryExt for CommandLibrary {\n");
-    output.push_str("    fn get_script(&self) -> &'static str {\n");
+    output.push_str("use crate::api::workstation::command::CommandLibrary;\n\n");
+    output.push_str("impl CommandLibrary {\n");
+    output.push_str("    fn get_script(&self) -> String {\n");
     output.push_str("        match self {\n");
 
     let mut found_variants = HashSet::new();
@@ -167,7 +171,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
                 found_variants.insert(variant_name.clone());
 
                 output.push_str(&format!(
-                    "            CommandLibrary::{variant_name} => include_str!(\"{file_path}\"),\n",
+                    "            CommandLibrary::{variant_name} => include_str!(\"{file_path}\").to_string(),\n",
                     variant_name = variant_name,
                     file_path = path.to_str().unwrap(),
                 ));

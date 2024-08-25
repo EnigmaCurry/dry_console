@@ -48,7 +48,6 @@ utoipa-swagger-ui = { version = "7.1.0", features = ["axum", "vendored"] }
 utoipauto = "0.1.12"
 which = "6.0.2"
 dry_console_dto = { path = "../dto" }
-dry_console_script = { path = "../script" }
 ulid = { version = "1.1.3", features = ["serde"] }
 tokio-stream = { version = "0.1.15", features = ["io-util"] }
 uzers = "0.12.1"
@@ -62,5 +61,4 @@ indoc = "2.0.5"
 walkdir = "2.5.0"
 convert_case = "0.6.0"
 dry_console_dto = { path = "../dto" }
-dry_console_script = { path = "../script" }
 strum = { version = "0.26.3", features = ["derive"] }
