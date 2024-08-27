@@ -1,14 +1,76 @@
-use gloo::console::debug;
+use dry_console_dto::workstation::WorkstationState;
+use gloo::console::{debug, warn};
+use gloo::net::http::Request;
 use gloo_events::EventListener;
 use gloo_utils::window;
+use log::error;
 use patternfly_yew::prelude::*;
+use std::rc::Rc;
 use std::str::FromStr;
 use strum_macros::{AsRefStr, EnumString};
+use yew::html::Children;
 use yew::prelude::*;
 
 mod dependencies;
 mod install_d_rymcg_tech;
 mod system;
+
+#[derive(Clone, PartialEq)]
+struct SystemInfo {
+    os_type: String,
+    distribution: String,
+}
+
+#[derive(Clone, Debug, Properties, PartialEq)]
+struct SystemInfoProps {
+    children: Children,
+}
+
+#[function_component(SystemInfoProvider)]
+fn system_info_provider(props: &SystemInfoProps) -> Html {
+    let system_info = use_state(|| None);
+    {
+        let system_info = system_info.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            if system_info.is_none() {
+                let fetched_data: WorkstationState = Request::get("/api/workstation/")
+                    .send()
+                    .await
+                    .expect("Failed to fetch data")
+                    .json()
+                    .await
+                    .expect("Failed to parse JSON");
+
+                let os_type = fetched_data.platform.os_type.to_string();
+                let distribution = format!(
+                    "{} {} {}",
+                    fetched_data.platform.release.name,
+                    fetched_data.platform.release.version,
+                    fetched_data.platform.release.variant.trim_matches('"')
+                );
+
+                system_info.set(Some(Rc::new(SystemInfo {
+                    os_type,
+                    distribution,
+                })));
+            }
+        });
+    }
+
+    let context =
+        use_context::<UseStateHandle<Option<Rc<SystemInfo>>>>().expect("context not found");
+    context.set((*system_info).clone());
+
+    html! { for props.children.iter() }
+}
+
+#[hook]
+fn use_system_info() -> Option<Rc<SystemInfo>> {
+    use_context::<UseStateHandle<Option<Rc<SystemInfo>>>>()
+        .unwrap()
+        .as_ref()
+        .cloned()
+}
 
 #[derive(Clone, PartialEq, Eq, EnumString, AsRefStr)]
 #[strum(serialize_all = "kebab-case")]
@@ -36,11 +98,11 @@ fn tabs() -> Html {
             let listener = EventListener::new(&window.clone(), "hashchange", move |_event| {
                 let location = window.location();
                 let hash = location.hash().unwrap_or_default();
-                debug!("hashchange event triggered, current hash: {}", &hash);
+                //debug!("hashchange event triggered, current hash: {}", &hash);
                 if let Ok(tab) = WorkstationTab::from_str(hash.trim_start_matches('#')) {
                     if tab == WorkstationTab::Dependencies {
-                        debug!("Dependencies tab selected, triggering reload");
-                        reload_trigger.set(*reload_trigger + 1); // Trigger reload when Dependencies tab is selected via hash change
+                        //debug!("Dependencies tab selected, triggering reload");
+                        reload_trigger.set(*reload_trigger + 1);
                     }
                     selected.set(tab);
                 }
@@ -49,7 +111,7 @@ fn tabs() -> Html {
 
             // Cleanup when the component unmounts
             || {
-                debug!("Cleaning up hashchange listener");
+                //debug!("Cleaning up hashchange listener");
             }
         });
     }
@@ -88,9 +150,14 @@ fn tabs() -> Html {
 
 #[function_component(Workstation)]
 pub fn workstation() -> Html {
+    let system_info = use_state(|| None);
     html! {
         <PageSection>
-            <WorkstationTabs/>
+            <ContextProvider<UseStateHandle<Option<Rc<SystemInfo>>>> context={system_info.clone()}>
+                <SystemInfoProvider>
+                    <WorkstationTabs/>
+                </SystemInfoProvider>
+            </ContextProvider<UseStateHandle<Option<Rc<SystemInfo>>>>>
         </PageSection>
     }
 }

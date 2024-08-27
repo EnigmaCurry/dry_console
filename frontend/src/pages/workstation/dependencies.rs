@@ -1,5 +1,10 @@
+use std::collections::HashSet;
+
 use crate::components::ButtonLink;
 use crate::pages::workstation::WorkstationTab;
+use anyhow::anyhow;
+use dry_console_dto::workstation::WorkstationPackage;
+use gloo::console::debug;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
@@ -19,6 +24,7 @@ impl WorkstationDependencySpec {
             installed: None,
             version: self.version.clone(),
             path: "".to_string(),
+            packages: Vec::<WorkstationPackage>::new(),
         }
     }
 }
@@ -29,14 +35,26 @@ struct WorkstationDependency {
     installed: Option<bool>,
     version: String,
     path: String,
+    packages: Vec<WorkstationPackage>,
 }
 impl WorkstationDependency {
     async fn get_installed_state(&mut self) -> Result<WorkstationDependency, anyhow::Error> {
         let url = format!("/api/workstation/dependency/{}/", self.name);
-        let response = Request::get(&url).send().await?;
-        let json_value: serde_json::Value = response.json().await?;
-        let dependency: WorkstationDependency = serde_json::from_value(json_value)?;
-        Ok(dependency)
+        let response;
+        let json_value: serde_json::Value;
+        match Request::get(&url).send().await {
+            Ok(r) => response = r,
+            Err(e) => return Err(anyhow!("one: {}", e)),
+        };
+        match response.json().await {
+            Ok(r) => json_value = r,
+            Err(e) => return Err(anyhow!("two: {}", e)),
+        };
+        //debug!(format!("json_value: {:?}", json_value));
+        match serde_json::from_value(json_value) {
+            Ok(j) => Ok(j),
+            Err(e) => Err(anyhow!("three: {}", e)),
+        }
     }
 
     fn validate(self) -> Option<bool> {
@@ -164,6 +182,7 @@ fn create_fetch_dependencies_callback(
     is_loading: UseStateHandle<bool>,
     has_fetched: UseStateHandle<bool>,
     all_installed: UseStateHandle<bool>,
+    uninstalled_dependencies: UseStateHandle<Vec<WorkstationDependency>>,
 ) -> Callback<()> {
     Callback::from(move |_| {
         if *has_fetched || selected_tab != WorkstationTab::Dependencies {
@@ -175,6 +194,7 @@ fn create_fetch_dependencies_callback(
         let is_loading = is_loading.clone();
         let has_fetched = has_fetched.clone();
         let all_installed = all_installed.clone();
+        let uninstalled_dependencies = uninstalled_dependencies.clone();
 
         is_loading.set(true);
         has_fetched.set(true);
@@ -189,11 +209,11 @@ fn create_fetch_dependencies_callback(
                         .text()
                         .await
                         .unwrap_or_else(|_| "Failed to get response text".to_string());
-
                     if let Ok(mut deps) =
                         serde_json::from_str::<Vec<WorkstationDependencySpec>>(&text)
                     {
                         let mut workstation_deps: Vec<WorkstationDependency> = Vec::new();
+                        let mut uninstalled_deps: Vec<WorkstationDependency> = Vec::new();
                         let mut all_installed_temp = true;
 
                         for dep in deps.iter_mut() {
@@ -202,23 +222,24 @@ fn create_fetch_dependencies_callback(
                                 Ok(state) => {
                                     dep = state;
                                 }
-                                Err(_e) => {}
+                                Err(e) => {
+                                    panic!("{}", e);
+                                }
                             }
                             if !dep.clone().validate().unwrap_or(false) {
                                 all_installed_temp = false;
+                                uninstalled_deps.push(dep.clone());
                             }
                             workstation_deps.push(dep);
                         }
 
-                        if let Some(dep) = deps
-                            .iter()
-                            .find(|dep| dep.get_dependency().installed == Some(false))
-                        {
+                        if let Some(dep) = uninstalled_deps.first() {
                             first_uninstalled.set(dep.name.clone());
                         }
 
                         all_installed.set(all_installed_temp);
                         dependencies.set(workstation_deps);
+                        uninstalled_dependencies.set(uninstalled_deps);
                     } else {
                         log::error!("Failed to parse dependencies response");
                     }
@@ -253,13 +274,25 @@ fn create_accordion_items(
             };
 
             let is_expanded = first_uninstalled == dep.name;
+            let packages_str = dep
+                .packages
+                .iter()
+                .map(|pkg| pkg.package_name.as_str())
+                .collect::<Vec<&str>>()
+                .join(" ");
 
             html_nested! {
                 <AccordionItem title={title} expanded={is_expanded} onclick={on_toggle}>
                     <div>
                         { match dep.installed {
                             None => html! {"Dependency check is pending ..."},
-                            Some(false) => html! { format!("{} is not installed", dep.name) },
+                            Some(false) => html! {
+                                <DescriptionList>
+                                    {format!("{} is not installed", dep.name)}
+                                    <DescriptionGroup term="Packages required:">
+                                    <code>{ packages_str }</code>
+                                    </DescriptionGroup>
+                                </DescriptionList>},
                             Some(true) => {
                                 match dep.clone().validate() {
                                     Some(true) => html! {
@@ -299,11 +332,12 @@ pub struct DependencyListProps {
 }
 #[function_component(DependencyList)]
 pub fn dependency_list(props: &DependencyListProps) -> Html {
-    let dependencies = use_state(Vec::new);
+    let dependencies = use_state(Vec::<WorkstationDependency>::new);
     let first_uninstalled = use_state(String::new);
     let is_loading = use_state(|| true);
     let has_fetched = use_state(|| false);
     let all_installed = use_state(|| false);
+    let uninstalled_dependencies = use_state(|| Vec::<WorkstationDependency>::new());
 
     let fetch_dependencies = create_fetch_dependencies_callback(
         props.selected_tab.clone(),
@@ -312,6 +346,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
         is_loading.clone(),
         has_fetched.clone(),
         all_installed.clone(),
+        uninstalled_dependencies.clone(),
     );
 
     // Effect to fetch dependencies when `has_fetched` is reset to false
@@ -348,6 +383,15 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
 
     let accordion_items = create_accordion_items(&dependencies, &first_uninstalled, toggle);
 
+    let uninstalled_list = uninstalled_dependencies
+        .iter()
+        .flat_map(|dep| dep.packages.iter())
+        .map(|pkg| pkg.package_name.clone())
+        .collect::<HashSet<String>>()
+        .into_iter()
+        .collect::<Vec<String>>()
+        .join(" ");
+
     html! {
         <>
             <Card>
@@ -357,10 +401,14 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                         { accordion_items }
                     </Accordion>
                 </CardBody>
-                <CardFooter>
-                    <h1>{"Next:"}</h1>
-                    <ButtonLink href="/workstation#d-rymcg-tech">{"⭐️ Install d.rymcg.tech"}</ButtonLink>
-                </CardFooter>
+                if *all_installed {
+                    <CardFooter>
+                        <h1>{"Next:"}</h1>
+                        <ButtonLink href="/workstation#d-rymcg-tech">{"⭐️ Install d.rymcg.tech"}</ButtonLink>
+                    </CardFooter>
+                } else {
+                    {uninstalled_list}
+                }
             </Card>
         </>
     }

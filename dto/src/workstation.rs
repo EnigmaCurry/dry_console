@@ -16,10 +16,32 @@ pub struct WorkstationState {
     pub platform: Platform,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub enum WorkstationPackageManager {
+    Dnf,
+    Dpkg,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct WorkstationPackage {
+    pub package_manager: WorkstationPackageManager,
+    pub package_name: String,
+}
+
+impl WorkstationPackage {
+    pub fn new(package_manager: WorkstationPackageManager, package_name: &str) -> Self {
+        WorkstationPackage {
+            package_manager,
+            package_name: package_name.to_string(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct WorkstationDependencyInfo {
     pub name: String,
     pub version: String,
+    pub packages: Vec<WorkstationPackage>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema, Clone, Display)]

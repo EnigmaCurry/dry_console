@@ -14,7 +14,6 @@ pub fn markdown_content(props: &MarkdownContentProps) -> Html {
 
     {
         let source = props.source.clone();
-        info!(source.clone());
         let html_content = markdown_to_html(&source);
         let div_ref = div_ref.clone();
 

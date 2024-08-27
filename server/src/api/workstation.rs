@@ -1,12 +1,16 @@
 use crate::broadcast;
 use crate::{api::route, app_state::SharedState, response::AppError};
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
-use dry_console_dto::workstation::{WorkstationDependencyInfo, WorkstationState, WorkstationUser};
+pub use dry_console_dto::workstation::{
+    WorkstationDependencyInfo, WorkstationPackage, WorkstationPackageManager, WorkstationState,
+    WorkstationUser,
+};
 use hostname::get as host_name_get;
 use semver::VersionReq;
 use serde::Serialize;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
+use tracing::debug;
 use utoipa::ToSchema;
 use uzers::{get_current_uid, get_user_by_uid};
 use which::which;
@@ -15,6 +19,13 @@ pub mod command;
 pub mod command_execute;
 mod dependencies;
 pub mod platform;
+
+#[derive(Debug, Clone)]
+pub enum WorkstationError {
+    UnknownDependency,
+    UnsupportedPlatform,
+    UnsupportedDistribution,
+}
 
 pub fn router(shutdown: broadcast::Sender<()>) -> Router<SharedState> {
     Router::new()
@@ -75,6 +86,8 @@ pub struct WorkstationDependencyState {
     path: String,
     /// Version of installed dependency.
     version: String,
+    /// List of required packages to install for this dependency.
+    packages: Vec<WorkstationPackage>,
 }
 
 #[utoipa::path(
@@ -93,11 +106,11 @@ fn workstation() -> Router<SharedState> {
         let uid = get_current_uid();
         let user = get_user_by_uid(get_current_uid()).unwrap();
         let name = user.name().to_string_lossy().to_string();
-        let platform = platform::detect_platform();
+        let the_platform = platform::detect_platform();
         Json(WorkstationState {
             hostname,
             user: WorkstationUser { uid, name },
-            platform,
+            platform: the_platform,
         })
         .into_response()
     }
@@ -106,22 +119,24 @@ fn workstation() -> Router<SharedState> {
 
 #[utoipa::path(
     get,
-    path = "/api/workstation/dependencies",
+    path = "/api/workstation/dependencies/",
     responses(
         (status = OK, description = "Required dependencies")
     ),
 )]
 fn required_dependencies() -> Router<SharedState> {
     async fn handler() -> impl IntoResponse {
-        let dependencies: Vec<WorkstationDependencyInfo> = WorkstationDependencies::iter()
+        let deps: Vec<WorkstationDependencyInfo> = WorkstationDependencies::iter()
             .map(|dep| WorkstationDependencyInfo {
                 name: dep.get_name().to_string(),
                 version: dep.get_version().to_string(),
+                packages: dependencies::bash::get_packages(platform::detect_platform())
+                    .expect("failed to get package definitions"),
             })
             .collect();
-        Json(&dependencies).into_response()
+        Json(&deps).into_response()
     }
-    route("/dependencies", get(handler))
+    route("/dependencies/", get(handler))
 }
 
 #[utoipa::path(
@@ -141,6 +156,8 @@ fn dependencies() -> Router<SharedState> {
                 // Check if dependency is installed:
                 let mut installed = false;
                 let mut version = String::new();
+                let mut packages: Result<Vec<WorkstationPackage>, WorkstationError> =
+                    Ok(Vec::<WorkstationPackage>::new());
                 let path = match which(OsStr::new(dependency.get_name())) {
                     Ok(p) => {
                         installed = true;
@@ -148,72 +165,141 @@ fn dependencies() -> Router<SharedState> {
                     }
                     _ => String::new(),
                 };
+                let platform = platform::detect_platform();
                 if installed {
                     match dependency {
                         WorkstationDependencies::git => {
-                            let v = dependencies::git::get_version();
-                            version = v;
+                            version = dependencies::git::get_version();
                         }
                         WorkstationDependencies::docker => {
-                            let v = dependencies::docker::get_version();
-                            version = v;
+                            version = dependencies::docker::get_version();
                         }
                         WorkstationDependencies::bash => {
-                            let v = dependencies::bash::get_version();
-                            version = v;
+                            version = dependencies::bash::get_version();
                         }
                         WorkstationDependencies::ssh => {
-                            let v = dependencies::ssh::get_version();
-                            version = v;
+                            version = dependencies::ssh::get_version();
                         }
                         WorkstationDependencies::make => {
-                            let v = dependencies::make::get_version();
-                            version = v;
+                            version = dependencies::make::get_version();
                         }
                         WorkstationDependencies::sed => {
-                            let v = dependencies::sed::get_version();
-                            version = v;
+                            version = dependencies::sed::get_version();
                         }
                         WorkstationDependencies::xargs => {
-                            let v = dependencies::xargs::get_version();
-                            version = v;
+                            version = dependencies::xargs::get_version();
                         }
                         WorkstationDependencies::shred => {
-                            let v = dependencies::shred::get_version();
-                            version = v;
+                            version = dependencies::shred::get_version();
                         }
                         WorkstationDependencies::openssl => {
-                            let v = dependencies::openssl::get_version();
-                            version = v;
+                            version = dependencies::openssl::get_version();
                         }
                         WorkstationDependencies::htpasswd => {
-                            let v = dependencies::htpasswd::get_version();
-                            version = v;
+                            version = dependencies::htpasswd::get_version();
                         }
                         WorkstationDependencies::jq => {
-                            let v = dependencies::jq::get_version();
-                            version = v;
+                            version = dependencies::jq::get_version();
                         }
                         WorkstationDependencies::xdg_open => {
-                            let v = dependencies::xdg_open::get_version();
-                            version = v;
+                            version = dependencies::xdg_open::get_version();
                         }
                         WorkstationDependencies::curl => {
-                            let v = dependencies::curl::get_version();
-                            version = v;
+                            version = dependencies::curl::get_version();
                         }
                     }
                 };
+                match dependency {
+                    WorkstationDependencies::git => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::git::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::docker => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::docker::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::bash => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::bash::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::ssh => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::ssh::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::make => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::make::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::sed => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::sed::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::xargs => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::xargs::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::shred => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::shred::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::openssl => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::openssl::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::htpasswd => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::htpasswd::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::jq => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::jq::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::xdg_open => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::xdg_open::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                    WorkstationDependencies::curl => {
+                        packages.as_mut().unwrap().extend(
+                            dependencies::curl::get_packages(platform)
+                                .expect("did not get package definitions"),
+                        );
+                    }
+                }
                 Json(WorkstationDependencyState {
                     name,
                     installed,
                     path,
                     version,
+                    packages: packages.expect("failed to find packages definition"),
                 })
             }
             .into_response(),
             None => AppError::Internal("Invalid dependency".to_string()).into_response(),
         }
     }
-    route("/dependency/:name", get(handler))
+    route("/dependency/:name/", get(handler))
 }
