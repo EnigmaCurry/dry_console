@@ -11,6 +11,7 @@ use ulid::Ulid;
 #[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone)]
 pub enum CommandLibrary {
     TestExampleOne,
+    InstallDRymcgTech,
 }
 impl CommandLibrary {
     pub fn from_id(id: Ulid) -> Option<Self> {

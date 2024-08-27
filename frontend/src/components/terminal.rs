@@ -38,13 +38,6 @@ const BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY: &str = "terminal:background_colo
 const TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY: &str = "terminal:text_color_stdout";
 const TEXT_COLOR_STDERR_LOCALSTORAGE_KEY: &str = "terminal:text_color_stderr";
 
-#[derive(Properties, PartialEq)]
-pub struct TerminalOutputProps {
-    pub script: String,
-    pub reload_trigger: u32,
-    pub selected_tab: WorkstationTab,
-}
-
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
         //debug!(element.clone());
@@ -243,6 +236,13 @@ enum TerminalStatus {
     Failed,
     Critical,
     Complete,
+}
+
+#[derive(Properties, PartialEq)]
+pub struct TerminalOutputProps {
+    pub script: String,
+    pub reload_trigger: u32,
+    pub selected_tab: WorkstationTab,
 }
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
@@ -694,7 +694,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         html! {
             <div class="command_area" style="position: relative;">
                 <div class="header">
-                {"💻️ Run terminal process"}
+                {"💻️ Run bash script"}
                 </div>
                 <Stack gutter=true>
                 <StackItem>
@@ -745,11 +745,12 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     // Initialize script entry
     {
         let ws_state = ws_state.clone();
+        let script = props.script.clone();
         use_effect_with(ws_state.status.clone(), move |status| {
             if *status == TerminalStatus::Uninitialized {
                 let ws_state = ws_state.clone();
                 spawn_local(async move {
-                    let response = Request::get("/api/workstation/command/TestExampleOne/")
+                    let response = Request::get(&format!("/api/workstation/command/{}/", script))
                         .send()
                         .await;
 
@@ -788,7 +789,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
             <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {
-                          <Button onclick={run_command.clone()}>{"🚀 Run process"}</Button>
+                          <Button onclick={run_command.clone()}>{"🚀 Run script"}</Button>
                         } else if ws_state.status == TerminalStatus::Processing {
                           <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {

@@ -118,6 +118,7 @@ hr {
 }
 
 .terminal {
+    margin-bottom: 1em;
     display: flex;
     flex-direction: column;
     border-radius: 10px; 
@@ -305,6 +306,7 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
 }
 
 .markdown_render {
+    padding-top: 0.5em;
     padding-left: 2em;
     padding-right: 2em;
 }
