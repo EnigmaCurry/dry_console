@@ -33,14 +33,7 @@ pub fn command() -> AppRouter {
     async fn handler(Path(command): Path<String>) -> JsonResult<ScriptEntry> {
         match CommandLibrary::from_str(&command) {
             Ok(command) => {
-                let script = command.get_script();
-                let id = generate_deterministic_ulid_from_seed(&script);
-                let description = "missing".to_string();
-                let script_entry = ScriptEntry {
-                    id,
-                    description,
-                    script,
-                };
+                let script_entry = ScriptEntry::from_source(command.get_script());
                 Ok(AppJson(script_entry))
             }
             Err(_) => Err(AppError::NotFound),

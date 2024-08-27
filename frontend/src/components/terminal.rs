@@ -1,3 +1,4 @@
+use crate::components::markdown::{markdown_to_html, MarkdownContent};
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
 use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::websocket::Command;
@@ -46,7 +47,7 @@ pub struct TerminalOutputProps {
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
-        debug!(element.clone());
+        //debug!(element.clone());
         // Calculate the scroll position based on line height and line number
         let line_height = 20; // Adjust this according to your CSS
         let scroll_position = if line_number <= 0 {
@@ -56,7 +57,7 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
         } else {
             line_number * line_height
         };
-        debug!(format!("scroll! {}", scroll_position));
+        //debug!(format!("scroll! {}", scroll_position));
         element.set_scroll_top(scroll_position);
     }
 }
@@ -227,7 +228,7 @@ impl Reducible for WebSocketState {
             }
         };
 
-        debug!(format!("New state after action: {:?}", *new_state));
+        //debug!(format!("New state after action: {:?}", *new_state));
         new_state
     }
 }
@@ -624,7 +625,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     ) -> Callback<MouseEvent> {
         Callback::from(move |_| {
             if let Some(element) = code_block_ref.cast::<HtmlElement>() {
-                debug!(format!("element: {:?}", element));
+                //debug!(format!("element: {:?}", element));
                 if let Some(content_element) = element.query_selector(".content").unwrap() {
                     // Cast `Element` to `HtmlElement` to use `inner_text()`
                     if let Ok(content) = content_element.dyn_into::<HtmlElement>() {
@@ -672,6 +673,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     #[derive(Properties, PartialEq, Clone)]
     pub struct CommandAreaProps {
         pub script: String,
+        pub description: String,
         pub background_color: String,
         pub foreground_color: String,
     }
@@ -679,6 +681,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     fn command_area(props: &CommandAreaProps) -> Html {
         let CommandAreaProps {
             script,
+            description,
             background_color,
             foreground_color,
         } = props;
@@ -695,9 +698,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 </div>
                 <Stack gutter=true>
                 <StackItem>
-                <div class="command_description">
-                <p>{"Command description goes here."}</p>
-                </div>
+                <MarkdownContent source={description.to_string()}/>
                 <ExpandableSectionToggle toggle_text_expanded={"Hide script"} toggle_text_hidden={"Show script"} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
                 </StackItem>
                 <StackItem>
@@ -771,6 +772,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             || ()
         });
     }
+    let script_entry = ws_state
+        .script_entry
+        .clone()
+        .unwrap_or(ScriptEntry::default());
 
     html! {
         <div class="terminal">
@@ -779,7 +784,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         } else if ws_state.status == TerminalStatus::Uninitialized {
             <LoadingState/>
         } else {
-            <CommandArea script={ws_state.script_entry.clone().unwrap_or(ScriptEntry::default()).script} background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
+            <CommandArea description={script_entry.description.clone()} script={script_entry.script} background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
             <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {

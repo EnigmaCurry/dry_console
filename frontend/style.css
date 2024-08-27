@@ -303,3 +303,33 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
 .copy-button:hover {
     opacity: 1;
 }
+
+.markdown_render {
+    padding-left: 2em;
+    padding-right: 2em;
+}
+.markdown_render ul {
+    margin-left: 2em;
+    list-style: unset;
+}
+.markdown_render h1 {
+    font-size: 150%;
+}
+.markdown_render h2 {
+    font-size: 120%;
+}
+.markdown_render h3 {
+    font-size: 100%;
+}
+.markdown_render h4 {
+    font-size: 100%;
+    margin-left: 1em;
+}
+.markdown_render h5 {
+    font-size: 100%;
+    margin-left: 2em;
+}
+.markdown_render h6 {
+    font-size: 100%;
+    margin-left: 3em;
+}
