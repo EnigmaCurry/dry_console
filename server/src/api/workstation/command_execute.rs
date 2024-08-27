@@ -15,7 +15,7 @@ use tokio::process::Command;
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use ulid::Ulid;
 const TIMEOUT_INTERVAL: u64 = 2000;
 
@@ -56,12 +56,18 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                 let mut state_ref = state.lock().await;
                 match *state_ref {
                     State::AwaitingCommand => match msg {
-                        Message::Item(ClientMsg::Command(_command_id)) => {
+                        Message::Item(ClientMsg::Command(command)) => {
                             *state_ref = State::RunningProcess;
                             drop(state_ref); // Drop the lock on state to run the command
-
                             let process_id = Ulid::new();
-                            let script = CommandLibrary::TestExampleOne.get_script();
+                            let command = match CommandLibrary::from_id(command.id) {
+                                Some(c) => c,
+                                None => {
+                                    error!("Failed to get script entry.");
+                                    return None;
+                                },
+                            };
+                            let script = command.get_script();
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)

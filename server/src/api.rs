@@ -13,7 +13,7 @@ pub mod auth;
 mod docs;
 mod session;
 pub mod test;
-pub mod token;
+pub use dry_console_common::token;
 pub mod websocket;
 pub mod workstation;
 use crate::api::auth::Backend;

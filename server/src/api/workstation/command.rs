@@ -1,14 +1,21 @@
 use crate::api::token::generate_deterministic_ulid_from_seed;
 use crate::response::{AppError, AppJson, JsonResult};
+use crate::COMMAND_LIBRARY_MAP;
 use crate::{routing::route, AppRouter};
 use axum::{extract::Path, routing::get};
 pub use dry_console_dto::script::ScriptEntry;
 use std::str::FromStr;
 use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
+use ulid::Ulid;
 
-#[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter)]
+#[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone)]
 pub enum CommandLibrary {
     TestExampleOne,
+}
+impl CommandLibrary {
+    pub fn from_id(id: Ulid) -> Option<Self> {
+        COMMAND_LIBRARY_MAP.get(&id.to_string()).cloned()
+    }
 }
 
 #[utoipa::path(

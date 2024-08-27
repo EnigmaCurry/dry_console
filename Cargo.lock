@@ -675,6 +675,7 @@ dependencies = [
  "clap",
  "convert_case",
  "cookie",
+ "dry_console_common",
  "dry_console_dto",
  "enum-iterator",
  "futures",
@@ -682,6 +683,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "indoc",
+ "lazy_static",
  "open",
  "os-release",
  "rand",
@@ -709,6 +711,15 @@ dependencies = [
  "uzers",
  "walkdir",
  "which",
+]
+
+[[package]]
+name = "dry_console_common"
+version = "0.2.3"
+dependencies = [
+ "rand",
+ "sha2",
+ "ulid",
 ]
 
 [[package]]

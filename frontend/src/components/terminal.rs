@@ -1,10 +1,12 @@
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
+use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::websocket::Command;
 use dry_console_dto::websocket::PingReport;
 use dry_console_dto::websocket::ServerMsg;
 use dry_console_dto::websocket::StreamType;
 use gloo::console::debug;
 use gloo::console::error;
+use gloo::net::http::Request;
 use gloo_storage::LocalStorage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
@@ -13,6 +15,7 @@ use std::rc::Rc;
 use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::js_sys;
 use web_sys::js_sys::JsString;
@@ -58,21 +61,24 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct WebSocketState {
     websocket: Option<WebSocket>,
+    script_entry: Option<ScriptEntry>,
     status: TerminalStatus,
     messages: Vec<(StreamType, String)>,
 }
 // Reducer actions to manage WebSocketState
 #[derive(Debug)]
 enum WebSocketAction {
+    Initialize(ScriptEntry),
     Connect(WebSocket),
     ReceivePingReport(PingReport),
     ReceiveProcessOutput(StreamType, String),
     ReceiveProcessComplete(String, usize),
     ReceiveProcess(Ulid),
     Failed(String),
+    CriticalError,
     Reset,
     SendPong,
 }
@@ -84,9 +90,20 @@ impl Reducible for WebSocketState {
         //debug!(format!("Current state before action: {:?}", *self));
 
         let new_state: Rc<WebSocketState> = match action {
+            WebSocketAction::Initialize(script_entry) => {
+                //debug!("Action: Initialize");
+                WebSocketState {
+                    script_entry: Some(script_entry),
+                    websocket: None,
+                    status: TerminalStatus::Initialized,
+                    messages: self.messages.clone(),
+                }
+                .into()
+            }
             WebSocketAction::Connect(ws) => {
                 //debug!("Action: Connect");
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: Some(ws),
                     status: TerminalStatus::Connecting,
                     messages: self.messages.clone(),
@@ -96,12 +113,13 @@ impl Reducible for WebSocketState {
             WebSocketAction::ReceivePingReport(_r) => {
                 //debug!(format!("Action: ReceivePingReport {:?}", r));
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: self.websocket.clone(),
                     status: if self.status == TerminalStatus::Connecting {
                         if let Some(ws) = &self.websocket {
-                            if let Ok(serialized_msg) =
-                                serde_json::to_string(&Command { id: Ulid::new() })
-                            {
+                            if let Ok(serialized_msg) = serde_json::to_string(&Command {
+                                id: self.script_entry.clone().unwrap().id,
+                            }) {
                                 //debug!(format!("sending command serialized: {}", serialized_msg));
                                 ws.send_with_str(&serialized_msg).ok();
                             }
@@ -117,6 +135,7 @@ impl Reducible for WebSocketState {
             WebSocketAction::ReceiveProcess(_id) => {
                 //debug!(format!("Action: ReceiveProcess, id: {:?}", id));
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: self.websocket.clone(),
                     status: TerminalStatus::Processing,
                     messages: self.messages.clone(),
@@ -131,6 +150,7 @@ impl Reducible for WebSocketState {
                 let mut messages = self.messages.clone();
                 messages.push((stream, message));
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: self.websocket.clone(),
                     status: self.status.clone(),
                     messages,
@@ -143,6 +163,7 @@ impl Reducible for WebSocketState {
                 //    id, code
                 //));
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: self.websocket.clone(),
                     status: if code == 0 {
                         TerminalStatus::Complete
@@ -161,6 +182,7 @@ impl Reducible for WebSocketState {
                     format!("# [Process failed]: {}", error_message),
                 ));
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: None,
                     status: TerminalStatus::Failed,
                     messages,
@@ -174,6 +196,7 @@ impl Reducible for WebSocketState {
                     ws.close().ok();
                 }
                 WebSocketState {
+                    script_entry: self.script_entry.clone(),
                     websocket: None,
                     status: TerminalStatus::Initialized,
                     messages: Vec::new(),
@@ -192,6 +215,16 @@ impl Reducible for WebSocketState {
                 }
                 self.clone()
             }
+            WebSocketAction::CriticalError => {
+                //debug!("Action: CriticalError");
+                WebSocketState {
+                    script_entry: None,
+                    websocket: None,
+                    status: TerminalStatus::Critical,
+                    messages: Vec::new(),
+                }
+                .into()
+            }
         };
 
         debug!(format!("New state after action: {:?}", *new_state));
@@ -207,6 +240,7 @@ enum TerminalStatus {
     Ready,
     Processing,
     Failed,
+    Critical,
     Complete,
 }
 #[function_component(TerminalOutput)]
@@ -250,6 +284,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let gutter_ref = use_node_ref();
 
     let ws_state = use_reducer(|| WebSocketState {
+        script_entry: None,
         websocket: None,
         status: TerminalStatus::Uninitialized,
         messages: Vec::new(),
@@ -636,16 +671,17 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     #[derive(Properties, PartialEq, Clone)]
     pub struct CommandAreaProps {
+        pub script: String,
         pub background_color: String,
         pub foreground_color: String,
     }
     #[function_component(CommandArea)]
-    fn command_area(
-        CommandAreaProps {
+    fn command_area(props: &CommandAreaProps) -> Html {
+        let CommandAreaProps {
+            script,
             background_color,
             foreground_color,
-        }: &CommandAreaProps,
-    ) -> Html {
+        } = props;
         let code_block_ref = NodeRef::default();
         let button_text = use_state(|| "📋".to_string());
         let expanded = use_state_eq(|| false);
@@ -669,14 +705,12 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 <div class="code_container" ref={code_block_ref.clone()}>
                 <div class="content" style={format!("background-color: {}; color: {}", background_color, foreground_color)}>
                 <CodeBlock>
-                <CodeBlockCode>
-            {r#"uninitialized"#}
-            </CodeBlockCode>
+                <CodeBlockCode>{script}</CodeBlockCode>
                 </CodeBlock>
             </div>
             <button title="Copy script" class="copy-button" onclick={copy_code(code_block_ref.clone(), button_text.clone())}><div class="copy-button-text">{ (*button_text).clone() }</div></button>
                 </div>
-                                </ExpandableSection>
+                </ExpandableSection>
                 </StackItem>
                 </Stack>
             </div>
@@ -707,14 +741,48 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let output_stdout_color = &text_color_stdout;
     let output_copy_button_text = use_state(|| "📋".to_string());
 
+    // Initialize script entry
+    {
+        let ws_state = ws_state.clone();
+        use_effect_with(ws_state.status.clone(), move |status| {
+            if *status == TerminalStatus::Uninitialized {
+                let ws_state = ws_state.clone();
+                spawn_local(async move {
+                    let response = Request::get("/api/workstation/command/TestExampleOne/")
+                        .send()
+                        .await;
+
+                    match response {
+                        Ok(resp) => {
+                            if let Ok(data) = resp.json::<ScriptEntry>().await {
+                                ws_state.dispatch(WebSocketAction::Initialize(data));
+                            } else {
+                                ws_state.dispatch(WebSocketAction::CriticalError);
+                            }
+                        }
+                        Err(e) => {
+                            ws_state
+                                .dispatch(WebSocketAction::Failed(format!("Fetch error: {:?}", e)));
+                        }
+                    }
+                });
+            }
+
+            || ()
+        });
+    }
+
     html! {
         <div class="terminal">
-            <CommandArea background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
+        if ws_state.status == TerminalStatus::Critical {
+            <Alert title="Critical error" r#type={AlertType::Danger}>{"Terminal failed to initialize."}</Alert>
+        } else if ws_state.status == TerminalStatus::Uninitialized {
+            <LoadingState/>
+        } else {
+            <CommandArea script={ws_state.script_entry.clone().unwrap_or(ScriptEntry::default()).script} background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
             <div class="pf-u-display-flex">
-                        if ws_state.status == TerminalStatus::Uninitialized {
-                            {"Uninitialized"}
-                        } else if ws_state.status == TerminalStatus::Initialized {
+                        if ws_state.status == TerminalStatus::Initialized {
                           <Button onclick={run_command.clone()}>{"🚀 Run process"}</Button>
                         } else if ws_state.status == TerminalStatus::Processing {
                           <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
@@ -785,6 +853,21 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         }
         </div>
         </div>
+        }
         </div>
+    }
+}
+
+#[function_component(LoadingState)]
+fn loading_state() -> Html {
+    html! {
+        <Card>
+            <CardTitle><p><h1>{"⌛️ Loading ..."}</h1></p></CardTitle>
+            <CardBody>
+                <div class="flex-center">
+                    <Spinner size={SpinnerSize::Custom(String::from("80px"))} aria_label="Contents of the custom size example" />
+                </div>
+            </CardBody>
+        </Card>
     }
 }

@@ -1,4 +1,6 @@
 use convert_case::{Case, Casing};
+use dry_console_common::token::generate_deterministic_ulid_from_seed;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
@@ -142,6 +144,7 @@ fn main() {
 
     include_shell_scripts(out_dir, project_root);
 }
+
 fn include_shell_scripts(out_dir: String, project_root: String) {
     let dest_path = Path::new(&out_dir).join("generated_command_library.rs");
 
@@ -154,14 +157,22 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
     let mut output = String::new();
 
-    output.push_str("use crate::api::workstation::command::CommandLibrary;\n\n");
-    output.push_str("impl CommandLibrary {\n");
-    output.push_str("    fn get_script(&self) -> String {\n");
-    output.push_str("        match self {\n");
+    // Add necessary imports
+    output.push_str("use std::collections::HashMap;\n");
+    output.push_str("use ulid::Ulid;\n");
+    output.push_str("use crate::api::workstation::command::CommandLibrary;\n");
+    output.push_str("use dry_console_common::token::generate_deterministic_ulid_from_seed;\n");
+    output.push_str("use lazy_static::lazy_static;\n\n");
+
+    // Start of the static HashMap declaration
+    output.push_str("lazy_static! {\n");
+    output
+        .push_str("    pub static ref COMMAND_LIBRARY_MAP: HashMap<String, CommandLibrary> = {\n");
+    output.push_str("        let mut m = HashMap::new();\n");
 
     let mut found_variants = HashSet::new();
 
-    for entry in fs::read_dir(script_dir).expect("Failed to read script directory") {
+    for entry in fs::read_dir(&script_dir).expect("Failed to read script directory") {
         let entry = entry.expect("Failed to read directory entry");
         let path = entry.path();
 
@@ -170,16 +181,51 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
                 let variant_name = file_name.to_case(Case::Pascal);
                 found_variants.insert(variant_name.clone());
 
+                let script_content = fs::read_to_string(&path).expect("Failed to read script file");
+
+                // Generate ULID from the script content
+                let ulid = generate_deterministic_ulid_from_seed(&script_content);
+
+                // Add the entry to the static HashMap using the string representation of the ULID
                 output.push_str(&format!(
-                    "            CommandLibrary::{variant_name} => include_str!(\"{file_path}\").to_string(),\n",
-                    variant_name = variant_name,
-                    file_path = path.to_str().unwrap(),
+                    "        m.insert(\"{}\".to_string(), CommandLibrary::{});\n",
+                    ulid.to_string(),
+                    variant_name
                 ));
             }
         }
     }
 
+    // End of the static HashMap declaration
+    output.push_str("        m\n");
+    output.push_str("    };\n");
+    output.push_str("}\n");
+
+    // Now, generate the CommandLibrary implementation with get_script and id methods
+    output.push_str("impl CommandLibrary {\n");
+    output.push_str("    fn get_script(&self) -> String {\n");
+    output.push_str("        match self {\n");
+
+    for variant_name in found_variants.iter() {
+        let file_path = script_dir.join(format!("{}.sh", variant_name.to_case(Case::Snake)));
+        output.push_str(&format!(
+            "            CommandLibrary::{variant_name} => include_str!(\"{}\").to_string(),\n",
+            file_path.to_str().unwrap(),
+        ));
+    }
+
     output.push_str("        }\n");
+    output.push_str("    }\n");
+
+    // Implement the id method that returns a Ulid directly
+    output.push_str("    fn id(&self) -> Ulid {\n");
+    output.push_str("        let script = self.get_script();\n");
+    output.push_str("        let ulid = generate_deterministic_ulid_from_seed(&script);\n");
+    output.push_str("        let mapped_variant = COMMAND_LIBRARY_MAP\n");
+    output.push_str("            .get(&ulid.to_string())\n");
+    output.push_str("            .expect(\"ULID not found in COMMAND_LIBRARY_MAP\");\n");
+    output.push_str("        assert_eq!(mapped_variant, self, \"The ULID maps to a different CommandLibrary variant.\");\n");
+    output.push_str("        ulid\n");
     output.push_str("    }\n");
     output.push_str("}\n");
 
