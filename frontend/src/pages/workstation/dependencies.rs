@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::components::terminal::TerminalOutput;
 use crate::components::ButtonLink;
 use crate::pages::workstation::WorkstationTab;
 use anyhow::anyhow;
@@ -383,14 +384,14 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
 
     let accordion_items = create_accordion_items(&dependencies, &first_uninstalled, toggle);
 
-    let uninstalled_list = uninstalled_dependencies
-        .iter()
-        .flat_map(|dep| dep.packages.iter())
-        .map(|pkg| pkg.package_name.clone())
-        .collect::<HashSet<String>>()
-        .into_iter()
-        .collect::<Vec<String>>()
-        .join(" ");
+    // let uninstalled_list = uninstalled_dependencies
+    //     .iter()
+    //     .flat_map(|dep| dep.packages.iter())
+    //     .map(|pkg| pkg.package_name.clone())
+    //     .collect::<HashSet<String>>()
+    //     .into_iter()
+    //     .collect::<Vec<String>>()
+    //     .join(" ");
 
     html! {
         <>
@@ -407,7 +408,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                         <ButtonLink href="/workstation#d-rymcg-tech">{"⭐️ Install d.rymcg.tech"}</ButtonLink>
                     </CardFooter>
                 } else {
-                    {uninstalled_list}
+                    <TerminalOutput script="TestExampleOne" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
                 }
             </Card>
         </>

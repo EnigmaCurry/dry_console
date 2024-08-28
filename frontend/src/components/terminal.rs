@@ -61,6 +61,7 @@ struct WebSocketState {
     script_entry: Option<ScriptEntry>,
     status: TerminalStatus,
     messages: Vec<(StreamType, String)>,
+    error: String,
 }
 // Reducer actions to manage WebSocketState
 #[derive(Debug)]
@@ -72,7 +73,7 @@ enum WebSocketAction {
     ReceiveProcessComplete(String, usize),
     ReceiveProcess(Ulid),
     Failed(String),
-    CriticalError,
+    CriticalError(String),
     Reset,
     SendPong,
 }
@@ -91,6 +92,7 @@ impl Reducible for WebSocketState {
                     websocket: None,
                     status: TerminalStatus::Initialized,
                     messages: self.messages.clone(),
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -101,6 +103,7 @@ impl Reducible for WebSocketState {
                     websocket: Some(ws),
                     status: TerminalStatus::Connecting,
                     messages: self.messages.clone(),
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -123,6 +126,7 @@ impl Reducible for WebSocketState {
                         self.status.clone()
                     },
                     messages: self.messages.clone(),
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -133,6 +137,7 @@ impl Reducible for WebSocketState {
                     websocket: self.websocket.clone(),
                     status: TerminalStatus::Processing,
                     messages: self.messages.clone(),
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -148,6 +153,7 @@ impl Reducible for WebSocketState {
                     websocket: self.websocket.clone(),
                     status: self.status.clone(),
                     messages,
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -165,6 +171,7 @@ impl Reducible for WebSocketState {
                         TerminalStatus::Failed
                     },
                     messages: self.messages.clone(),
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -180,6 +187,7 @@ impl Reducible for WebSocketState {
                     websocket: None,
                     status: TerminalStatus::Failed,
                     messages,
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -194,6 +202,7 @@ impl Reducible for WebSocketState {
                     websocket: None,
                     status: TerminalStatus::Initialized,
                     messages: Vec::new(),
+                    error: self.error.clone(),
                 }
                 .into()
             }
@@ -209,13 +218,14 @@ impl Reducible for WebSocketState {
                 }
                 self.clone()
             }
-            WebSocketAction::CriticalError => {
+            WebSocketAction::CriticalError(e) => {
                 //debug!("Action: CriticalError");
                 WebSocketState {
                     script_entry: None,
                     websocket: None,
                     status: TerminalStatus::Critical,
                     messages: Vec::new(),
+                    error: e,
                 }
                 .into()
             }
@@ -289,6 +299,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         websocket: None,
         status: TerminalStatus::Uninitialized,
         messages: Vec::new(),
+        error: "".to_string(),
     });
 
     // Cleanup websocket on tab change
@@ -759,7 +770,15 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                             if let Ok(data) = resp.json::<ScriptEntry>().await {
                                 ws_state.dispatch(WebSocketAction::Initialize(data));
                             } else {
-                                ws_state.dispatch(WebSocketAction::CriticalError);
+                                match resp.status() {
+                                    404 => ws_state.dispatch(WebSocketAction::CriticalError(
+                                        "Could not find script entry.".to_string(),
+                                    )),
+                                    _ => ws_state.dispatch(WebSocketAction::CriticalError(
+                                        "Failed to fetch script entry.".to_string(),
+                                    )),
+                                }
+                                // ;
                             }
                         }
                         Err(e) => {
@@ -781,7 +800,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     html! {
         <div class="terminal">
         if ws_state.status == TerminalStatus::Critical {
-            <Alert title="Critical error" r#type={AlertType::Danger}>{"Terminal failed to initialize."}</Alert>
+            <Alert title="Error" r#type={AlertType::Danger}>{ws_state.error.clone()}</Alert>
         } else if ws_state.status == TerminalStatus::Uninitialized {
             <LoadingState/>
         } else {
