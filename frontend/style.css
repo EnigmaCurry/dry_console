@@ -335,3 +335,29 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
     font-size: 100%;
     margin-left: 3em;
 }
+
+
+.manual_intervention {
+    margin-bottom: 1em;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px; 
+    border: 10px solid #333;
+    padding: 0;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+    background-color: #1e1c1c;
+}
+html:not(.pf-v5-theme-dark) .manual_intervention {
+    background-color: #c6c6c5;
+}
+.manual_intervention .command_area .header {
+    background-color: #4d4e5e;
+    margin-bottom: 1em;
+}
+.manual_intervention .command_area p {
+    margin-left: 1em;
+}
+.manual_intervention ul {
+    margin-left: 2em;
+    list-style: unset;
+}

@@ -1,44 +1,53 @@
 use crate::components::ButtonLink;
+use crate::pages::workstation::{SystemInfo, SystemInfoContext};
 use dry_console_dto::workstation::WorkstationState;
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
-#[function_component(System)]
-pub fn system() -> Html {
-    let workstation = use_state(|| None);
-    let workstation_clone = workstation.clone();
+#[derive(Properties, PartialEq, Clone)]
+pub struct SystemProps {
+    pub system_info: SystemInfo,
+}
 
-    wasm_bindgen_futures::spawn_local(async move {
-        if workstation_clone.is_none() {
-            let fetched_data: WorkstationState = Request::get("/api/workstation/")
-                .send()
-                .await
-                .expect("Failed to fetch data")
-                .json()
-                .await
-                .expect("Failed to parse JSON");
-            workstation_clone.set(Some(fetched_data));
-        }
-    });
+#[function_component(System)]
+pub fn system(props: &SystemProps) -> Html {
+    // let workstation = use_state(|| None);
+    // let workstation_clone = workstation.clone();
+
+    // wasm_bindgen_futures::spawn_local(async move {
+    //     if workstation_clone.is_none() {
+    //         let fetched_data: WorkstationState = Request::get("/api/workstation/")
+    //             .send()
+    //             .await
+    //             .expect("Failed to fetch data")
+    //             .json()
+    //             .await
+    //             .expect("Failed to parse JSON");
+    //         workstation_clone.set(Some(fetched_data));
+    //     }
+    // });
+    let system_info_context = use_context::<SystemInfoContext>();
+    if let Some(ctx) = &system_info_context {
+        log::info!("SystemInfoContext is available: {:?}", ctx);
+    } else {
+        log::error!("SystemInfoContext is not available!");
+    }
+
     html! {
         <Card>
             <CardTitle>
                 {
-                    if let Some(workstation) = &*workstation {
-                        html! { <>
-                                 <h1>{ format!("🖖 Welcome {}", workstation.user.name) }</h1>
-                                </>
-                        }
-                    } else {
-                        html! { <h1>{ "🖖 Welcome" }</h1> }
+                    html! { <>
+                                  <h1>{ format!("🖖 Welcome {}", props.system_info.user.name) }</h1>
+                                   </>
                     }
                 }
             </CardTitle>
             <CardBody>
                 {
-                    if let Some(workstation) = &*workstation {
-                        let os_type = workstation.clone().platform.os_type.to_string();
+                    {
+                        let os_type = props.system_info.platform.os_type.to_string();
                         let os_term = if os_type == "Linux" {
                             "🐧 OS Type"
                         } else if os_type == "MacOS" {
@@ -50,25 +59,23 @@ pub fn system() -> Html {
                         };
 
                         let distro_term = "Distribution";
-                        let variant_text = match workstation.clone().platform.release.variant.as_str() {
+                        let variant_text = match props.system_info.platform.release.variant.as_str() {
                             "" => "".to_string(),
                             v => format!("({})", v.to_string().trim_matches('"'))
                         };
                         html! {
                             <DescriptionList>
                                 <DescriptionGroup term="🖥️ Workstation">
-                                <code>{workstation.clone().hostname}</code>
+                                <code>{props.system_info.hostname.clone()}</code>
                                 </DescriptionGroup>
                                 <DescriptionGroup term={os_term}>
-                                <code>{format!("{} {}", os_type, workstation.clone().platform.version.to_string())}</code>
+                                <code>{format!("{} {}", os_type, props.system_info.platform.version.to_string())}</code>
                                 </DescriptionGroup>
                                 <DescriptionGroup term={distro_term}>
-                                <code>{format!("{} {} {}", workstation.clone().platform.release.name, workstation.clone().platform.release.version, variant_text)}</code>
+                                <code>{format!("{} {} {}", props.system_info.platform.release.name, props.system_info.platform.release.version, variant_text)}</code>
                                 </DescriptionGroup>
                                 </DescriptionList>
                         }
-                    } else {
-                        html! { <p>{ "Loading..." }</p> }
                     }
                 }
         </CardBody>

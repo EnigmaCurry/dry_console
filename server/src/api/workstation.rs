@@ -15,6 +15,7 @@ use utoipa::ToSchema;
 use uzers::{get_current_uid, get_user_by_uid};
 use which::which;
 
+pub mod check_sudo;
 pub mod command;
 pub mod command_execute;
 mod dependencies;
@@ -106,10 +107,15 @@ fn workstation() -> Router<SharedState> {
         let uid = get_current_uid();
         let user = get_user_by_uid(get_current_uid()).unwrap();
         let name = user.name().to_string_lossy().to_string();
+        let can_sudo = check_sudo::check_sudo().await;
         let the_platform = platform::detect_platform();
         Json(WorkstationState {
             hostname,
-            user: WorkstationUser { uid, name },
+            user: WorkstationUser {
+                uid,
+                name,
+                can_sudo,
+            },
             platform: the_platform,
         })
         .into_response()

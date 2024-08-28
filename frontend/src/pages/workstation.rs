@@ -1,4 +1,4 @@
-use dry_console_dto::workstation::WorkstationState;
+use dry_console_dto::workstation::{Platform, WorkstationState, WorkstationUser};
 use gloo::console::{debug, warn};
 use gloo::net::http::Request;
 use gloo_events::EventListener;
@@ -15,10 +15,16 @@ mod dependencies;
 mod install_d_rymcg_tech;
 mod system;
 
-#[derive(Clone, PartialEq)]
-struct SystemInfo {
-    os_type: String,
-    distribution: String,
+#[derive(Clone, PartialEq, Debug)]
+pub struct SystemInfo {
+    hostname: String,
+    platform: Platform,
+    user: WorkstationUser,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SystemInfoContext {
+    pub system_info: UseStateHandle<Option<Rc<SystemInfo>>>,
 }
 
 #[derive(Clone, Debug, Properties, PartialEq)]
@@ -41,18 +47,16 @@ fn system_info_provider(props: &SystemInfoProps) -> Html {
                     .await
                     .expect("Failed to parse JSON");
 
-                let os_type = fetched_data.platform.os_type.to_string();
-                let distribution = format!(
-                    "{} {} {}",
-                    fetched_data.platform.release.name,
-                    fetched_data.platform.release.version,
-                    fetched_data.platform.release.variant.trim_matches('"')
-                );
-
-                system_info.set(Some(Rc::new(SystemInfo {
-                    os_type,
-                    distribution,
-                })));
+                let hostname = fetched_data.hostname;
+                let platform = fetched_data.platform;
+                let user = fetched_data.user;
+                let info = SystemInfo {
+                    hostname,
+                    platform,
+                    user,
+                };
+                debug!(format!("{:?}", info));
+                system_info.set(Some(Rc::new(info)));
             }
         });
     }
@@ -82,6 +86,7 @@ pub enum WorkstationTab {
 
 #[function_component(WorkstationTabs)]
 fn tabs() -> Html {
+    let system_info_context = use_context::<UseStateHandle<Option<Rc<SystemInfo>>>>();
     let selected = use_state_eq(|| {
         let location = window().location();
         let hash = location.hash().unwrap_or_default();
@@ -128,24 +133,33 @@ fn tabs() -> Html {
         })
     };
 
-    html! (
-        <div class="tabs">
-            <Tabs<WorkstationTab> detached=true {onselect} selected={(*selected).clone()} r#box=true>
-                <Tab<WorkstationTab> index={WorkstationTab::System} title="System"/>
-                <Tab<WorkstationTab> index={WorkstationTab::Dependencies} title="Dependencies"/>
-                <Tab<WorkstationTab> index={WorkstationTab::DRymcgTech} title="d.rymcg.tech"/>
-            </Tabs<WorkstationTab>>
-            <section hidden={(*selected) != WorkstationTab::System}>
-                <system::System />
-            </section>
-            <section hidden={(*selected) != WorkstationTab::Dependencies} key={*reload_trigger}>
-                <dependencies::DependencyList reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
-            </section>
-            <section hidden={(*selected) != WorkstationTab::DRymcgTech} key={*reload_trigger}>
-                <install_d_rymcg_tech::InstallDRyMcGTech reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
-            </section>
-        </div>
-    )
+    if let Some(system_info) = system_info_context
+        .as_ref()
+        .and_then(|ctx| ctx.as_ref().map(Rc::as_ref))
+    {
+        html! (
+            <div class="tabs">
+                <Tabs<WorkstationTab> detached=true {onselect} selected={(*selected).clone()} r#box=true>
+                    <Tab<WorkstationTab> index={WorkstationTab::System} title="System"/>
+                    <Tab<WorkstationTab> index={WorkstationTab::Dependencies} title="Dependencies"/>
+                    <Tab<WorkstationTab> index={WorkstationTab::DRymcgTech} title="d.rymcg.tech"/>
+                </Tabs<WorkstationTab>>
+                <section hidden={(*selected) != WorkstationTab::System}>
+                <system::System system_info={(*system_info).clone()}/>
+                </section>
+                <section hidden={(*selected) != WorkstationTab::Dependencies} key={*reload_trigger}>
+                <dependencies::DependencyList system_info={(*system_info).clone()} reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
+                </section>
+                <section hidden={(*selected) != WorkstationTab::DRymcgTech} key={*reload_trigger}>
+                    <install_d_rymcg_tech::InstallDRyMcGTech reload_trigger={*reload_trigger} selected_tab={(*selected).clone()} />
+                </section>
+            </div>
+        )
+    } else {
+        html! {
+            <div>{ "Loading system info..." }</div>
+        }
+    }
 }
 
 #[function_component(Workstation)]

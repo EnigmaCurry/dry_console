@@ -1,17 +1,21 @@
-use std::collections::HashSet;
-
+use crate::components::manual_intervention::ManualIntervention;
 use crate::components::terminal::TerminalOutput;
 use crate::components::ButtonLink;
-use crate::pages::workstation::WorkstationTab;
+use crate::pages::workstation::{SystemInfoContext, WorkstationTab};
 use anyhow::anyhow;
 use dry_console_dto::workstation::WorkstationPackage;
 use gloo::console::debug;
 use gloo::net::http::Request;
+use itertools::Itertools;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
+use std::collections::HashSet;
+use std::rc::Rc;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::virtual_dom::VChild;
+
+use super::SystemInfo;
 
 #[derive(Clone, Deserialize)]
 struct WorkstationDependencySpec {
@@ -330,9 +334,11 @@ fn create_accordion_items(
 pub struct DependencyListProps {
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
+    pub system_info: SystemInfo,
 }
 #[function_component(DependencyList)]
 pub fn dependency_list(props: &DependencyListProps) -> Html {
+    let system_info_context = use_context::<SystemInfoContext>();
     let dependencies = use_state(Vec::<WorkstationDependency>::new);
     let first_uninstalled = use_state(String::new);
     let is_loading = use_state(|| true);
@@ -366,8 +372,10 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
     // on_click only resets the `has_fetched` state
     let on_click = {
         let has_fetched = has_fetched.clone();
+        let first_uninstalled = first_uninstalled.clone();
         Callback::from(move |_: MouseEvent| {
-            has_fetched.set(false); // Reset has_fetched state
+            has_fetched.set(false);
+            first_uninstalled.set("".to_string());
         })
     };
 
@@ -384,20 +392,30 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
 
     let accordion_items = create_accordion_items(&dependencies, &first_uninstalled, toggle);
 
-    // let uninstalled_list = uninstalled_dependencies
-    //     .iter()
-    //     .flat_map(|dep| dep.packages.iter())
-    //     .map(|pkg| pkg.package_name.clone())
-    //     .collect::<HashSet<String>>()
-    //     .into_iter()
-    //     .collect::<Vec<String>>()
-    //     .join(" ");
+    let uninstalled_list = uninstalled_dependencies
+        .iter()
+        .flat_map(|dep| dep.packages.iter())
+        .map(|pkg| pkg.package_name.clone())
+        .collect::<HashSet<String>>()
+        .into_iter()
+        .collect::<Vec<String>>()
+        .into_iter()
+        .sorted()
+        .collect::<Vec<String>>()
+        .join(" ");
 
     html! {
         <>
             <Card>
                 <DependencySummary all_installed={*all_installed} on_recheck={on_click} />
                 <CardBody>
+                if !*all_installed {
+                    if props.system_info.user.can_sudo {
+                        <TerminalOutput script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
+                    } else {
+                        <ManualIntervention description={"Root privileges are required to install missing packages."} script={format!("sudo dnf install -y {}", uninstalled_list)} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
+                    }
+                }
                     <Accordion>
                         { accordion_items }
                     </Accordion>
@@ -407,8 +425,6 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                         <h1>{"Next:"}</h1>
                         <ButtonLink href="/workstation#d-rymcg-tech">{"⭐️ Install d.rymcg.tech"}</ButtonLink>
                     </CardFooter>
-                } else {
-                    <TerminalOutput script="TestExampleOne" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
                 }
             </Card>
         </>

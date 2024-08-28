@@ -2,13 +2,14 @@ use serde::{Deserialize, Serialize};
 use strum::Display;
 use utoipa::ToSchema;
 
-#[derive(Default, Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Debug, PartialEq, Default, Serialize, Deserialize, ToSchema, Clone)]
 pub struct WorkstationUser {
     pub uid: u32,
     pub name: String,
+    pub can_sudo: bool,
 }
 
-#[derive(Default, Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Debug, PartialEq, Default, Serialize, Deserialize, ToSchema, Clone)]
 pub struct WorkstationState {
     /// Hostname of the workstation.
     pub hostname: String,
@@ -37,14 +38,14 @@ impl WorkstationPackage {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct WorkstationDependencyInfo {
     pub name: String,
     pub version: String,
     pub packages: Vec<WorkstationPackage>,
 }
 
-#[derive(Serialize, Deserialize, ToSchema, Clone, Display)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, ToSchema, Clone, Display)]
 pub enum OSType {
     Linux,
     MacOS,
@@ -52,7 +53,7 @@ pub enum OSType {
     Unknown,
 }
 
-#[derive(Serialize, Deserialize, ToSchema, Clone, Display, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone, Display, PartialEq)]
 pub enum Distribution {
     Fedora,
     Arch,
@@ -61,7 +62,7 @@ pub enum Distribution {
     Unsupported,
 }
 
-#[derive(Serialize, Deserialize, Clone, ToSchema)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, ToSchema)]
 pub struct LinuxRelease {
     pub name: String,
     pub version: String,
@@ -79,7 +80,7 @@ impl Default for LinuxRelease {
     }
 }
 
-#[derive(Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, ToSchema, Clone)]
 pub struct Platform {
     pub os_type: OSType,
     pub version: String,
