@@ -1,6 +1,14 @@
 use dry_console_dto::workstation::{Distribution, LinuxRelease, OSType, Platform};
 use os_release::OsRelease;
 use regex::Regex;
+use std::path::Path;
+
+pub fn detect_toolbox() -> bool {
+    let toolboxenv = Path::new("/run/.toolboxenv");
+    let distroboxenv = Path::new("/run/.distroboxenv");
+
+    toolboxenv.exists() || distroboxenv.exists()
+}
 
 pub fn detect_platform() -> Platform {
     if cfg!(target_os = "linux") {

@@ -58,11 +58,16 @@ pub fn system(props: &SystemProps) -> Html {
                             "OS Type"
                         };
 
-                        let distro_term = "Distribution";
                         let variant_text = match props.system_info.platform.release.variant.as_str() {
                             "" => "".to_string(),
                             v => format!("({})", v.to_string().trim_matches('"'))
                         };
+                        let can_sudo_text;
+                        if props.system_info.user.can_sudo {
+                            can_sudo_text = "Yes";
+                        } else {
+                            can_sudo_text = "No, some packages may require manual installation";
+                        }
                         html! {
                             <DescriptionList>
                                 <DescriptionGroup term="🖥️ Workstation">
@@ -71,8 +76,11 @@ pub fn system(props: &SystemProps) -> Html {
                                 <DescriptionGroup term={os_term}>
                                 <code>{format!("{} {}", os_type, props.system_info.platform.version.to_string())}</code>
                                 </DescriptionGroup>
-                                <DescriptionGroup term={distro_term}>
+                                <DescriptionGroup term="Distribution">
                                 <code>{format!("{} {} {}", props.system_info.platform.release.name, props.system_info.platform.release.version, variant_text)}</code>
+                                </DescriptionGroup>
+                                <DescriptionGroup term="Root privilege (sudo)">
+                                <code>{can_sudo_text}</code>
                                 </DescriptionGroup>
                                 </DescriptionList>
                         }

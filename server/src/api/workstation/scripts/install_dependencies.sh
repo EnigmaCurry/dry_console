@@ -3,4 +3,4 @@
 # This script is just a placeholder, and will be dynamically replaced
 # with one appropriate for the particular operating system.
 
-ssh-add -L
+sudo whoami

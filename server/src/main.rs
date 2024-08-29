@@ -2,22 +2,25 @@ mod api;
 mod app_state;
 mod response;
 mod routing;
+mod sudo;
 
 use crate::api::auth::Backend;
+use api::workstation::platform::detect_toolbox;
 use app_state::SharedState;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
+use clap::ArgAction;
 use clap::Parser;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::process::exit;
 use std::str::FromStr;
 use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::info;
-
+use tracing::{error, info, warn};
 const API_PREFIX: &str = "/api";
 
 pub type AppRouter = Router<SharedState>;
@@ -68,7 +71,10 @@ async fn serve_inline_file(
 // Command line interface
 ////////////////////////////////////////////////////////////////////////////////
 #[derive(Parser, Debug, Clone)]
-#[clap(name = "server", about = "A server for our wasm project!")]
+#[clap(
+    name = "server",
+    about = "dry_console is your interactive workstation controller for Docker and d.rymcg.tech."
+)]
 struct Opt {
     /// set the log level
     #[clap(short = 'l', long = "log", default_value = "info")]
@@ -85,6 +91,37 @@ struct Opt {
     /// open the web-browser automatically on startup
     #[clap(long = "open")]
     open: bool,
+
+    /// Acquire root privileges via sudo and maintain its session indefinitely (This feature is activated automatically if the host is a toolbox container)
+    #[clap(long = "sudo", action = ArgAction::SetTrue)]
+    sudo: bool,
+
+    /// Explicitly disable sudo (overrides --sudo)
+    #[clap(long = "no-sudo", action = ArgAction::SetTrue)]
+    no_sudo: bool,
+
+    /// Timeout for sudo authentication, in seconds
+    #[clap(long = "sudo-timeout-seconds", default_value = "60")]
+    sudo_timeout_seconds: u64,
+
+    /// Refresh interval to keep sudo session alive, in seconds
+    #[clap(long = "sudo-refresh-interval", default_value = "60")]
+    sudo_refresh_interval: u64,
+}
+
+impl Opt {
+    fn resolve_sudo(&self) -> Option<bool> {
+        if self.no_sudo {
+            // Disable via --no-sudo explicitly
+            Some(false)
+        } else if self.sudo {
+            // Enable sudo via --sudo
+            Some(true)
+        } else {
+            // Sudo is unset by args, but may be enabled because of toolbox containership
+            None
+        }
+    }
 }
 
 #[tokio::main]
@@ -110,6 +147,44 @@ async fn main() {
                 .add_directive("axum::rejection=trace".parse().unwrap()),
         )
         .init();
+
+    // Acquire root privilege only if configured to do so, unless the
+    // host is detected to be a toolbox or distrobox container, in
+    // which case the feature should be enabled by default:
+    match opt.resolve_sudo() {
+        Some(true) => {
+            warn!("Root access will now be requested via sudo:");
+            match sudo::acquire_sudo(opt.sudo_timeout_seconds).await {
+                Ok(_) => {
+                    tokio::spawn(async move {
+                        sudo::keep_sudo_session_alive(
+                            opt.sudo_refresh_interval,
+                            opt.sudo_timeout_seconds,
+                        )
+                        .await;
+                    });
+                }
+                Err(e) => {
+                    error!("Failed to acquire sudo authentication: {}", e);
+                    exit(1);
+                }
+            };
+        }
+        Some(false) => {}
+        None => {
+            if detect_toolbox() {
+                match sudo::acquire_sudo(2).await {
+                    Ok(_) => {
+                        warn!("A toolbox-like container was detected, therefore container level root access is acquired automatically via sudo.");
+                    }
+                    Err(e) => {
+                        error!("A toolbox-like container was detected, but there was an unexpected failure to acquire sudo privileges :: {}", e);
+                        exit(1);
+                    }
+                }
+            }
+        }
+    }
 
     // Shutdown signal handler
     let (shutdown_tx, mut shutdown_rx) = broadcast::channel(1);
