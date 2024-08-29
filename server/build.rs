@@ -217,6 +217,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     output.push_str("    }\n");
 
     // Implement the id method that returns a Ulid directly
+    output.push_str("    #[allow(dead_code)]\n");
     output.push_str("    fn id(&self) -> Ulid {\n");
     output.push_str("        let script = self.get_script();\n");
     output.push_str("        let ulid = generate_deterministic_ulid_from_seed(&script);\n");

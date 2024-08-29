@@ -1,8 +1,6 @@
 use dry_console_dto::workstation::{Distribution, OSType, Platform};
 
-use crate::api::workstation::{
-    WorkstationError, WorkstationPackage, WorkstationPackageManager,
-};
+use crate::api::workstation::{WorkstationError, WorkstationPackage, WorkstationPackageManager};
 
 pub fn get_version() -> String {
     // AFAIK there is no direct way to check the version of htpasswd, so just hard code it:

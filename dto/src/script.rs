@@ -42,6 +42,7 @@ impl ScriptEntry {
     }
 }
 
+#[allow(clippy::manual_strip)]
 fn trim_single_starting_space(line: &str) -> &str {
     if line.starts_with(' ') {
         &line[1..]

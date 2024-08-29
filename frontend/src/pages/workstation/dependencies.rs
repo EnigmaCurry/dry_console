@@ -1,7 +1,7 @@
 use crate::components::manual_intervention::ManualIntervention;
 use crate::components::terminal::TerminalOutput;
 use crate::components::ButtonLink;
-use crate::pages::workstation::{SystemInfoContext, WorkstationTab};
+use crate::pages::workstation::WorkstationTab;
 use anyhow::anyhow;
 use dry_console_dto::workstation::WorkstationPackage;
 use gloo::net::http::Request;
@@ -43,8 +43,7 @@ struct WorkstationDependency {
 impl WorkstationDependency {
     async fn get_installed_state(&mut self) -> Result<WorkstationDependency, anyhow::Error> {
         let url = format!("/api/workstation/dependency/{}/", self.name);
-        
-        
+
         let response = match Request::get(&url).send().await {
             Ok(r) => r,
             Err(e) => return Err(anyhow!("one: {}", e)),
@@ -333,7 +332,6 @@ pub struct DependencyListProps {
 }
 #[function_component(DependencyList)]
 pub fn dependency_list(props: &DependencyListProps) -> Html {
-    let system_info_context = use_context::<SystemInfoContext>();
     let dependencies = use_state(Vec::<WorkstationDependency>::new);
     let first_uninstalled = use_state(String::new);
     let is_loading = use_state(|| true);

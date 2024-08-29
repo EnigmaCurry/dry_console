@@ -24,7 +24,6 @@ pub mod platform;
 
 #[derive(Debug, Clone)]
 pub enum WorkstationError {
-    UnknownDependency,
     UnsupportedPlatform,
     UnsupportedDistribution,
 }

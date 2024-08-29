@@ -60,12 +60,11 @@ pub fn system(props: &SystemProps) -> Html {
                             "" => "".to_string(),
                             v => format!("({})", v.to_string().trim_matches('"'))
                         };
-                        let can_sudo_text;
-                        if props.system_info.user.can_sudo {
-                            can_sudo_text = "Yes";
+                        let can_sudo_text = if props.system_info.user.can_sudo {
+                            "Yes"
                         } else {
-                            can_sudo_text = "No, some packages may require manual installation";
-                        }
+                            "No, some packages may require manual installation"
+                        };
                         html! {
                             <DescriptionList>
                                 <DescriptionGroup term="🖥️ Workstation">

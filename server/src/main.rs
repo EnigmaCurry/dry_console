@@ -22,7 +22,7 @@ use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::{error, info, warn};
-use uzers::{get_current_uid};
+use uzers::get_current_uid;
 
 const API_PREFIX: &str = "/api";
 
@@ -78,7 +78,7 @@ async fn serve_inline_file(
     name = "server",
     about = "dry_console is your interactive workstation controller for Docker and d.rymcg.tech."
 )]
-struct Opt {
+pub struct Opt {
     /// set the log level
     #[clap(short = 'l', long = "log", default_value = "info")]
     log_level: String,

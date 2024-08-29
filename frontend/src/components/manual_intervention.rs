@@ -1,6 +1,5 @@
-use crate::{pages::workstation::WorkstationTab};
+use crate::pages::workstation::WorkstationTab;
 use gloo::console::error;
-use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
@@ -8,7 +7,7 @@ use web_sys::js_sys::JsString;
 use web_sys::js_sys::Promise;
 use web_sys::js_sys::Reflect;
 use web_sys::window;
-use web_sys::{HtmlElement};
+use web_sys::HtmlElement;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
@@ -20,9 +19,6 @@ pub struct ManualInterventionProps {
 }
 #[function_component(ManualIntervention)]
 pub fn manual_intervention(props: &ManualInterventionProps) -> Html {
-    let terminal_ref = use_node_ref();
-    let terminal_content_ref = use_node_ref();
-
     fn copy_code(
         code_block_ref: NodeRef,
         set_button_text: yew::UseStateHandle<String>,
