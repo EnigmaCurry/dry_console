@@ -408,11 +408,10 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                 <CardBody>
                 if !*all_installed {
                     if props.system_info.user.can_sudo {
-                        <br/>
+                        <TerminalOutput script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={on_click.clone()}/>
+                            <br/>
                             <Button label="🔄 Recheck dependencies" onclick={on_click.clone()} />
                             <br/>
-
-                        <TerminalOutput script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
                     } else {
                         <ManualIntervention script={format!("sudo dnf install -y {}", uninstalled_list)} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}>
                             <h2>{"Root privileges are required to install missing packages."}</h2>
@@ -422,7 +421,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                             <li>{"Click the clipboard button to copy the script below."}</li>
                             <li>{"Open your workstation's terminal application."}</li>
                             <li>{"Paste the script into the terminal and press Enter to run it."}</li>
-                            <li>{"Check for the authentication prompt and enter your credentials."}</li>
+                            <li>{"Check for any authentication prompt and enter your credentials."}</li>
                             <li>{"Click the "}<code>{"Recheck dependencies"}</code>{" button once complete."}</li>
                             </ul>
                             <br/>

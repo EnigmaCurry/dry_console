@@ -253,7 +253,14 @@ pub struct TerminalOutputProps {
     pub script: String,
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
+    pub on_done: Option<Callback<MouseEvent>>,
 }
+impl TerminalOutputProps {
+    pub fn default_on_done() -> Callback<MouseEvent> {
+        Callback::from(|_| {})
+    }
+}
+
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
@@ -797,6 +804,17 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         .clone()
         .unwrap_or(ScriptEntry::default());
 
+    let done = {
+        let reset_terminal = reset_terminal.clone();
+        let on_done = props.on_done.clone();
+        Callback::from(move |e: MouseEvent| {
+            reset_terminal.emit(e.clone());
+            if let Some(on_done) = on_done.clone() {
+                on_done.emit(e.clone());
+            }
+        })
+    };
+
     html! {
         <div class="terminal">
         if ws_state.status == TerminalStatus::Critical {
@@ -812,7 +830,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                         } else if ws_state.status == TerminalStatus::Processing {
                           <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {
-                            <Button onclick={reset_terminal.clone()}>{"👍️ Done"}</Button>
+                            <Button onclick={done.clone()}>{"👍️ Done"}</Button>
                         } else if ws_state.status == TerminalStatus::Connecting {
                             <Button onclick={reset_terminal.clone()}>{"⏳️ Reset"}</Button>
                         } else {
