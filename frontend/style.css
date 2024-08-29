@@ -356,8 +356,20 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
 }
 .manual_intervention .command_area p {
     margin-left: 1em;
+    margin-top: 0.5em;    
+}
+.manual_intervention .command_area h1,
+.manual_intervention .command_area h2,
+.manual_intervention .command_area h3,
+.manual_intervention .command_area h4,
+.manual_intervention .command_area h5 {
+    margin-left: 0.5em;
+    margin-top: 0em;
 }
 .manual_intervention ul {
     margin-left: 2em;
     list-style: unset;
+}
+.manual_intervention button {
+    margin-left: 2em;
 }

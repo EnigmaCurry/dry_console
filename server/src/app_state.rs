@@ -13,9 +13,10 @@ use tracing::{debug, info};
 #[derive(Clone, Debug)]
 pub struct AppState {
     #[allow(dead_code)]
-    opt: Opt,
-    cache: HashMap<String, Bytes>,
-    login_allowed: bool,
+    pub opt: Opt,
+    pub cache: HashMap<String, Bytes>,
+    pub login_allowed: bool,
+    pub sudo_enabled: bool,
 }
 impl AppState {
     pub fn cache_set(&mut self, key: &str, value: &Bytes) {
@@ -53,6 +54,7 @@ pub fn create_shared_state(opt: &Opt) -> SharedState {
         opt: opt.clone(),
         cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token))]),
         login_allowed: true,
+        sudo_enabled: false,
     }))
 }
 

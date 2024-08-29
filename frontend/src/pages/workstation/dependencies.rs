@@ -172,9 +172,6 @@ fn dependency_summary(props: &DependencySummaryProps) -> Html {
                         html! { <p><h1> {"⁉️ Warning!"} </h1> {"Not all workstation dependencies were found. Please install all the dependencies before proceeding."} </p>}
                     } }
                 </span>
-                <br/>
-                <Button label="🔄 Recheck dependencies" onclick={props.on_recheck.clone()} />
-                <br/>
             </div>
         </CardTitle>
     }
@@ -407,13 +404,31 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
     html! {
         <>
             <Card>
-                <DependencySummary all_installed={*all_installed} on_recheck={on_click} />
+                <DependencySummary all_installed={*all_installed} on_recheck={on_click.clone()} />
                 <CardBody>
                 if !*all_installed {
                     if props.system_info.user.can_sudo {
+                        <br/>
+                            <Button label="🔄 Recheck dependencies" onclick={on_click.clone()} />
+                            <br/>
+
                         <TerminalOutput script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
                     } else {
-                        <ManualIntervention description={"Root privileges are required to install missing packages."} script={format!("sudo dnf install -y {}", uninstalled_list)} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}/>
+                        <ManualIntervention script={format!("sudo dnf install -y {}", uninstalled_list)} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}>
+                            <h2>{"Root privileges are required to install missing packages."}</h2>
+                            <p>{"You may fix this condition by restarting dry_console with the "}<code>{"--sudo"}</code>{" argument, or you may manually run the following commands by copy and pasting them into your workstation terminal."}</p>
+                        <br/>
+                            <ul>
+                            <li>{"Click the clipboard button to copy the script below."}</li>
+                            <li>{"Open your workstation's terminal application."}</li>
+                            <li>{"Paste the script into the terminal and press Enter to run it."}</li>
+                            <li>{"Check for the authentication prompt and enter your credentials."}</li>
+                            <li>{"Click the "}<code>{"Recheck dependencies"}</code>{" button once complete."}</li>
+                            </ul>
+                            <br/>
+                            <Button label="🔄 Recheck dependencies" onclick={on_click.clone()}/>
+                            <br/>
+                        </ManualIntervention>
                     }
                 }
                     <Accordion>

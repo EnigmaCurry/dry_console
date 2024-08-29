@@ -32,7 +32,7 @@ use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct ManualInterventionProps {
-    pub description: String,
+    pub children: Children,
     pub script: String,
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
@@ -103,13 +103,7 @@ pub fn manual_intervention(props: &ManualInterventionProps) -> Html {
                 </div>
                 <Stack gutter=true>
             <StackItem>
-            <p>{props.description.clone()}</p>
-            <br/>
-            <ul>
-            <li>{"Open your workstation's terminal application."}</li>
-            <li>{"Click the clipboard button to copy the script below."}</li>
-            <li>{"Paste it into your terminal and press Enter to run it."}</li>
-            </ul>
+            { for props.children.iter() }
             </StackItem>
                 <StackItem>
                 <div class="code_container" ref={code_block_ref.clone()}>

@@ -148,6 +148,8 @@ async fn main() {
         )
         .init();
 
+    let shared_state = app_state::create_shared_state(&opt);
+
     // Acquire root privilege only if configured to do so, unless the
     // host is detected to be a toolbox or distrobox container, in
     // which case the feature should be enabled by default:
@@ -169,6 +171,10 @@ async fn main() {
                     exit(1);
                 }
             };
+            {
+                let mut state = shared_state.write().expect("Could not fetch shared state");
+                state.sudo_enabled = true;
+            }
         }
         Some(false) => {}
         None => {
@@ -181,6 +187,10 @@ async fn main() {
                         error!("A toolbox-like container was detected, but there was an unexpected failure to acquire sudo privileges :: {}", e);
                         exit(1);
                     }
+                }
+                {
+                    let mut state = shared_state.write().expect("Could not fetch shared state");
+                    state.sudo_enabled = true;
                 }
             }
         }
@@ -203,7 +213,6 @@ async fn main() {
     ));
 
     info!("listening on http://{sock_addr}");
-    let shared_state = app_state::create_shared_state(&opt);
     let auth_backend = Backend::new(&shared_state);
     let inline_files = get_inline_files();
     let mut router = Router::new()

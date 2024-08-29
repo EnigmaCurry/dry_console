@@ -1,5 +1,7 @@
+use crate::app_state::AppState;
 use crate::broadcast;
 use crate::{api::route, app_state::SharedState, response::AppError};
+use axum::extract::State;
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
 pub use dry_console_dto::workstation::{
     WorkstationDependencyInfo, WorkstationPackage, WorkstationPackageManager, WorkstationState,
@@ -8,6 +10,7 @@ pub use dry_console_dto::workstation::{
 use hostname::get as host_name_get;
 use semver::VersionReq;
 use serde::Serialize;
+use std::sync::{Arc, RwLock};
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use tracing::debug;
@@ -15,7 +18,6 @@ use utoipa::ToSchema;
 use uzers::{get_current_uid, get_user_by_uid};
 use which::which;
 
-pub mod check_sudo;
 pub mod command;
 pub mod command_execute;
 mod dependencies;
@@ -99,7 +101,7 @@ pub struct WorkstationDependencyState {
     ),
 )]
 fn workstation() -> Router<SharedState> {
-    async fn handler() -> impl IntoResponse {
+    async fn handler(State(state): State<Arc<RwLock<AppState>>>) -> impl IntoResponse {
         let hostname = host_name_get()
             .unwrap_or_else(|_| "Unknown".into())
             .to_string_lossy()
@@ -107,7 +109,10 @@ fn workstation() -> Router<SharedState> {
         let uid = get_current_uid();
         let user = get_user_by_uid(get_current_uid()).unwrap();
         let name = user.name().to_string_lossy().to_string();
-        let can_sudo = check_sudo::check_sudo().await;
+        let can_sudo = match state.read() {
+            Ok(r) => r.sudo_enabled,
+            Err(_e) => false,
+        };
         let the_platform = platform::detect_platform();
         Json(WorkstationState {
             hostname,
