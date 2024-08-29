@@ -15,12 +15,15 @@ use clap::ArgAction;
 use clap::Parser;
 use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::process;
 use std::process::exit;
 use std::str::FromStr;
 use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::{error, info, warn};
+use uzers::{get_current_uid, get_user_by_uid};
+
 const API_PREFIX: &str = "/api";
 
 pub type AppRouter = Router<SharedState>;
@@ -127,7 +130,6 @@ impl Opt {
 #[tokio::main]
 async fn main() {
     let opt = Opt::parse();
-
     // Setup logging & RUST_LOG from args
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var(
@@ -147,6 +149,12 @@ async fn main() {
                 .add_directive("axum::rejection=trace".parse().unwrap()),
         )
         .init();
+
+    // Make sure this is not run as root
+    if get_current_uid() == 0 {
+        error!("This program should not be run as root. Use the --sudo argument instead.");
+        process::exit(1);
+    }
 
     let shared_state = app_state::create_shared_state(&opt);
 
