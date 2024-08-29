@@ -1,5 +1,3 @@
-use gloo::console::info;
-use patternfly_yew::prelude::*;
 use pulldown_cmark::{html, Parser};
 use web_sys::Element;
 use yew::prelude::*;

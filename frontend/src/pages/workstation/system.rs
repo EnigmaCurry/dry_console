@@ -1,7 +1,5 @@
 use crate::components::ButtonLink;
 use crate::pages::workstation::{SystemInfo, SystemInfoContext};
-use dry_console_dto::workstation::WorkstationState;
-use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 

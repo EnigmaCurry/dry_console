@@ -1,33 +1,14 @@
-use crate::components::markdown::{markdown_to_html, MarkdownContent};
-use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
-use dry_console_dto::script::ScriptEntry;
-use dry_console_dto::websocket::Command;
-use dry_console_dto::websocket::PingReport;
-use dry_console_dto::websocket::ServerMsg;
-use dry_console_dto::websocket::StreamType;
-use gloo::console::debug;
+use crate::{pages::workstation::WorkstationTab};
 use gloo::console::error;
-use gloo::net::http::Request;
-use gloo_storage::LocalStorage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
-use serde_json::from_str;
-use std::rc::Rc;
-use ulid::Ulid;
-use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::js_sys;
 use web_sys::js_sys::JsString;
 use web_sys::js_sys::Promise;
 use web_sys::js_sys::Reflect;
 use web_sys::window;
-use web_sys::Blob;
-use web_sys::FileReader;
-use web_sys::HtmlInputElement;
-use web_sys::MessageEvent;
-use web_sys::{HtmlElement, WebSocket};
+use web_sys::{HtmlElement};
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq, Clone)]

@@ -4,13 +4,11 @@ use crate::components::ButtonLink;
 use crate::pages::workstation::{SystemInfoContext, WorkstationTab};
 use anyhow::anyhow;
 use dry_console_dto::workstation::WorkstationPackage;
-use gloo::console::debug;
 use gloo::net::http::Request;
 use itertools::Itertools;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
 use std::collections::HashSet;
-use std::rc::Rc;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::virtual_dom::VChild;
@@ -45,14 +43,14 @@ struct WorkstationDependency {
 impl WorkstationDependency {
     async fn get_installed_state(&mut self) -> Result<WorkstationDependency, anyhow::Error> {
         let url = format!("/api/workstation/dependency/{}/", self.name);
-        let response;
-        let json_value: serde_json::Value;
-        match Request::get(&url).send().await {
-            Ok(r) => response = r,
+        
+        
+        let response = match Request::get(&url).send().await {
+            Ok(r) => r,
             Err(e) => return Err(anyhow!("one: {}", e)),
         };
-        match response.json().await {
-            Ok(r) => json_value = r,
+        let json_value: serde_json::Value = match response.json().await {
+            Ok(r) => r,
             Err(e) => return Err(anyhow!("two: {}", e)),
         };
         //debug!(format!("json_value: {:?}", json_value));
@@ -341,7 +339,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
     let is_loading = use_state(|| true);
     let has_fetched = use_state(|| false);
     let all_installed = use_state(|| false);
-    let uninstalled_dependencies = use_state(|| Vec::<WorkstationDependency>::new());
+    let uninstalled_dependencies = use_state(Vec::<WorkstationDependency>::new);
 
     let fetch_dependencies = create_fetch_dependencies_callback(
         props.selected_tab.clone(),

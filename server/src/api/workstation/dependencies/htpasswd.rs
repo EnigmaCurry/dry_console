@@ -1,7 +1,6 @@
 use dry_console_dto::workstation::{Distribution, OSType, Platform};
 
 use crate::api::workstation::{
-    dependencies::{find_version, OutputStream},
     WorkstationError, WorkstationPackage, WorkstationPackageManager,
 };
 

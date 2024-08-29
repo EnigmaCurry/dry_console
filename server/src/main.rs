@@ -22,7 +22,7 @@ use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
 use tracing::{error, info, warn};
-use uzers::{get_current_uid, get_user_by_uid};
+use uzers::{get_current_uid};
 
 const API_PREFIX: &str = "/api";
 
