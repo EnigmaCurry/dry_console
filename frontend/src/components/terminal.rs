@@ -1,3 +1,4 @@
+use crate::components::loading_state::LoadingState;
 use crate::components::markdown::MarkdownContent;
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
 use dry_console_dto::script::ScriptEntry;
@@ -37,6 +38,7 @@ const BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY: &str = "terminal:background_col
 const BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY: &str = "terminal:background_color_normal";
 const TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY: &str = "terminal:text_color_stdout";
 const TEXT_COLOR_STDERR_LOCALSTORAGE_KEY: &str = "terminal:text_color_stderr";
+const SHOW_META_STREAM_LOCALSTORAGE_KEY: &str = "terminal:show_meta_stream";
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
@@ -268,8 +270,10 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let show_line_numbers = use_state(|| {
         LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(false)
     });
+    let show_meta_stream =
+        use_state(|| LocalStorage::get::<bool>(SHOW_META_STREAM_LOCALSTORAGE_KEY).unwrap_or(true));
     let background_color_change = use_state(|| {
-        LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(true)
+        LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(false)
     });
     let background_color_success = use_state(|| {
         LocalStorage::get::<String>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY)
@@ -516,6 +520,14 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 .expect("Failed to store setting in local storage");
         })
     };
+    let toggle_meta_stream = {
+        let show_meta_stream = show_meta_stream.clone();
+        Callback::from(move |value: bool| {
+            show_meta_stream.set(value);
+            LocalStorage::set(SHOW_META_STREAM_LOCALSTORAGE_KEY, value)
+                .expect("Failed to store setting in local storage");
+        })
+    };
     let toggle_background_change = {
         let background_color_change = background_color_change.clone();
         Callback::from(move |value: bool| {
@@ -565,6 +577,13 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                         label="Show line numbers"
                         checked={*show_line_numbers}
                         onchange={toggle_line_numbers.clone()}
+                    />
+                </ListItem>
+                <ListItem>
+                    <Switch
+                        label="Show meta stream"
+                        checked={*show_meta_stream}
+                        onchange={toggle_meta_stream.clone()}
                     />
                 </ListItem>
                 <ListItem>
@@ -846,51 +865,51 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 </div>
             </div>
             <div class="terminal_display" ref={terminal_ref.clone()}>
-            if *show_line_numbers && ws_state.status != TerminalStatus::Initialized {
-                <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
-                {
-                    for ws_state.messages.iter().map(|(stream, _message)| {
-                        let gutter_content = match stream {
-                            StreamType::Stdout => {
-                                let content = line_number_gutter.to_string();
-                                line_number_gutter += 1;
-                                content
+                if *show_line_numbers && ws_state.status != TerminalStatus::Initialized {
+                    <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
+                    {
+                        for ws_state.messages.iter().filter_map(|(stream, _message)| {
+                            if *stream == StreamType::Meta && !*show_meta_stream {
+                                None
+                            } else {
+                                let gutter_content = match stream {
+                                    StreamType::Stdout => {
+                                        let content = line_number_gutter.to_string();
+                                        line_number_gutter += 1;
+                                        content
+                                    }
+                                    StreamType::Stderr => "E".to_string(),         // "E" for StdErr
+                                    StreamType::Meta => "#".to_string(),           // "#" for Meta (assuming this is the correct symbol)
+                                };
+                                Some(html!{
+                                    <div class="gutter-line">{gutter_content}</div>
+                                })
                             }
-                            StreamType::Stderr => "E".to_string(),         // "E" for StdErr
-                            StreamType::Meta => "#".to_string(),           // "M" for Meta
-                        };
-                        html!{
-                            <div class="gutter-line">{gutter_content}</div>
-                        }
-                    })
-                }
-                </div>
+                        })
+                    }
+                    </div>
             }
         if ws_state.status == TerminalStatus::Complete || ws_state.status == TerminalStatus::Failed {
             <button title="Copy output" class="copy-button" onclick={copy_code(terminal_ref.clone(), output_copy_button_text.clone())}><div class="copy-button-text">{ (*output_copy_button_text).clone() }</div></button>
         }
         <div class="content" ref={terminal_content_ref.clone()} {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
         {
-            for ws_state.messages.iter().map(|(stream, message)| {
-                let class_name = match stream {
-                    StreamType::Stdout => "stream-stdout",
-                    StreamType::Stderr => "stream-stderr",
-                    StreamType::Meta => "stream-meta",
-                };
-                let id = if *stream == StreamType::Stdout {
-                    let id = format!("line-{}", line_number_output);
-                    line_number_output += 1;
-                    id
+            for ws_state.messages.iter().filter_map(|(stream, message)| {
+                if *stream == StreamType::Meta && !*show_meta_stream {
+                    None
                 } else {
-                    "".to_string()
-                };
-                let style = match stream {
-                    StreamType::Stderr => format!("color: {}", *text_color_stderr),
-                    StreamType::Stdout => "".to_string(),
-                    StreamType::Meta => "".to_string()
-                };
-                html!{
-                    <span id={id} class={class_name} {style}>{message}</span>
+                    let (class_name, id, style) = match stream {
+                        StreamType::Stdout => {
+                            let id = format!("line-{}", line_number_output);
+                            line_number_output += 1;
+                            ("stream-stdout", id, "".to_string())
+                        },
+                        StreamType::Stderr => ("stream-stderr", "".to_string(), format!("color: {}", *text_color_stderr)),
+                        StreamType::Meta => ("stream-meta", "".to_string(), "".to_string()),
+                    };
+                    Some(html!{
+                        <span id={id} class={class_name} style={style}>{message}</span>
+                    })
                 }
             })
         }
@@ -898,19 +917,5 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         </div>
         }
         </div>
-    }
-}
-
-#[function_component(LoadingState)]
-fn loading_state() -> Html {
-    html! {
-        <Card>
-            <CardTitle><p><h1>{"⌛️ Loading ..."}</h1></p></CardTitle>
-            <CardBody>
-                <div class="flex-center">
-                    <Spinner size={SpinnerSize::Custom(String::from("80px"))} aria_label="Contents of the custom size example" />
-                </div>
-            </CardBody>
-        </Card>
     }
 }

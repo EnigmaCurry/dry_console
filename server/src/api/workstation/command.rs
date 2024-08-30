@@ -48,7 +48,7 @@ fn generate_install_commands(uninstalled_dependencies: &[WorkstationDependencySt
         }
     }
 
-    let mut commands = Vec::new();
+    let mut commands = Vec::<String>::new();
     if let Some(packages) = package_map.get("dnf") {
         commands.push(format!(
             "sudo dnf install -y {}",
@@ -136,8 +136,7 @@ pub fn command() -> AppRouter {
                     script = generate_install_commands(&state.missing_dependencies);
                 }
                 let script_entry = ScriptEntry::from_source(formatdoc! {"
-                    # # Install missing dependencies
-                    
+                    # # Install missing dependencies                    
                     # This script is customized for {distribution} ({package_manager} package manager).
                     {script}
                 "});

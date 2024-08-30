@@ -193,7 +193,7 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
 }
 
 .terminal .content .stream-meta {
-    background-color: #332c22;
+    background-color: #847b6f55;
 }
 
 input[type="color"]:disabled + label {

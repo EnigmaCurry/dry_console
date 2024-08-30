@@ -397,7 +397,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                     } else {
                         <ManualIntervention script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}>
                             <h2>{"Root privileges are required to install missing packages."}</h2>
-                            <p>{"You may fix this condition by restarting dry_console with the "}<code>{"--sudo"}</code>{" argument, or you may manually run the following commands by copy and pasting them into your workstation terminal."}</p>
+                            <p>{"dry_console was not started with the "}<code>{"--sudo"}</code>{" argument, so root cannot be acquired automatically. You may restart dry_console with the "}<code>{"--sudo"}</code>{" argument, or you may manually run the following commands by copy and pasting them into your workstation terminal."}</p>
                         <br/>
                             <ul>
                             <li>{"Click the clipboard button to copy the script below."}</li>

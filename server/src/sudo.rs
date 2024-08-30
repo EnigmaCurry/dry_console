@@ -40,7 +40,9 @@ pub async fn keep_sudo_session_alive(refresh_interval: u64, sudo_timeout: u64) {
     loop {
         match acquire_sudo(sudo_timeout).await {
             Ok(_) => {
-                info!("Root (sudo) authentication successful, will re-authenticate in {refresh_interval}s.");
+                info!(
+                    "Root (sudo) authentication successful. The session will be refreshed in {refresh_interval}s."
+                );
                 time::sleep(Duration::from_secs(refresh_interval)).await;
             }
             Err(e) => {

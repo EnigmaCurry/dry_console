@@ -100,6 +100,19 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                                     .ok();
                             }
 
+                            {
+                                let mut socket_ref = socket.lock().await;
+                                let socket_guard = socket_ref.as_mut().unwrap();
+                                socket_guard
+                                    .send(Message::Item(ServerMsg::ProcessOutput(ProcessOutput {
+                                        id: process_id,
+                                        stream: StreamType::Meta,
+                                        line: "## Connected. Running script ...".to_string()
+                                    })))
+                                    .await
+                                    .ok();
+                            }
+
                             let stdout = process.stdout.take().expect("Failed to take stdout");
                             let stderr = process.stderr.take().expect("Failed to take stderr");
 
@@ -131,7 +144,7 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                                                                     stream: StreamType::Stdout,
                                                                     id: process_id,
                                                                     line: line_content,
-                                                                },
+                                                                }
                                                             )))
                                                             .await
                                                             .ok();
@@ -199,6 +212,24 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                                     }
 
                                     let status = process.wait().await.expect("Failed to wait on child process");
+
+                                    {
+                                        let mut socket_ref = socket.lock().await;
+                                        let socket_guard = socket_ref.as_mut().unwrap();
+                                        let line = match status.code().unwrap_or(128) {
+                                            0 => "## Complete.".to_string(),
+                                            code => format!("## Failed with code {}.", code)
+                                        };
+                                        socket_guard
+                                            .send(Message::Item(ServerMsg::ProcessOutput(ProcessOutput {
+                                                id: process_id,
+                                                stream: StreamType::Meta,
+                                                line
+                                            })))
+                                            .await
+                                            .ok();
+                                    }
+
                                     let mut socket_ref = socket.lock().await;
                                     if let Some(mut socket_guard) = socket_ref.take() {
                                         socket_guard
