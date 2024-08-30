@@ -157,9 +157,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
     // Add necessary imports
     output.push_str("use std::collections::HashMap;\n");
-    output.push_str("use ulid::Ulid;\n");
     output.push_str("use crate::api::workstation::command::CommandLibrary;\n");
-    output.push_str("use dry_console_common::token::generate_deterministic_ulid_from_seed;\n");
     output.push_str("use lazy_static::lazy_static;\n\n");
 
     // Start of the static HashMap declaration
