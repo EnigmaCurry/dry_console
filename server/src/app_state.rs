@@ -1,10 +1,15 @@
 use crate::api::auth::TOKEN_CACHE_NAME;
 use crate::api::token::generate_token;
+use crate::api::workstation::command::CommandLibrary;
+use crate::api::workstation::platform::detect_platform;
+use crate::api::workstation::WorkstationDependencyState;
 use crate::response::AppError;
 use crate::Opt;
 use axum::body::Bytes;
+use dry_console_dto::workstation::Platform;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -17,6 +22,9 @@ pub struct AppState {
     pub cache: HashMap<String, Bytes>,
     pub login_allowed: bool,
     pub sudo_enabled: bool,
+    pub missing_dependencies: Vec<WorkstationDependencyState>,
+    pub platform: Platform,
+    pub command_library_overlay: HashMap<String, String>,
 }
 impl AppState {
     pub fn cache_set(&mut self, key: &str, value: &Bytes) {
@@ -55,61 +63,46 @@ pub fn create_shared_state(opt: &Opt) -> SharedState {
         cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token))]),
         login_allowed: true,
         sudo_enabled: false,
+        missing_dependencies: Vec::<WorkstationDependencyState>::new(),
+        command_library_overlay: HashMap::<String, String>::new(),
+        platform: detect_platform(),
     }))
 }
 
 pub trait ShareableState {
     #[allow(dead_code)]
-    fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError>;
-    fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError>;
+    async fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError>;
+    async fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError>;
     #[allow(dead_code)]
-    fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
-    fn cache_get_string(&self, key: &str, default: &str) -> String;
+    async fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
+    async fn cache_get_string(&self, key: &str, default: &str) -> String;
 }
 impl ShareableState for SharedState {
-    fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError> {
-        //Locks the entire hashmap to do a single atomic write:
-        match self.write() {
-            Ok(mut state) => {
-                state.cache_set(key, value);
-                Ok(())
-            }
-            Err(e) => Err(AppError::from(e)),
-        }
+    async fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError> {
+        // Locks the entire hashmap to do a single atomic write:
+        let mut state = self.write().await;
+        state.cache_set(key, value);
+        Ok(())
     }
 
-    fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError> {
+    async fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError> {
         //Locks the entire hashmap to do a single atomic write:
-        match self.write() {
-            Ok(mut state) => {
-                state.cache_set_string(key, value);
-                Ok(())
-            }
-            Err(e) => Err(AppError::from(e)),
-        }
+        let mut state = self.write().await;
+        state.cache_set_string(key, value);
+        Ok(())
     }
 
-    fn cache_get(&self, key: &str, default: &Bytes) -> Bytes {
+    async fn cache_get(&self, key: &str, default: &Bytes) -> Bytes {
         //Block only if there is an atomic write in progress,
         //otherwise, multiple readers can read at the same time:
-        match self.read() {
-            Ok(state) => state.cache_get(key, default),
-            Err(e) => {
-                debug!("{:?}", e);
-                default.clone()
-            }
-        }
+        let state = self.read().await;
+        state.cache_get(key, default)
     }
 
-    fn cache_get_string(&self, key: &str, default: &str) -> String {
+    async fn cache_get_string(&self, key: &str, default: &str) -> String {
         //Block only if there is an atomic write in progress,
         //otherwise, multiple readers can read at the same time:
-        match self.read() {
-            Ok(state) => state.cache_get_string(key, default),
-            Err(e) => {
-                debug!("{:?}", e);
-                default.to_string()
-            }
-        }
+        let state = self.read().await;
+        state.cache_get_string(key, default)
     }
 }

@@ -1,7 +1,9 @@
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
 use crate::api::workstation::command::CommandLibrary;
+use crate::app_state::SharedState;
 use crate::broadcast;
 use crate::{api::route, AppRouter};
+use axum::extract::State;
 use axum::{response::IntoResponse, routing::get, Router};
 use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
 use dry_console_dto::websocket::{
@@ -19,8 +21,8 @@ use tracing::{debug, error, info};
 use ulid::Ulid;
 const TIMEOUT_INTERVAL: u64 = 2000;
 
-pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
-    Router::new().merge(command_execute(shutdown))
+pub fn main(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> AppRouter {
+    Router::new().merge(command_execute(shutdown, state))
 }
 
 #[utoipa::path(
@@ -30,17 +32,21 @@ pub fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
         (status = OK, description = "Open websocket connection to read executed command stdout")
     )
 )]
-fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
+fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> AppRouter {
     #[derive(PartialEq, Clone, Debug)]
-    enum State {
+    enum SocketState {
         AwaitingCommand,
         RunningProcess,
         Completed,
     }
 
     /// WebSocket connection handler
-    async fn websocket(socket: WebSocket<ServerMsg, ClientMsg>, shutdown: broadcast::Receiver<()>) {
-        let state = Arc::new(Mutex::new(State::AwaitingCommand));
+    async fn websocket(
+        socket: WebSocket<ServerMsg, ClientMsg>,
+        shutdown: broadcast::Receiver<()>,
+        State(shared_state): State<SharedState>,
+    ) {
+        let state = Arc::new(Mutex::new(SocketState::AwaitingCommand));
         let socket = Arc::new(Mutex::new(Some(socket))); // Ensure `socket` is Arc<Mutex<...>>
 
         let (cancel_tx, cancel_rx) = watch::channel(false);
@@ -52,22 +58,24 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
             let mut cancel_rx = cancel_rx.clone();
             let cancel_tx = cancel_tx.clone();
             let mut timeout_interval = tokio::time::interval(Duration::from_millis(TIMEOUT_INTERVAL));
+            let shared_state = shared_state.clone();
             Box::pin(async move {
                 let mut state_ref = state.lock().await;
                 match *state_ref {
-                    State::AwaitingCommand => match msg {
+                    SocketState::AwaitingCommand => match msg {
                         Message::Item(ClientMsg::Command(command)) => {
-                            *state_ref = State::RunningProcess;
+                            *state_ref = SocketState::RunningProcess;
                             drop(state_ref); // Drop the lock on state to run the command
                             let process_id = Ulid::new();
                             let command = match CommandLibrary::from_id(command.id) {
                                 Some(c) => c,
                                 None => {
-                                    error!("Failed to get script entry.");
+                                    error!("Failed to get script entry: {}", command.id);
                                     return None;
                                 },
                             };
-                            let script = command.get_script();
+                            let shared_state = shared_state.read().await;
+                            let script = command.get_script(&shared_state.command_library_overlay);
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)
@@ -204,7 +212,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                     }
 
                                     let mut state_ref = state.lock().await;
-                                    *state_ref = State::Completed;
+                                    *state_ref = SocketState::Completed;
                                 }
                             });
 
@@ -212,7 +220,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                         }
                         Message::Item(ClientMsg::Cancel) => {
                             let _ = cancel_tx.send(true);
-                            *state.lock().await = State::Completed;
+                            *state.lock().await = SocketState::Completed;
                             None
                         }
                         r => Some(WebSocketResponse {
@@ -221,11 +229,11 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                             close_message: format!("Received unexpected message: {r:?}"),
                         }),
                     },
-                    State::RunningProcess => {
+                    SocketState::RunningProcess => {
                         match msg {
                             Message::Item(ClientMsg::Cancel) => {
                                 let _ = cancel_tx.send(true);
-                                *state.lock().await = State::Completed;
+                                *state.lock().await = SocketState::Completed;
                                 None
                             },
                             m => {
@@ -236,7 +244,7 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
                                 })}
                         }
                     },
-                    State::Completed => Some(WebSocketResponse {
+                    SocketState::Completed => Some(WebSocketResponse {
                         close: true,
                         close_code: CloseCode::UnsupportedData,
                         close_message: format!("Received unexpected message: {:?}", msg),
@@ -251,14 +259,15 @@ fn command_execute(shutdown: broadcast::Sender<()>) -> AppRouter {
     async fn upgrade(
         ws: WebSocketUpgrade<ServerMsg, ClientMsg>,
         shutdown: broadcast::Sender<()>,
+        state: State<SharedState>,
     ) -> impl IntoResponse {
         let shutdown_rx = shutdown.subscribe();
         debug!("WebSocket upgrade request received.");
-        ws.on_upgrade(move |socket| websocket(socket, shutdown_rx))
+        ws.on_upgrade(move |socket| websocket(socket, shutdown_rx, state))
     }
 
     route(
         "/command_execute/",
-        get(move |ws: WebSocketUpgrade<_, _>| upgrade(ws, shutdown.clone())),
+        get(move |ws: WebSocketUpgrade<_, _>| upgrade(ws, shutdown.clone(), state)),
     )
 }

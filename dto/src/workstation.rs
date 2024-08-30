@@ -17,10 +17,13 @@ pub struct WorkstationState {
     pub platform: Platform,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+#[derive(Display, Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+#[strum(serialize_all = "lowercase")]
 pub enum WorkstationPackageManager {
     Dnf,
-    Dpkg,
+    Apt,
+    Pacman,
+    Apk,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]

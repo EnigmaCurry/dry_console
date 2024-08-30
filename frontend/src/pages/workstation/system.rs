@@ -1,5 +1,5 @@
 use crate::components::ButtonLink;
-use crate::pages::workstation::{SystemInfo, SystemInfoContext};
+use crate::pages::workstation::SystemInfo;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
@@ -10,28 +10,6 @@ pub struct SystemProps {
 
 #[function_component(System)]
 pub fn system(props: &SystemProps) -> Html {
-    // let workstation = use_state(|| None);
-    // let workstation_clone = workstation.clone();
-
-    // wasm_bindgen_futures::spawn_local(async move {
-    //     if workstation_clone.is_none() {
-    //         let fetched_data: WorkstationState = Request::get("/api/workstation/")
-    //             .send()
-    //             .await
-    //             .expect("Failed to fetch data")
-    //             .json()
-    //             .await
-    //             .expect("Failed to parse JSON");
-    //         workstation_clone.set(Some(fetched_data));
-    //     }
-    // });
-    let system_info_context = use_context::<SystemInfoContext>();
-    if let Some(ctx) = &system_info_context {
-        log::info!("SystemInfoContext is available: {:?}", ctx);
-    } else {
-        log::error!("SystemInfoContext is not available!");
-    }
-
     html! {
         <Card>
             <CardTitle>

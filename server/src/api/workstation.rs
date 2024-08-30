@@ -10,7 +10,7 @@ pub use dry_console_dto::workstation::{
 use hostname::get as host_name_get;
 use semver::VersionReq;
 use serde::Serialize;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
@@ -28,18 +28,18 @@ pub enum WorkstationError {
     UnsupportedDistribution,
 }
 
-pub fn router(shutdown: broadcast::Sender<()>) -> Router<SharedState> {
+pub fn router(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> Router<SharedState> {
     Router::new()
         .merge(workstation())
         .merge(required_dependencies())
         .merge(dependencies())
         .merge(command::command())
-        .merge(command_execute::main(shutdown))
+        .merge(command_execute::main(shutdown, state))
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Serialize, EnumProperty, EnumString, EnumIter, AsRefStr)]
-pub enum WorkstationDependencies {
+pub enum WorkstationDependency {
     #[strum(props(Version = "*"))]
     git,
     #[strum(props(Version = "*"))]
@@ -68,7 +68,7 @@ pub enum WorkstationDependencies {
     curl,
 }
 
-impl WorkstationDependencies {
+impl WorkstationDependency {
     fn get_version(&self) -> VersionReq {
         VersionReq::parse(self.get_str("Version").unwrap_or("*")).unwrap()
     }
@@ -77,7 +77,7 @@ impl WorkstationDependencies {
     }
 }
 
-#[derive(Default, Serialize, ToSchema)]
+#[derive(Clone, Debug, Default, Serialize, ToSchema)]
 pub struct WorkstationDependencyState {
     /// Name of the dependency.
     name: String,
@@ -99,7 +99,7 @@ pub struct WorkstationDependencyState {
     ),
 )]
 fn workstation() -> Router<SharedState> {
-    async fn handler(State(state): State<Arc<RwLock<AppState>>>) -> impl IntoResponse {
+    async fn handler(State(state): State<SharedState>) -> impl IntoResponse {
         let hostname = host_name_get()
             .unwrap_or_else(|_| "Unknown".into())
             .to_string_lossy()
@@ -107,10 +107,7 @@ fn workstation() -> Router<SharedState> {
         let uid = get_current_uid();
         let user = get_user_by_uid(get_current_uid()).unwrap();
         let name = user.name().to_string_lossy().to_string();
-        let can_sudo = match state.read() {
-            Ok(r) => r.sudo_enabled,
-            Err(_e) => false,
-        };
+        let can_sudo = state.read().await.sudo_enabled;
         let the_platform = platform::detect_platform();
         Json(WorkstationState {
             hostname,
@@ -134,8 +131,8 @@ fn workstation() -> Router<SharedState> {
     ),
 )]
 fn required_dependencies() -> Router<SharedState> {
-    async fn handler() -> impl IntoResponse {
-        let deps: Vec<WorkstationDependencyInfo> = WorkstationDependencies::iter()
+    async fn handler(State(state): State<SharedState>) -> impl IntoResponse {
+        let deps: Vec<WorkstationDependencyInfo> = WorkstationDependency::iter()
             .map(|dep| WorkstationDependencyInfo {
                 name: dep.get_name().to_string(),
                 version: dep.get_version().to_string(),
@@ -143,6 +140,8 @@ fn required_dependencies() -> Router<SharedState> {
                     .expect("failed to get package definitions"),
             })
             .collect();
+        let mut state = state.write().await;
+        state.missing_dependencies.clear();
         Json(&deps).into_response()
     }
     route("/dependencies/", get(handler))
@@ -159,8 +158,11 @@ fn required_dependencies() -> Router<SharedState> {
     )
 )]
 fn dependencies() -> Router<SharedState> {
-    async fn handler(Path(name): Path<String>) -> impl IntoResponse {
-        match WorkstationDependencies::from_str(&name.clone().replace('-', "_")).ok() {
+    async fn handler(
+        Path(name): Path<String>,
+        State(state): State<SharedState>,
+    ) -> impl IntoResponse {
+        match WorkstationDependency::from_str(&name.clone().replace('-', "_")).ok() {
             Some(dependency) => {
                 // Check if dependency is installed:
                 let mut installed = false;
@@ -177,134 +179,139 @@ fn dependencies() -> Router<SharedState> {
                 let platform = platform::detect_platform();
                 if installed {
                     match dependency {
-                        WorkstationDependencies::git => {
+                        WorkstationDependency::git => {
                             version = dependencies::git::get_version();
                         }
-                        WorkstationDependencies::docker => {
+                        WorkstationDependency::docker => {
                             version = dependencies::docker::get_version();
                         }
-                        WorkstationDependencies::bash => {
+                        WorkstationDependency::bash => {
                             version = dependencies::bash::get_version();
                         }
-                        WorkstationDependencies::ssh => {
+                        WorkstationDependency::ssh => {
                             version = dependencies::ssh::get_version();
                         }
-                        WorkstationDependencies::make => {
+                        WorkstationDependency::make => {
                             version = dependencies::make::get_version();
                         }
-                        WorkstationDependencies::sed => {
+                        WorkstationDependency::sed => {
                             version = dependencies::sed::get_version();
                         }
-                        WorkstationDependencies::xargs => {
+                        WorkstationDependency::xargs => {
                             version = dependencies::xargs::get_version();
                         }
-                        WorkstationDependencies::shred => {
+                        WorkstationDependency::shred => {
                             version = dependencies::shred::get_version();
                         }
-                        WorkstationDependencies::openssl => {
+                        WorkstationDependency::openssl => {
                             version = dependencies::openssl::get_version();
                         }
-                        WorkstationDependencies::htpasswd => {
+                        WorkstationDependency::htpasswd => {
                             version = dependencies::htpasswd::get_version();
                         }
-                        WorkstationDependencies::jq => {
+                        WorkstationDependency::jq => {
                             version = dependencies::jq::get_version();
                         }
-                        WorkstationDependencies::xdg_open => {
+                        WorkstationDependency::xdg_open => {
                             version = dependencies::xdg_open::get_version();
                         }
-                        WorkstationDependencies::curl => {
+                        WorkstationDependency::curl => {
                             version = dependencies::curl::get_version();
                         }
                     }
-                };
+                }
                 match dependency {
-                    WorkstationDependencies::git => {
+                    WorkstationDependency::git => {
                         packages.as_mut().unwrap().extend(
                             dependencies::git::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::docker => {
+                    WorkstationDependency::docker => {
                         packages.as_mut().unwrap().extend(
                             dependencies::docker::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::bash => {
+                    WorkstationDependency::bash => {
                         packages.as_mut().unwrap().extend(
                             dependencies::bash::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::ssh => {
+                    WorkstationDependency::ssh => {
                         packages.as_mut().unwrap().extend(
                             dependencies::ssh::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::make => {
+                    WorkstationDependency::make => {
                         packages.as_mut().unwrap().extend(
                             dependencies::make::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::sed => {
+                    WorkstationDependency::sed => {
                         packages.as_mut().unwrap().extend(
                             dependencies::sed::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::xargs => {
+                    WorkstationDependency::xargs => {
                         packages.as_mut().unwrap().extend(
                             dependencies::xargs::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::shred => {
+                    WorkstationDependency::shred => {
                         packages.as_mut().unwrap().extend(
                             dependencies::shred::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::openssl => {
+                    WorkstationDependency::openssl => {
                         packages.as_mut().unwrap().extend(
                             dependencies::openssl::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::htpasswd => {
+                    WorkstationDependency::htpasswd => {
                         packages.as_mut().unwrap().extend(
                             dependencies::htpasswd::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::jq => {
+                    WorkstationDependency::jq => {
                         packages.as_mut().unwrap().extend(
                             dependencies::jq::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::xdg_open => {
+                    WorkstationDependency::xdg_open => {
                         packages.as_mut().unwrap().extend(
                             dependencies::xdg_open::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
-                    WorkstationDependencies::curl => {
+                    WorkstationDependency::curl => {
                         packages.as_mut().unwrap().extend(
                             dependencies::curl::get_packages(platform)
                                 .expect("did not get package definitions"),
                         );
                     }
                 }
-                Json(WorkstationDependencyState {
+                let dep_state = WorkstationDependencyState {
                     name,
                     installed,
                     path,
                     version,
                     packages: packages.expect("failed to find packages definition"),
-                })
+                };
+                if !installed {
+                    let mut state = state.write().await;
+                    state.missing_dependencies.push(dep_state.clone());
+                }
+                Json(dep_state)
             }
             .into_response(),
             None => AppError::Internal("Invalid dependency".to_string()).into_response(),

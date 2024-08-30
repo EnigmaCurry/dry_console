@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 
 use axum::{
+    extract::State,
     response::Redirect,
     routing::{any, get, MethodRouter},
     Router,
@@ -23,15 +24,15 @@ enum TestModule {
     Ping,
 }
 impl ApiModule for TestModule {
-    fn main(shutdown: broadcast::Sender<()>) -> AppRouter {
+    fn main(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> AppRouter {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<TestModule>() {
-            app = app.merge(m.router(shutdown.clone()));
+            app = app.merge(m.router(shutdown.clone(), state.clone()));
         }
         app
     }
-    fn router(&self, _shutdown: broadcast::Sender<()>) -> AppRouter {
+    fn router(&self, _shutdown: broadcast::Sender<()>, _state: State<SharedState>) -> AppRouter {
         match self {
             TestModule::Hello => hello::main(),
             TestModule::Counter => counter::main(),
@@ -52,8 +53,8 @@ impl ApiModule for TestModule {
     }
 }
 
-pub fn router(shutdown: broadcast::Sender<()>) -> AppRouter {
-    TestModule::main(shutdown).route("/", get(|| async { "Test" }))
+pub fn router(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> AppRouter {
+    TestModule::main(shutdown, state).route("/", get(|| async { "Test" }))
 }
 
 fn test_route(

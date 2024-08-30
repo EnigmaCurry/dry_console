@@ -683,6 +683,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "indoc",
+ "itertools",
  "lazy_static",
  "open",
  "os-release",

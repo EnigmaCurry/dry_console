@@ -30,11 +30,9 @@ pub fn router(backend: Backend) -> Router<SharedState> {
         .with_state(s.0)
 }
 
-fn is_new_login_allowed(state: SharedState) -> bool {
-    match state.read() {
-        Ok(s) => s.is_login_allowed(),
-        Err(_) => false,
-    }
+async fn is_new_login_allowed(state: SharedState) -> bool {
+    let state = state.read().await;
+    state.is_login_allowed()
 }
 
 #[utoipa::path(
@@ -46,7 +44,7 @@ fn is_new_login_allowed(state: SharedState) -> bool {
 )]
 fn session() -> AppRouter {
     async fn handler(session: Session, State(state): State<SharedState>) -> impl IntoResponse {
-        let new_login_allowed = is_new_login_allowed(state);
+        let new_login_allowed = is_new_login_allowed(state).await;
         let logged_in = is_logged_in(session).await;
         Json(SessionState {
             logged_in,
@@ -76,43 +74,31 @@ fn login() -> AppRouter {
             info!("User already logged in.");
             return AppJson(SessionState {
                 logged_in: true,
-                new_login_allowed: is_new_login_allowed(state),
+                new_login_allowed: is_new_login_allowed(state).await,
             })
             .into_response();
         }
-        match state.read() {
-            Ok(s) => {
-                if !s.is_login_allowed() {
-                    warn!("Prevented login attempt - the login service is disabled.");
-                    return (
-                        StatusCode::SERVICE_UNAVAILABLE,
-                        "The login service is currently disabled.",
-                    )
-                        .into_response();
-                }
-            }
-            Err(e) => {
-                debug!("{:?}", e);
-                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        {
+            let state = state.read().await;
+            if !state.is_login_allowed() {
+                warn!("Prevented login attempt - the login service is disabled.");
+                return (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "The login service is currently disabled.",
+                )
+                    .into_response();
             }
         }
         //debug!("{:?}", creds);
         let user = match auth_session.authenticate(creds.clone()).await {
             Ok(Some(user)) => {
-                match state.write() {
-                    Ok(mut s) => {
-                        // Successful login.
-                        // User login is disallowed a second time
-                        // Until admin re-enables login service:
-                        s.disable_login();
-                    }
-                    Err(e) => {
-                        debug!("{:?}", e);
-                        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-                    }
-                }
+                let mut s = state.write().await;
+                // Successful login.
+                // User login is disallowed a second time
+                // Until admin re-enables login service:
+                s.disable_login();
                 // Tokens are one-time passwords, reset it now:
-                let _token = auth_session.backend.reset_token(State(state.clone()));
+                let _token = auth_session.backend.reset_token(State(state.clone())).await;
                 user
             }
             Ok(None) => {
@@ -132,7 +118,7 @@ fn login() -> AppRouter {
         info!("User successfully logged in - now disabling all future logins");
         AppJson(SessionState {
             logged_in: is_logged_in(session).await,
-            new_login_allowed: is_new_login_allowed(state),
+            new_login_allowed: is_new_login_allowed(state).await,
         })
         .into_response()
     }
@@ -168,7 +154,7 @@ fn logout() -> AppRouter {
             headers,
             AppJson(SessionState {
                 logged_in: false,
-                new_login_allowed: is_new_login_allowed(state),
+                new_login_allowed: is_new_login_allowed(state).await,
             }),
         )
             .into_response()

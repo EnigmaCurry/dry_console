@@ -1,4 +1,7 @@
-use std::{convert::Infallible, sync::RwLockWriteGuard};
+use std::{
+    convert::Infallible,
+    sync::{Arc, RwLockWriteGuard},
+};
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
@@ -7,6 +10,7 @@ use axum::{
     Router,
 };
 use serde_json;
+use tokio::sync::RwLock;
 
 use super::test_route;
 use crate::{
@@ -78,15 +82,13 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
 )]
 fn get_counter() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> JsonResult<TestCounter> {
-        match state.read() {
-            Ok(state) => match state.cache_get_string("test::counter", "").as_str() {
-                "" => match serde_json::to_string(&TestCounter::default()) {
-                    Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
-                    Err(e) => Err(AppError::Internal(e.to_string())),
-                },
-                j => Ok(AppJson(serde_json::from_str(j)?)),
+        let state = state.read().await;
+        match state.cache_get_string("test::counter", "").as_str() {
+            "" => match serde_json::to_string(&TestCounter::default()) {
+                Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
+                Err(e) => Err(AppError::Internal(e.to_string())),
             },
-            Err(e) => Err(AppError::SharedState(e.to_string())),
+            j => Ok(AppJson(serde_json::from_str(j)?)),
         }
     }
     route("/", get(handler))
@@ -107,19 +109,20 @@ fn update_counter() -> AppRouter {
         fn to_json(c: &TestCounter) -> Result<String, serde_json::Error> {
             serde_json::to_string(&c)
         }
-        fn get_counter(
-            state: &RwLockWriteGuard<'_, AppState>,
+        async fn get_counter(
+            state: &Arc<RwLock<AppState>>,
         ) -> Result<TestCounter, serde_json::Error> {
+            let state = state.write().await;
             match state.cache_get_string("test::counter", "").as_str() {
                 "" => Ok(TestCounter::default()),
                 j => Ok(from_json(j)?),
             }
         }
-        let mut state = state.write()?;
-        let c = get_counter(&state)?;
+        let mut s = state.write().await;
+        let c = get_counter(&state).await.expect("get_counter failed");
         let c = c.apply(&c.add(1))?;
         let j = to_json(&c)?;
-        state.cache_set_string("test::counter", &j);
+        s.cache_set_string("test::counter", &j);
         Ok(AppJson(c))
     }
     route("/", post(handler))

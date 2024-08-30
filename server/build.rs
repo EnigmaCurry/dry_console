@@ -1,6 +1,5 @@
-use convert_case::{Case, Casing};
+use convert_case::Casing;
 use dry_console_common::token::generate_deterministic_ulid_from_seed;
-use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -169,7 +168,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
         .push_str("    pub static ref COMMAND_LIBRARY_MAP: HashMap<String, CommandLibrary> = {\n");
     output.push_str("        let mut m = HashMap::new();\n");
 
-    let mut found_variants = HashSet::new();
+    let mut found_variants = std::collections::HashSet::new();
 
     for entry in fs::read_dir(&script_dir).expect("Failed to read script directory") {
         let entry = entry.expect("Failed to read directory entry");
@@ -177,7 +176,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
         if path.extension().and_then(|s| s.to_str()) == Some("sh") {
             if let Some(file_name) = path.file_stem().and_then(|s| s.to_str()) {
-                let variant_name = file_name.to_case(Case::Pascal);
+                let variant_name = file_name.to_case(convert_case::Case::Pascal);
                 found_variants.insert(variant_name.clone());
 
                 let script_content = fs::read_to_string(&path).expect("Failed to read script file");
@@ -202,11 +201,24 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
     // Now, generate the CommandLibrary implementation with get_script and id methods
     output.push_str("impl CommandLibrary {\n");
-    output.push_str("    fn get_script(&self) -> String {\n");
+
+    // Modified get_script method with the overlay argument
+    output.push_str(
+        "    fn get_script(&self, command_library_overlay: &HashMap<String, String>) -> String {\n",
+    );
+    output.push_str("        let ulid = self.id().to_string();\n");
+    output.push_str("        if let Some(script) = command_library_overlay.get(&ulid) {\n");
+    output.push_str("            return script.clone();\n");
+    output.push_str("        }\n");
+
+    // Existing logic for getting script content
     output.push_str("        match self {\n");
 
     for variant_name in found_variants.iter() {
-        let file_path = script_dir.join(format!("{}.sh", variant_name.to_case(Case::Snake)));
+        let file_path = script_dir.join(format!(
+            "{}.sh",
+            variant_name.to_case(convert_case::Case::Snake)
+        ));
         output.push_str(&format!(
             "            CommandLibrary::{variant_name} => include_str!(\"{}\").to_string(),\n",
             file_path.to_str().unwrap(),
@@ -219,7 +231,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     // Implement the id method that returns a Ulid directly
     output.push_str("    #[allow(dead_code)]\n");
     output.push_str("    fn id(&self) -> Ulid {\n");
-    output.push_str("        let script = self.get_script();\n");
+    output.push_str("        let script = self.get_script(&HashMap::new());\n"); // Passing an empty HashMap
     output.push_str("        let ulid = generate_deterministic_ulid_from_seed(&script);\n");
     output.push_str("        let mapped_variant = COMMAND_LIBRARY_MAP\n");
     output.push_str("            .get(&ulid.to_string())\n");
@@ -227,6 +239,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     output.push_str("        assert_eq!(mapped_variant, self, \"The ULID maps to a different CommandLibrary variant.\");\n");
     output.push_str("        ulid\n");
     output.push_str("    }\n");
+
     output.push_str("}\n");
 
     fs::write(dest_path, output).expect("Failed to write generated file");

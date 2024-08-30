@@ -7,6 +7,7 @@ mod sudo;
 use crate::api::auth::Backend;
 use api::workstation::platform::detect_toolbox;
 use app_state::SharedState;
+use axum::extract::State;
 use axum::http::{header, StatusCode};
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, MethodRouter};
@@ -180,7 +181,7 @@ async fn main() {
                 }
             };
             {
-                let mut state = shared_state.write().expect("Could not fetch shared state");
+                let mut state = shared_state.write().await;
                 state.sudo_enabled = true;
             }
         }
@@ -197,7 +198,7 @@ async fn main() {
                     }
                 }
                 {
-                    let mut state = shared_state.write().expect("Could not fetch shared state");
+                    let mut state = shared_state.write().await;
                     state.sudo_enabled = true;
                 }
             }
@@ -225,7 +226,10 @@ async fn main() {
     let inline_files = get_inline_files();
     let mut router = Router::new()
         .layer(routing::SlashRedirectLayer)
-        .nest(API_PREFIX, api::router(auth_backend, shutdown_tx))
+        .nest(
+            API_PREFIX,
+            api::router(auth_backend, shutdown_tx, State(shared_state.clone())),
+        )
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
         .route("/frontend_bg.wasm", get(client_wasm));
@@ -252,7 +256,7 @@ async fn main() {
     let token = shared_state
         .clone()
         .read()
-        .expect("Unable to read cache")
+        .await
         .cache_get_string("token", "xxx");
     if opt.open {
         open::that(format!("http://{sock_addr}/login#token:{token}"))

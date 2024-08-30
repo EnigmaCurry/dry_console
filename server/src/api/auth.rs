@@ -43,24 +43,20 @@ impl Backend {
             state: State(state.clone()),
         }
     }
-    pub fn reset_token(&mut self, State(state): State<SharedState>) -> String {
+    pub async fn reset_token(&mut self, State(state): State<SharedState>) -> String {
         debug!("reset_token() ...");
-        match state.write() {
-            Ok(mut s) => {
-                s.cache_set_string(TOKEN_CACHE_NAME, &generate_token());
-                match s.cache_get_string(TOKEN_CACHE_NAME, "").as_str() {
-                    "" => panic!("Could not retrieve the token cache entry just set?!"),
-                    q => q.to_string(),
-                }
-            }
-            Err(e) => panic!("Failed to reset token: {:?}", e),
+        let mut state = state.write().await;
+        state.cache_set_string(TOKEN_CACHE_NAME, &generate_token());
+        match state.cache_get_string(TOKEN_CACHE_NAME, "").as_str() {
+            "" => panic!("Could not retrieve the token cache entry just set?!"),
+            q => q.to_string(),
         }
     }
-    pub fn verify_token(&self, token: &str, State(state): State<SharedState>) -> bool {
+    pub async fn verify_token(&self, token: &str, State(state): State<SharedState>) -> bool {
         token
             == state
                 .read()
-                .expect("Could not read state")
+                .await
                 .cache_get_string(TOKEN_CACHE_NAME, &generate_token())
     }
     pub fn get_token(&self, State(state): State<AppState>) -> String {
@@ -81,7 +77,7 @@ impl AuthnBackend for Backend {
         &self,
         Credentials { token }: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        if self.verify_token(&token, self.state.clone()) {
+        if self.verify_token(&token, self.state.clone()).await {
             Ok(Some(self.user.clone()))
         } else {
             Ok(None)

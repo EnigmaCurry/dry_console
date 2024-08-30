@@ -34,7 +34,7 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
 fn hello() -> AppRouter {
     async fn handler(State(state): State<SharedState>) -> String {
         let default = "World";
-        let name = state.cache_get_string(HELLO_NAME_CACHE, default);
+        let name = state.cache_get_string(HELLO_NAME_CACHE, default).await;
         if name == default {
             format!("Hello, {default}!")
         } else {
@@ -55,13 +55,11 @@ fn hello() -> AppRouter {
     )
 )]
 fn hello_name() -> AppRouter {
-    async fn handler(Path(name): Path<String>, State(mut state): State<SharedState>) -> String {
+    async fn handler(Path(name): Path<String>, State(state): State<SharedState>) -> String {
         let re = Regex::new(r"^[a-zA-Z][a-zA-Z0-9]+$").unwrap();
         if re.is_match(&name) {
-            match state.cache_set_string(HELLO_NAME_CACHE, &name) {
-                Ok(_) => {}
-                Err(_) => return AppError::Internal("Error caching name".to_string()).to_string(),
-            }
+            let mut state = state.write().await;
+            state.cache_set_string(HELLO_NAME_CACHE, &name);
             format!("Hello, {}!\n", name)
         } else {
             "Sorry, names must be alphanumeric only.".to_string()

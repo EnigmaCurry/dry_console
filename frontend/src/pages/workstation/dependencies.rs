@@ -3,12 +3,12 @@ use crate::components::terminal::TerminalOutput;
 use crate::components::ButtonLink;
 use crate::pages::workstation::WorkstationTab;
 use anyhow::anyhow;
-use dry_console_dto::workstation::WorkstationPackage;
+use dry_console_dto::workstation::{WorkstationPackage, WorkstationPackageManager};
 use gloo::net::http::Request;
 use itertools::Itertools;
 use patternfly_yew::prelude::*;
 use serde::Deserialize;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew::virtual_dom::VChild;
@@ -46,16 +46,16 @@ impl WorkstationDependency {
 
         let response = match Request::get(&url).send().await {
             Ok(r) => r,
-            Err(e) => return Err(anyhow!("one: {}", e)),
+            Err(e) => return Err(anyhow!(e)),
         };
         let json_value: serde_json::Value = match response.json().await {
             Ok(r) => r,
-            Err(e) => return Err(anyhow!("two: {}", e)),
+            Err(e) => return Err(anyhow!(e)),
         };
         //debug!(format!("json_value: {:?}", json_value));
         match serde_json::from_value(json_value) {
             Ok(j) => Ok(j),
-            Err(e) => Err(anyhow!("three: {}", e)),
+            Err(e) => Err(anyhow!(e)),
         }
     }
 
@@ -385,18 +385,6 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
 
     let accordion_items = create_accordion_items(&dependencies, &first_uninstalled, toggle);
 
-    let uninstalled_list = uninstalled_dependencies
-        .iter()
-        .flat_map(|dep| dep.packages.iter())
-        .map(|pkg| pkg.package_name.clone())
-        .collect::<HashSet<String>>()
-        .into_iter()
-        .collect::<Vec<String>>()
-        .into_iter()
-        .sorted()
-        .collect::<Vec<String>>()
-        .join(" ");
-
     html! {
         <>
             <Card>
@@ -409,7 +397,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                             <Button label="🔄 Recheck dependencies" onclick={on_click.clone()} />
                             <br/>
                     } else {
-                        <ManualIntervention script={format!("sudo dnf install -y {}", uninstalled_list)} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}>
+                        <ManualIntervention script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()}>
                             <h2>{"Root privileges are required to install missing packages."}</h2>
                             <p>{"You may fix this condition by restarting dry_console with the "}<code>{"--sudo"}</code>{" argument, or you may manually run the following commands by copy and pasting them into your workstation terminal."}</p>
                         <br/>
