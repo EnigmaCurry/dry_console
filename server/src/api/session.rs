@@ -92,13 +92,19 @@ fn login() -> AppRouter {
         //debug!("{:?}", creds);
         let user = match auth_session.authenticate(creds.clone()).await {
             Ok(Some(user)) => {
-                let mut s = state.write().await;
-                // Successful login.
-                // User login is disallowed a second time
-                // Until admin re-enables login service:
-                s.disable_login();
-                // Tokens are one-time passwords, reset it now:
-                let _token = auth_session.backend.reset_token(State(state.clone())).await;
+                {
+                    let mut s = state.write().await;
+                    // Successful login.
+                    // User login is disallowed a second time
+                    // Until admin re-enables login service:
+                    s.disable_login();
+                }
+                {
+                    // Tokens are one-time passwords, reset it now:
+                    debug!("yea");
+                    let _token = auth_session.backend.reset_token(State(state.clone())).await;
+                    debug!("nope");
+                }
                 user
             }
             Ok(None) => {

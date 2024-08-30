@@ -19,10 +19,11 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::process;
 use std::process::exit;
 use std::str::FromStr;
+use tokio::runtime::Builder;
 use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use uzers::get_current_uid;
 
 const API_PREFIX: &str = "/api";
@@ -253,16 +254,20 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&sock_addr)
         .await
         .unwrap_or_else(|_| panic!("Error: unable to bind socket: {sock_addr}"));
-    let token = shared_state
-        .clone()
-        .read()
-        .await
-        .cache_get_string("token", "xxx");
+    let token;
+    {
+        token = shared_state
+            .clone()
+            .read()
+            .await
+            .cache_get_string("token", "xxx");
+    }
     if opt.open {
         open::that(format!("http://{sock_addr}/login#token:{token}"))
             .expect("Couldn't open web browser.");
     }
 
+    debug!("now");
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             shutdown_rx.recv().await.ok();

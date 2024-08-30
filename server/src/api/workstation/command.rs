@@ -1,4 +1,4 @@
-use crate::app_state::{SharedState};
+use crate::app_state::SharedState;
 use crate::response::{AppError, AppJson, JsonResult};
 use crate::COMMAND_LIBRARY_MAP;
 use crate::{routing::route, AppRouter};
@@ -13,7 +13,7 @@ use std::str::FromStr;
 use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
 use ulid::Ulid;
 
-use super::{WorkstationDependencyState};
+use super::WorkstationDependencyState;
 
 #[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone)]
 pub enum CommandLibrary {
@@ -112,8 +112,11 @@ pub fn command() -> AppRouter {
         // Special handling for scripts by name:
         match command.as_str() {
             "InstallDependencies" => {
-                let mut state = state.write().await;
-                let distribution = state.platform.distribution.clone();
+                let distribution;
+                {
+                    let state = state.write().await;
+                    distribution = state.platform.distribution.clone();
+                }
                 let package_manager = match distribution {
                     Distribution::Fedora => WorkstationPackageManager::Dnf,
                     _ => {
@@ -123,17 +126,23 @@ pub fn command() -> AppRouter {
                         ))
                     }
                 };
-                let script = generate_install_commands(&state.missing_dependencies);
+                let script;
+                {
+                    let state = state.read().await;
+                    script = generate_install_commands(&state.missing_dependencies);
+                }
                 let script_entry = ScriptEntry::from_source(formatdoc! {"
                     # # Install missing dependencies
                     
                     # This script is customized for {distribution} ({package_manager} package manager).
                     {script}
                 "});
-                state
-                    .command_library_overlay
-                    .insert(script_entry.id.to_string(), script_entry.clone().script);
-
+                {
+                    let mut state = state.write().await;
+                    state
+                        .command_library_overlay
+                        .insert(script_entry.id.to_string(), script_entry.clone().script);
+                }
                 Ok(AppJson(script_entry))
             }
             _ => match CommandLibrary::from_str(&command) {

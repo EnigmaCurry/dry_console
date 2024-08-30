@@ -44,12 +44,18 @@ impl Backend {
         }
     }
     pub async fn reset_token(&mut self, State(state): State<SharedState>) -> String {
-        debug!("reset_token() ...");
-        let mut state = state.write().await;
-        state.cache_set_string(TOKEN_CACHE_NAME, &generate_token());
-        match state.cache_get_string(TOKEN_CACHE_NAME, "").as_str() {
-            "" => panic!("Could not retrieve the token cache entry just set?!"),
-            q => q.to_string(),
+        {
+            debug!("reset_token() ...");
+            let mut state = state.write().await;
+            debug!("nooope");
+            state.cache_set_string(TOKEN_CACHE_NAME, &generate_token());
+        }
+        {
+            let state = state.read().await;
+            match state.cache_get_string(TOKEN_CACHE_NAME, "").as_str() {
+                "" => panic!("Could not retrieve the token cache entry just set?!"),
+                q => q.to_string(),
+            }
         }
     }
     pub async fn verify_token(&self, token: &str, State(state): State<SharedState>) -> bool {
@@ -59,7 +65,7 @@ impl Backend {
                 .await
                 .cache_get_string(TOKEN_CACHE_NAME, &generate_token())
     }
-    pub fn get_token(&self, State(state): State<AppState>) -> String {
+    pub fn get_token(&self, state: AppState) -> String {
         state.cache_get_string(TOKEN_CACHE_NAME, &generate_token())
     }
     pub fn get_state(&self) -> State<SharedState> {

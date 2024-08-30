@@ -1,7 +1,4 @@
-use std::{
-    convert::Infallible,
-    sync::{Arc},
-};
+use std::{convert::Infallible, sync::Arc};
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
@@ -10,11 +7,10 @@ use axum::{
     Router,
 };
 use serde_json;
-use tokio::sync::RwLock;
 
 use super::test_route;
 use crate::{
-    app_state::{AppState, SharedState},
+    app_state::SharedState,
     response::{AppError, AppJson, JsonResult},
     AppRouter,
 };
@@ -109,9 +105,7 @@ fn update_counter() -> AppRouter {
         fn to_json(c: &TestCounter) -> Result<String, serde_json::Error> {
             serde_json::to_string(&c)
         }
-        async fn get_counter(
-            state: &Arc<RwLock<AppState>>,
-        ) -> Result<TestCounter, serde_json::Error> {
+        async fn get_counter(state: &SharedState) -> Result<TestCounter, serde_json::Error> {
             let state = state.write().await;
             match state.cache_get_string("test::counter", "").as_str() {
                 "" => Ok(TestCounter::default()),

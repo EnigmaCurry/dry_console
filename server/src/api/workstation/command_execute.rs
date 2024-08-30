@@ -74,8 +74,11 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                                     return None;
                                 },
                             };
-                            let shared_state = shared_state.read().await;
-                            let script = command.get_script(&shared_state.command_library_overlay);
+                            let script;
+                            {
+                                let shared_state = shared_state.read().await;
+                                script = command.get_script(&shared_state.command_library_overlay);
+                            }
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)

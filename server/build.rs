@@ -206,7 +206,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     output.push_str(
         "    fn get_script(&self, command_library_overlay: &HashMap<String, String>) -> String {\n",
     );
-    output.push_str("        let ulid = self.id().to_string();\n");
+    output.push_str("        let ulid = self.compute_ulid().to_string();\n");
     output.push_str("        if let Some(script) = command_library_overlay.get(&ulid) {\n");
     output.push_str("            return script.clone();\n");
     output.push_str("        }\n");
@@ -228,11 +228,30 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     output.push_str("        }\n");
     output.push_str("    }\n");
 
-    // Implement the id method that returns a Ulid directly
+    // Implement the compute_ulid method that returns a Ulid directly from the script content
+    output.push_str("    #[allow(dead_code)]\n");
+    output.push_str("    fn compute_ulid(&self) -> Ulid {\n");
+
+    // Logic to get the script content directly for ULID generation
+    output.push_str("        let script = match self {\n");
+    for variant_name in found_variants.iter() {
+        let file_path = script_dir.join(format!(
+            "{}.sh",
+            variant_name.to_case(convert_case::Case::Snake)
+        ));
+        output.push_str(&format!(
+            "            CommandLibrary::{variant_name} => include_str!(\"{}\").to_string(),\n",
+            file_path.to_str().unwrap(),
+        ));
+    }
+    output.push_str("        };\n");
+    output.push_str("        generate_deterministic_ulid_from_seed(&script)\n");
+    output.push_str("    }\n");
+
+    // Implement the id method that uses compute_ulid
     output.push_str("    #[allow(dead_code)]\n");
     output.push_str("    fn id(&self) -> Ulid {\n");
-    output.push_str("        let script = self.get_script(&HashMap::new());\n"); // Passing an empty HashMap
-    output.push_str("        let ulid = generate_deterministic_ulid_from_seed(&script);\n");
+    output.push_str("        let ulid = self.compute_ulid();\n");
     output.push_str("        let mapped_variant = COMMAND_LIBRARY_MAP\n");
     output.push_str("            .get(&ulid.to_string())\n");
     output.push_str("            .expect(\"ULID not found in COMMAND_LIBRARY_MAP\");\n");

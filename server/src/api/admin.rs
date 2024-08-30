@@ -53,11 +53,16 @@ fn enable_login() -> AppRouter {
         State(state): State<SharedState>,
         auth_session: AuthSession<Backend>,
     ) -> JsonResult<Credentials> {
-        let mut state = state.write().await;
-        state.enable_login();
-        Ok(AppJson(Credentials {
-            token: auth_session.backend.get_token(State(state.clone())),
-        }))
+        {
+            let mut state = state.write().await;
+            state.enable_login();
+        }
+        {
+            let state = state.read().await;
+            Ok(AppJson(Credentials {
+                token: auth_session.backend.get_token(state.clone()),
+            }))
+        }
     }
     route("/enable_login", post(handler))
 }
