@@ -11,7 +11,6 @@ use semver::VersionReq;
 use serde::Serialize;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
-use tracing::debug;
 use utoipa::ToSchema;
 use uzers::{get_current_uid, get_user_by_uid};
 use which::which;

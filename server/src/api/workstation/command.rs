@@ -10,7 +10,6 @@ use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
-use tracing::debug;
 use ulid::Ulid;
 
 use super::WorkstationDependencyState;

@@ -1,4 +1,4 @@
-use std::{convert::Infallible, sync::Arc};
+use std::{convert::Infallible};
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
