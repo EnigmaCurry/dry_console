@@ -374,3 +374,37 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
 .manual_intervention button {
     margin-left: 2em;
 }
+
+.color_picker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5em;
+    height: 1.5em;
+    position: relative;
+}
+.color_picker::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    border: 2px solid #5a5c65;
+    pointer-events: none;
+}
+
+.color_picker .picker_arrow {
+    display: none;
+}
+
+.color_picker .picker_wrapper.popup {
+    background: #423a3a;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+.color_picker button {
+    color: #000;
+}

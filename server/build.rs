@@ -54,7 +54,7 @@ fn main() {
     .unwrap();
     writeln!(file, "    vec![").unwrap();
 
-    // Walk through the ../dist/snippets directory and find all inline0.js files
+    // Walk through the ../dist/snippets directory and find all javascript files
     for entry in WalkDir::new(snippets_dir)
         .into_iter()
         .filter_map(|e| e.ok())

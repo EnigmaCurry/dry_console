@@ -830,6 +830,7 @@ dependencies = [
  "gloo-timers 0.3.0",
  "gloo-utils 0.2.0",
  "itertools",
+ "js-sys",
  "log",
  "patternfly-yew",
  "pulldown-cmark",

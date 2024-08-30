@@ -1,3 +1,4 @@
+use crate::components::color_picker::ColorPicker;
 use crate::components::loading_state::LoadingState;
 use crate::components::markdown::MarkdownContent;
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
@@ -290,6 +291,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             .unwrap_or("#000000".to_string())
     });
     let background_color_normal_clone = background_color_normal.clone();
+    let background_color_normal_clone2 = background_color_normal.clone();
     let text_color_stdout = use_state(|| {
         LocalStorage::get::<String>(TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY)
             .unwrap_or("#ffffff".to_string())
@@ -548,10 +550,9 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         LocalStorage::set(BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY, input.value())
             .expect("Failed to store setting in local storage");
     });
-    let update_normal_background_color = Callback::from(move |event: Event| {
-        let input: HtmlInputElement = event.target_unchecked_into();
-        background_color_normal_clone.set(input.value());
-        LocalStorage::set(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY, input.value())
+    let update_normal_background_color = Callback::from(move |color: String| {
+        background_color_normal_clone.set(color.clone());
+        LocalStorage::set(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY, color)
             .expect("Failed to store setting in local storage");
     });
     let update_stdout_text_color = Callback::from(move |event: Event| {
@@ -587,15 +588,12 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     />
                 </ListItem>
                 <ListItem>
-                    <div class={"visible flex-container"}>
-                        <input
-                            type="color"
-                            id="normalBackgroundColor"
-                            name="normalBackgroundColor"
-                            value={<std::string::String as Clone>::clone(&*background_color_normal)}
-                            onchange={update_normal_background_color.clone()}
-                        />
-                        <label for="normalBackgroundColor">{"Terminal background color"}</label>
+            <div class={"visible flex-container"}>
+                   <ColorPicker
+                      onchange={update_normal_background_color.clone()}
+                      color={(*background_color_normal).clone()}
+                     />
+                          <label for="normalBackgroundColor">{"Terminal background color"}</label>
                     </div>
                 </ListItem>
                 <ListItem>
