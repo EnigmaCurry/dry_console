@@ -273,7 +273,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let show_meta_stream =
         use_state(|| LocalStorage::get::<bool>(SHOW_META_STREAM_LOCALSTORAGE_KEY).unwrap_or(true));
     let background_color_change = use_state(|| {
-        LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(false)
+        LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(true)
     });
     let background_color_success = use_state(|| {
         LocalStorage::get::<String>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY)
