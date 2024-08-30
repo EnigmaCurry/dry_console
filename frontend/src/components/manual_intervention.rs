@@ -1,7 +1,6 @@
 use crate::components::loading_state::LoadingState;
 use crate::pages::workstation::WorkstationTab;
 use dry_console_dto::script::ScriptEntry;
-use gloo::console::debug;
 use gloo::console::error;
 use patternfly_yew::prelude::*;
 use wasm_bindgen::JsCast;
