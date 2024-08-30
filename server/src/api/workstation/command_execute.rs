@@ -67,7 +67,8 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                             *state_ref = SocketState::RunningProcess;
                             drop(state_ref); // Drop the lock on state to run the command
                             let process_id = Ulid::new();
-                            let command = match CommandLibrary::from_id(command.id) {
+                            let command_library = &shared_state.read().await.command_library.clone();
+                            let command = match CommandLibrary::from_id(command.id, command_library.clone()).await {
                                 Some(c) => c,
                                 None => {
                                     error!("Failed to get script entry: {}", command.id);
@@ -77,7 +78,8 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                             let script;
                             {
                                 let shared_state = shared_state.read().await;
-                                script = command.get_script(&shared_state.command_library_overlay);
+                                //debug!("command_script: {:?}", shared_state.command_script.clone());
+                                script = command.get_script(&shared_state.command_id, &shared_state.command_script);
                             }
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")

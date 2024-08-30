@@ -1,5 +1,6 @@
 use crate::api::auth::TOKEN_CACHE_NAME;
 use crate::api::token::generate_token;
+use crate::api::workstation::command::CommandLibrary;
 use crate::api::workstation::platform::detect_platform;
 use crate::api::workstation::WorkstationDependencyState;
 use crate::response::AppError;
@@ -23,7 +24,9 @@ pub struct AppState {
     pub sudo_enabled: bool,
     pub missing_dependencies: Vec<WorkstationDependencyState>,
     pub platform: Platform,
-    pub command_library_overlay: HashMap<String, String>,
+    pub command_id: HashMap<CommandLibrary, String>,
+    pub command_library: HashMap<String, CommandLibrary>,
+    pub command_script: HashMap<String, String>,
 }
 impl AppState {
     pub fn cache_set(&mut self, key: &str, value: &Bytes) {
@@ -57,13 +60,25 @@ pub fn create_shared_state(opt: &Opt) -> SharedState {
     let url = format!("http://{0}:{1}/login#token:{token}", opt.addr, opt.port);
     info!("\n\nLogin URL:\n{0}\n", url);
 
+    let mut command_id = HashMap::<CommandLibrary, String>::new();
+    let mut command_library = HashMap::<String, CommandLibrary>::new();
+    let mut command_script = HashMap::<String, String>::new();
+    for (ulid, command_variant) in crate::STATIC_COMMAND_LIBRARY_MAP.iter() {
+        command_id.insert(command_variant.clone(), ulid.clone());
+        command_library.insert(ulid.clone(), command_variant.clone());
+        let script = command_variant.get_script(&command_id, &command_script);
+        command_script.insert(ulid.clone(), script);
+    }
+
     Arc::new(RwLock::new(AppState {
         opt: opt.clone(),
         cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token))]),
         login_allowed: true,
         sudo_enabled: false,
         missing_dependencies: Vec::<WorkstationDependencyState>::new(),
-        command_library_overlay: HashMap::<String, String>::new(),
+        command_id,
+        command_library,
+        command_script,
         platform: detect_platform(),
     }))
 }

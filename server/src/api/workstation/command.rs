@@ -1,6 +1,5 @@
 use crate::app_state::SharedState;
 use crate::response::{AppError, AppJson, JsonResult};
-use crate::COMMAND_LIBRARY_MAP;
 use crate::{routing::route, AppRouter};
 use axum::extract::State;
 use axum::{extract::Path, routing::get};
@@ -11,19 +10,25 @@ use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
+use tracing::debug;
 use ulid::Ulid;
 
 use super::WorkstationDependencyState;
 
-#[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone)]
+#[derive(
+    EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone, Hash, Eq,
+)]
 pub enum CommandLibrary {
     TestExampleOne,
     InstallDependencies,
     InstallDRymcgTech,
 }
 impl CommandLibrary {
-    pub fn from_id(id: Ulid) -> Option<Self> {
-        COMMAND_LIBRARY_MAP.get(&id.to_string()).cloned()
+    pub async fn from_id(
+        id: Ulid,
+        command_library: HashMap<String, CommandLibrary>,
+    ) -> Option<Self> {
+        command_library.get(&id.to_string()).cloned()
     }
 }
 fn generate_install_commands(uninstalled_dependencies: &[WorkstationDependencyState]) -> String {
@@ -139,9 +144,21 @@ pub fn command() -> AppRouter {
                 "});
                 {
                     let mut state = state.write().await;
+                    // debug!(
+                    //     "Inserting new command overlay: {}",
+                    //     script_entry.id.to_string()
+                    // );
+                    state.command_id.insert(
+                        CommandLibrary::InstallDependencies,
+                        script_entry.id.to_string(),
+                    );
                     state
-                        .command_library_overlay
+                        .command_script
                         .insert(script_entry.id.to_string(), script_entry.clone().script);
+                    state.command_library.insert(
+                        script_entry.id.to_string(),
+                        CommandLibrary::InstallDependencies,
+                    );
                 }
                 Ok(AppJson(script_entry))
             }
@@ -150,7 +167,7 @@ pub fn command() -> AppRouter {
                 Ok(command) => {
                     let state = state.read().await;
                     let script_entry = ScriptEntry::from_source(
-                        command.get_script(&state.command_library_overlay),
+                        command.get_script(&state.command_id, &state.command_script),
                     );
                     Ok(AppJson(script_entry))
                 }

@@ -164,8 +164,9 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
     // Start of the static HashMap declaration
     output.push_str("lazy_static! {\n");
-    output
-        .push_str("    pub static ref COMMAND_LIBRARY_MAP: HashMap<String, CommandLibrary> = {\n");
+    output.push_str(
+        "    pub static ref STATIC_COMMAND_LIBRARY_MAP: HashMap<String, CommandLibrary> = {\n",
+    );
     output.push_str("        let mut m = HashMap::new();\n");
 
     let mut found_variants = std::collections::HashSet::new();
@@ -197,18 +198,19 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     // End of the static HashMap declaration
     output.push_str("        m\n");
     output.push_str("    };\n");
-    output.push_str("}\n");
+    output.push_str("}\n\n");
 
-    // Now, generate the CommandLibrary implementation with get_script and id methods
+    // Now, generate the CommandLibrary implementation with get_script method
     output.push_str("impl CommandLibrary {\n");
 
-    // Modified get_script method with the overlay argument
+    // Modified get_script method with the command_id and command_script arguments
     output.push_str(
-        "    fn get_script(&self, command_library_overlay: &HashMap<String, String>) -> String {\n",
+        "    fn get_script(&self, command_id: &HashMap<CommandLibrary, String>, command_script: &HashMap<String, String>) -> String {\n",
     );
-    output.push_str("        let ulid = self.compute_ulid().to_string();\n");
-    output.push_str("        if let Some(script) = command_library_overlay.get(&ulid) {\n");
-    output.push_str("            return script.clone();\n");
+    output.push_str("        if let Some(ulid) = command_id.get(self) {\n");
+    output.push_str("            if let Some(script) = command_script.get(ulid) {\n");
+    output.push_str("                return script.clone();\n");
+    output.push_str("            }\n");
     output.push_str("        }\n");
 
     // Existing logic for getting script content
@@ -226,37 +228,6 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     }
 
     output.push_str("        }\n");
-    output.push_str("    }\n");
-
-    // Implement the compute_ulid method that returns a Ulid directly from the script content
-    output.push_str("    #[allow(dead_code)]\n");
-    output.push_str("    fn compute_ulid(&self) -> Ulid {\n");
-
-    // Logic to get the script content directly for ULID generation
-    output.push_str("        let script = match self {\n");
-    for variant_name in found_variants.iter() {
-        let file_path = script_dir.join(format!(
-            "{}.sh",
-            variant_name.to_case(convert_case::Case::Snake)
-        ));
-        output.push_str(&format!(
-            "            CommandLibrary::{variant_name} => include_str!(\"{}\").to_string(),\n",
-            file_path.to_str().unwrap(),
-        ));
-    }
-    output.push_str("        };\n");
-    output.push_str("        generate_deterministic_ulid_from_seed(&script)\n");
-    output.push_str("    }\n");
-
-    // Implement the id method that uses compute_ulid
-    output.push_str("    #[allow(dead_code)]\n");
-    output.push_str("    fn id(&self) -> Ulid {\n");
-    output.push_str("        let ulid = self.compute_ulid();\n");
-    output.push_str("        let mapped_variant = COMMAND_LIBRARY_MAP\n");
-    output.push_str("            .get(&ulid.to_string())\n");
-    output.push_str("            .expect(\"ULID not found in COMMAND_LIBRARY_MAP\");\n");
-    output.push_str("        assert_eq!(mapped_variant, self, \"The ULID maps to a different CommandLibrary variant.\");\n");
-    output.push_str("        ulid\n");
     output.push_str("    }\n");
 
     output.push_str("}\n");

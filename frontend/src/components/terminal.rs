@@ -1,4 +1,4 @@
-use crate::components::markdown::{MarkdownContent};
+use crate::components::markdown::MarkdownContent;
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
 use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::websocket::Command;
