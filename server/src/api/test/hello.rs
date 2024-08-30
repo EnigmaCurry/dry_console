@@ -4,7 +4,6 @@ use super::test_route;
 
 use crate::{
     app_state::{ShareableState, SharedState},
-    response::AppError,
     AppRouter,
 };
 use axum::{

@@ -1,22 +1,19 @@
-use crate::app_state::{AppState, SharedState};
+use crate::app_state::{SharedState};
 use crate::response::{AppError, AppJson, JsonResult};
 use crate::COMMAND_LIBRARY_MAP;
 use crate::{routing::route, AppRouter};
 use axum::extract::State;
 use axum::{extract::Path, routing::get};
-use dry_console_common::token::generate_deterministic_ulid_from_seed;
 pub use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::workstation::{Distribution, WorkstationPackageManager};
 use indoc::formatdoc;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use std::sync::Arc;
 use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
-use tracing::debug;
 use ulid::Ulid;
 
-use super::{WorkstationDependency, WorkstationDependencyState};
+use super::{WorkstationDependencyState};
 
 #[derive(EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone)]
 pub enum CommandLibrary {

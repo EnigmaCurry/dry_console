@@ -1,6 +1,6 @@
 use std::{
     convert::Infallible,
-    sync::{Arc, RwLockWriteGuard},
+    sync::{Arc},
 };
 
 use aper::{NeverConflict, StateMachine};

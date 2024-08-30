@@ -1,6 +1,5 @@
 use crate::api::auth::TOKEN_CACHE_NAME;
 use crate::api::token::generate_token;
-use crate::api::workstation::command::CommandLibrary;
 use crate::api::workstation::platform::detect_platform;
 use crate::api::workstation::WorkstationDependencyState;
 use crate::response::AppError;
@@ -10,7 +9,7 @@ use dry_console_dto::workstation::Platform;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::info;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Global app state
@@ -72,9 +71,11 @@ pub fn create_shared_state(opt: &Opt) -> SharedState {
 pub trait ShareableState {
     #[allow(dead_code)]
     async fn cache_set(&mut self, key: &str, value: &Bytes) -> Result<(), AppError>;
+    #[allow(dead_code)]
     async fn cache_set_string(&mut self, key: &str, value: &str) -> Result<(), AppError>;
     #[allow(dead_code)]
     async fn cache_get(&self, key: &str, default: &Bytes) -> Bytes;
+    #[allow(dead_code)]
     async fn cache_get_string(&self, key: &str, default: &str) -> String;
 }
 impl ShareableState for SharedState {

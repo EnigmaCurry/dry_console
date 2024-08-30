@@ -2,7 +2,7 @@ use crate::api::auth::Backend;
 use crate::{
     api::route,
     app_state::SharedState,
-    response::{AppError, AppJson, JsonResult},
+    response::{AppJson, JsonResult},
     AppRouter,
 };
 use axum::{

@@ -1,4 +1,3 @@
-use crate::app_state::AppState;
 use crate::broadcast;
 use crate::{api::route, app_state::SharedState, response::AppError};
 use axum::extract::State;
@@ -10,7 +9,6 @@ pub use dry_console_dto::workstation::{
 use hostname::get as host_name_get;
 use semver::VersionReq;
 use serde::Serialize;
-use std::sync::Arc;
 use std::{ffi::OsStr, str::FromStr};
 use strum::{AsRefStr, EnumIter, EnumProperty, EnumString, IntoEnumIterator};
 use utoipa::ToSchema;
