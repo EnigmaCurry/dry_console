@@ -1,4 +1,3 @@
-use gloo::console::debug;
 use js_sys::{Function, Object, Reflect};
 use std::cell::RefCell;
 use std::rc::Rc;

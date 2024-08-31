@@ -291,7 +291,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             .unwrap_or("#000000".to_string())
     });
     let background_color_normal_clone = background_color_normal.clone();
-    let background_color_normal_clone2 = background_color_normal.clone();
     let text_color_stdout = use_state(|| {
         LocalStorage::get::<String>(TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY)
             .unwrap_or("#ffffff".to_string())
