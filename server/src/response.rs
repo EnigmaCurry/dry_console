@@ -36,6 +36,8 @@ pub enum AppError {
     Json(serde_json::Error),
     #[error("StateMachineConflict: {0}")]
     StateMachineConflict(String),
+    #[error("Not found")]
+    NotFound,
 }
 
 impl IntoResponse for AppError {
@@ -58,6 +60,7 @@ impl IntoResponse for AppError {
             AppError::Json(_error) => {
                 (StatusCode::BAD_REQUEST, "JSON validation error".to_string())
             }
+            AppError::NotFound => (StatusCode::NOT_FOUND, "Object not found".to_string()),
         };
         (status, AppJson(ErrorResponse { error: e, trace_id })).into_response()
     }

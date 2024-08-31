@@ -19,6 +19,7 @@ deps:
     cargo install --locked trunk; \
     cargo install --locked git-cliff; \
     cargo install --locked cargo-edit; \
+    cargo install --locked cargo-audit;
 
 # Install rust depdencies (precompiled)
 bin-deps:
@@ -28,7 +29,7 @@ bin-deps:
 
 # Run (development)
 run:
-    cargo watch -s "sleep 1 && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT} --open"
+    cargo watch -s "sleep 5 && (killall dry_console || true) && just build && cargo run --bin dry_console -- -l debug --port ${HTTP_PORT} --open"
 
 # Build frontend WASM (debug)
 build-frontend: clean-dist
@@ -40,6 +41,8 @@ build-release-frontend:
 
 # Build (debug)
 build: build-frontend
+    source ./funcs.sh; \
+    check_emacs_unsaved_files;
     cargo build ${RELEASE_BUILD_ARGS:-}
 
 # Build (release)
@@ -53,7 +56,7 @@ install: deps build-release-frontend
 
 # Run compiled release binary (no live-reload)
 static-run: build-release
-    ./target/release/server
+    ./target/release/dry_console --open
 
 # bump release version
 bump-version:
@@ -92,6 +95,7 @@ release:
     CURRENT_VERSION=$(grep -Po '^version = \K.*' Cargo.toml | sed -e 's/"//g' | head -1); \
     if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then echo "Tag already exists: v${CURRENT_VERSION}"; exit 1; fi; \
     if (git ls-remote --tags "${GIT_REMOTE}" | grep -q "refs/tags/v${CURRENT_VERSION}" >/dev/null 2>&1); then echo "Tag already exists on remote ${GIT_REMOTE}: v${CURRENT_VERSION}"; exit 1; fi; \
+    cargo audit | less; \
     confirm yes "New tag will be \"v${CURRENT_VERSION}\"" " -- Proceed?"; \
     git tag "v${CURRENT_VERSION}"; \
     git push "${GIT_REMOTE}" tag "v${CURRENT_VERSION}";
@@ -134,8 +138,8 @@ systemd-restart:
 
 # Run clippy linter and paginate results with less
 clippy:
-    cargo clippy --color=always --bin dry_console 2>&1 | less -R
+    RUSTFLAGS="-D warnings" cargo clippy --color=always 2>&1 | less -R
 
 # Run clippy linter and apply fixes
 clippy-fix:
-    cargo clippy --fix --color=always --bin dry_console 2>&1 | less -R
+    RUSTFLAGS="-D warnings" cargo clippy --fix --color=always 2>&1 | less -R

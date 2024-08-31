@@ -1,7 +1,7 @@
 use crate::app::{AppRoute, SessionState};
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
-use std::{rc::Rc, sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 use web_sys::SubmitEvent;
 use yew::prelude::*;
 use yew_nested_router::prelude::*;
@@ -18,7 +18,7 @@ pub fn logout(props: &LogoutProps) -> Html {
 
     let session_state = props.session_state.clone();
     let router = use_router().unwrap();
-    let toast = Arc::new({
+    let toast = Rc::new({
         let toaster = toaster.clone();
         move |t: AlertType, msg: &str| {
             toaster.toast(Toast {
@@ -55,7 +55,14 @@ pub fn logout(props: &LogoutProps) -> Html {
                         toast(AlertType::Success, "Logged out!");
                         session_state.set(SessionState {
                             logged_in: false,
-                            new_login_allowed: false,
+                            new_login_allowed: res
+                                .json::<serde_json::Value>()
+                                .await
+                                .expect("Unable to parse JSON")
+                                .get("new_login_allowed")
+                                .unwrap_or(&serde_json::Value::from(false))
+                                .as_bool()
+                                .unwrap_or(false),
                         });
                         router.push(AppRoute::Workstation);
                     }
@@ -73,7 +80,7 @@ pub fn logout(props: &LogoutProps) -> Html {
             if *loading_state {
                 <div>{"Loading state ..."}</div>
             } else {
-                if (*session_state).logged_in {
+                if session_state.logged_in {
                     <div>
                         <form onsubmit={logout_submit}>
                             <Button label="Logout" r#type={ButtonType::Submit} />

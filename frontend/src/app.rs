@@ -1,13 +1,12 @@
 use crate::components::logout;
+use crate::components::ButtonLink;
 use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
+pub use dry_console_dto::session::SessionState;
 use gloo_events::EventListener;
 use gloo_net::http::Request;
-use gloo_storage;
 use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
-use serde::Deserialize;
-//use strum::IntoEnumIterator;
 use strum_macros::Display;
 use strum_macros::EnumIter;
 use wasm_bindgen_futures::spawn_local;
@@ -31,21 +30,15 @@ pub enum AppRoute {
     Login,
 }
 
-impl Into<&'static str> for AppRoute {
-    fn into(self) -> &'static str {
-        match self {
+impl From<AppRoute> for &'static str {
+    fn from(val: AppRoute) -> Self {
+        match val {
             AppRoute::Login => "Login",
             AppRoute::Workstation => "Workstation",
             AppRoute::Apps => "Apps",
             AppRoute::Routes => "Routes",
         }
     }
-}
-
-#[derive(Deserialize, Debug, Default, Clone, PartialEq)]
-pub struct SessionState {
-    pub logged_in: bool,
-    pub new_login_allowed: bool,
 }
 
 #[function_component(Redirect)]
@@ -87,9 +80,59 @@ async fn check_session_state() -> Result<SessionState, Error> {
     }
 }
 
+#[derive(Clone, PartialEq)]
+pub struct WindowDimensions {
+    pub width: f64,
+    pub height: f64,
+}
+
 #[function_component(Application)]
 pub fn app() -> Html {
-    let session_state = use_state(|| SessionState::default());
+    let width_handle = use_state(|| {
+        window()
+            .and_then(|w| w.inner_width().ok())
+            .and_then(|width| width.as_f64())
+            .unwrap_or(0.0)
+    });
+
+    let height_handle = use_state(|| {
+        window()
+            .and_then(|w| w.inner_height().ok())
+            .and_then(|height| height.as_f64())
+            .unwrap_or(0.0)
+    });
+
+    {
+        let width_handle = width_handle.clone();
+        let height_handle = height_handle.clone();
+
+        use_effect_with((), move |_| {
+            let on_resize = Callback::from(move |_| {
+                if let Some(window) = window() {
+                    if let Ok(new_width) = window.inner_width() {
+                        width_handle.set(new_width.as_f64().unwrap_or(0.0));
+                    }
+                    if let Ok(new_height) = window.inner_height() {
+                        height_handle.set(new_height.as_f64().unwrap_or(0.0));
+                    }
+                }
+            });
+
+            let listener = EventListener::new(&window().unwrap(), "resize", move |_event| {
+                on_resize.emit(());
+            });
+            listener.forget();
+
+            || {}
+        });
+    }
+
+    let screen_dimensions = WindowDimensions {
+        width: *width_handle,
+        height: *height_handle,
+    };
+
+    let session_state = use_state(SessionState::default);
     let checking_session = use_state(|| true);
 
     {
@@ -110,8 +153,8 @@ pub fn app() -> Html {
             || ()
         });
     }
-
     html! {
+        <ContextProvider<WindowDimensions> context={screen_dimensions}>
         <BackdropViewer>
             <ToastViewer>
                 <Router<AppRoute> default={AppRoute::Workstation}>
@@ -128,6 +171,7 @@ pub fn app() -> Html {
                 </Router<AppRoute>>
             </ToastViewer>
         </BackdropViewer>
+        </ContextProvider<WindowDimensions>>
     }
 }
 
@@ -180,7 +224,6 @@ fn top_bar_menu() -> Html {
                 TopMenuChoices::Routes => AppRoute::Routes,
             };
             navigator.push(route); // This will navigate and trigger a re-render
-            ()
         })
     };
 
@@ -189,19 +232,19 @@ fn top_bar_menu() -> Html {
             <ToggleGroupItem
                 text="Workstation"
                 key=0
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Workstation); () }}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Workstation);  }}
                 selected={*selected == Some(TopMenuChoices::Workstation)}
             />
             <ToggleGroupItem
                 text="Apps"
                 key=1
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Apps); () }}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Apps);  }}
                 selected={*selected == Some(TopMenuChoices::Apps)}
             />
             <ToggleGroupItem
                 text="Routes"
                 key=2
-                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Routes); () }}
+                onchange={let cb = callback.clone(); move |_| { cb.emit(TopMenuChoices::Routes);  }}
                 selected={*selected == Some(TopMenuChoices::Routes)}
             />
         </ToggleGroup>
@@ -213,19 +256,6 @@ fn sidebar(
     onthemeswitch: Callback<bool>,
     session_state: UseStateHandle<crate::app::SessionState>,
 ) -> Html {
-    // let nav_items = AppRoute::iter()
-    //     .map(|route| {
-    //         let route_name: &'static str = route.clone().into();
-    //         html_nested! {
-    //             <NavItem>
-    //                 <NavRouterItem<AppRoute> to={route}>
-    //                     {route_name}
-    //                 </NavRouterItem<AppRoute>>
-    //             </NavItem>
-    //         }
-    //     })
-    //     .collect::<Html>();
-
     html_nested! {
         <Nav>
             <NavList>
@@ -246,6 +276,11 @@ fn sidebar(
                       <logout::Logout {session_state}/>
                     </NavItem>
                 </NavExpandable>
+                <NavExpandable title="Source code" expanded={true}>
+                    <NavItem>
+                      <ButtonLink href="https://github.com/EnigmaCurry/dry_console">{"Github"}</ButtonLink>
+                    </NavItem>
+                </NavExpandable>
             </NavList>
         </Nav>
     }
@@ -254,11 +289,11 @@ fn sidebar(
 
 #[function_component(AppPage)]
 fn page(props: &AppPageProps) -> Html {
-    log::debug!("rendering page");
+    //log::debug!("rendering page");
     let brand = html! { <a href="/">{"dry_console"}</a> };
 
     let darkmode = use_state_eq(|| {
-        if let Some(storage) = gloo_storage::LocalStorage::get("dark_mode").ok() {
+        if let Ok(storage) = gloo_storage::LocalStorage::get("dark_mode") {
             storage
         } else {
             gloo_utils::window()
@@ -314,10 +349,8 @@ fn page(props: &AppPageProps) -> Html {
         });
     }
 
-    let open = match *window_width {
-        width if width < 1200.0 => false,
-        _ => true,
-    };
+    //let open = !matches!(*window_width, width if width < 1200.0);
+    let open = false;
 
     let sidebar = html_nested! {<PageSidebar>{sidebar(darkmode.clone(), onthemeswitch.clone(), props.session_state.clone())}</PageSidebar>};
     let tools = html!(

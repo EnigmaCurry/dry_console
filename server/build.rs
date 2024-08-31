@@ -1,8 +1,28 @@
+use convert_case::Casing;
+use dry_console_common::token::generate_deterministic_ulid_from_seed;
 use std::env;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
+
+fn write_source(file: &mut std::fs::File, destination: &str, source: &str, file_type: &str) {
+    writeln!(
+        file,
+        "        (\"{destination}\", include_bytes!(\"{source}\"), \"{file_type}\"),",
+    )
+    .unwrap();
+}
+
+fn write_font(file: &mut std::fs::File, dist_dir: &str, font: &str) {
+    write_source(
+        file,
+        font.to_string().as_str(),
+        format!("{dist_dir}{font}").as_str(),
+        "font/woff2",
+    );
+}
 
 fn main() {
     // Get the output directory from the environment variable
@@ -34,7 +54,7 @@ fn main() {
     .unwrap();
     writeln!(file, "    vec![").unwrap();
 
-    // Walk through the ../dist/snippets directory and find all inline0.js files
+    // Walk through the ../dist/snippets directory and find all javascript files
     for entry in WalkDir::new(snippets_dir)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -47,57 +67,168 @@ fn main() {
         {
             let asset_path = entry.path();
 
-            writeln!(
-                file,
-                "        (\"{}\", include_bytes!(\"{}\"), \"application/javascript\"),",
+            write_source(
+                &mut file,
                 asset_path
                     .to_string_lossy()
                     .strip_prefix(&dist_dir.to_string())
                     .unwrap(),
-                asset_path.to_string_lossy()
-            )
-            .unwrap();
+                asset_path.to_string_lossy().to_string().as_str(),
+                "application/javascript",
+            );
         }
     }
 
     // App CSS
-    writeln!(
-        file,
-        "        (\"/style.css\", include_bytes!(\"{project_root}/frontend/style.css\"), \"text/css\"),"
-    )
-    .unwrap();
+    write_source(
+        &mut file,
+        "/style.css",
+        format!("{project_root}/frontend/style.css").as_str(),
+        "text/css",
+    );
 
     // Patternfly CSS
     // TODO: Tree shake this 1.5MB
-    writeln!(
-        file,
-        "        (\"/patternfly.min.css\", include_bytes!(\"{dist_dir}/patternfly.min.css\"), \"text/css\"),",
-    )
-    .unwrap();
-    writeln!(
-        file,
-        "        (\"/patternfly.min.css.map\", include_bytes!(\"{dist_dir}/patternfly.min.css.map\"), \"application/octet-stream\"),",
-    )
-    .unwrap();
+    write_source(
+        &mut file,
+        "/patternfly.min.css",
+        format!("{dist_dir}/patternfly.min.css").as_str(),
+        "text/css",
+    );
 
-    // Patternfly fonts
-    writeln!(
-        file,
-        "        (\"/assets/fonts/webfonts/fa-solid-900.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/webfonts/fa-solid-900.woff2\"), \"font/woff2\"),",
-    )
-    .unwrap();
-    writeln!(
-        file,
-        "        (\"/assets/fonts/RedHatText/RedHatText-Regular.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Regular.woff2\"), \"font/woff2\"),",
-    )
-    .unwrap();
-    writeln!(
-        file,
-        "        (\"/assets/fonts/RedHatText/RedHatText-Medium.woff2\", include_bytes!(\"{dist_dir}/assets/fonts/RedHatText/RedHatText-Medium.woff2\"), \"font/woff2\"),",
-    )
-    .unwrap();
+    write_source(
+        &mut file,
+        "/patternfly.min.css.map",
+        format!("{dist_dir}/patternfly.min.css.map").as_str(),
+        "application/octet-stream",
+    );
+
+    // // Patternfly fonts
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/webfonts/fa-solid-900.woff2",
+    );
+    write_font(&mut file, &dist_dir, "/assets/pficon/pf-v5-pficon.woff2");
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatText/RedHatText-Regular.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatText/RedHatText-Medium.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatMono/RedHatMono-Regular.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatMono/RedHatMono-Medium.woff2",
+    );
+    write_font(
+        &mut file,
+        &dist_dir,
+        "/assets/fonts/RedHatDisplay/RedHatDisplay-Medium.woff2",
+    );
 
     // Write the end of the function definition
     writeln!(file, "    ]").unwrap();
     writeln!(file, "}}").unwrap();
+
+    include_shell_scripts(out_dir, project_root);
+}
+
+fn include_shell_scripts(out_dir: String, project_root: String) {
+    let dest_path = Path::new(&out_dir).join("generated_command_library.rs");
+
+    let mut script_dir = Path::new(&project_root).join("server/src/api/workstation/scripts");
+    if let Ok(d) = script_dir.canonicalize() {
+        script_dir = d;
+    } else {
+        panic!("Could not find script directory.");
+    }
+
+    let mut output = String::new();
+
+    // Add necessary imports
+    output.push_str("use std::collections::HashMap;\n");
+    output.push_str("use crate::api::workstation::command::CommandLibrary;\n");
+    output.push_str("use lazy_static::lazy_static;\n\n");
+
+    // Start of the static HashMap declaration
+    output.push_str("lazy_static! {\n");
+    output.push_str(
+        "    pub static ref STATIC_COMMAND_LIBRARY_MAP: HashMap<String, CommandLibrary> = {\n",
+    );
+    output.push_str("        let mut m = HashMap::new();\n");
+
+    let mut found_variants = std::collections::HashSet::new();
+
+    for entry in fs::read_dir(&script_dir).expect("Failed to read script directory") {
+        let entry = entry.expect("Failed to read directory entry");
+        let path = entry.path();
+
+        if path.extension().and_then(|s| s.to_str()) == Some("sh") {
+            if let Some(file_name) = path.file_stem().and_then(|s| s.to_str()) {
+                let variant_name = file_name.to_case(convert_case::Case::Pascal);
+                found_variants.insert(variant_name.clone());
+
+                let script_content = fs::read_to_string(&path).expect("Failed to read script file");
+
+                // Generate ULID from the script content
+                let ulid = generate_deterministic_ulid_from_seed(&script_content);
+
+                // Add the entry to the static HashMap using the string representation of the ULID
+                output.push_str(&format!(
+                    "        m.insert(\"{}\".to_string(), CommandLibrary::{});\n",
+                    ulid.to_string(),
+                    variant_name
+                ));
+            }
+        }
+    }
+
+    // End of the static HashMap declaration
+    output.push_str("        m\n");
+    output.push_str("    };\n");
+    output.push_str("}\n\n");
+
+    // Now, generate the CommandLibrary implementation with get_script method
+    output.push_str("impl CommandLibrary {\n");
+
+    // Modified get_script method with the command_id and command_script arguments
+    output.push_str(
+        "    fn get_script(&self, command_id: &HashMap<CommandLibrary, String>, command_script: &HashMap<String, String>) -> String {\n",
+    );
+    output.push_str("        if let Some(ulid) = command_id.get(self) {\n");
+    output.push_str("            if let Some(script) = command_script.get(ulid) {\n");
+    output.push_str("                return script.clone();\n");
+    output.push_str("            }\n");
+    output.push_str("        }\n");
+
+    // Existing logic for getting script content
+    output.push_str("        match self {\n");
+
+    for variant_name in found_variants.iter() {
+        let file_path = script_dir.join(format!(
+            "{}.sh",
+            variant_name.to_case(convert_case::Case::Snake)
+        ));
+        output.push_str(&format!(
+            "            CommandLibrary::{variant_name} => include_str!(\"{}\").to_string(),\n",
+            file_path.to_str().unwrap(),
+        ));
+    }
+
+    output.push_str("        }\n");
+    output.push_str("    }\n");
+
+    output.push_str("}\n");
+
+    fs::write(dest_path, output).expect("Failed to write generated file");
 }

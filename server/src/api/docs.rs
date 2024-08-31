@@ -5,10 +5,10 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 use utoipauto::utoipauto;
 
-#[utoipauto(paths = "./server/src")]
+#[utoipauto(paths = "./dto/src from dry_console_dto,./server/src")]
 #[derive(OpenApi)]
 #[openapi(info(contact()))]
-struct ApiDoc;
+pub struct ApiDoc;
 
 pub fn router() -> Router<SharedState> {
     Router::new()

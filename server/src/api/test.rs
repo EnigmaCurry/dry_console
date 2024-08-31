@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 
 use axum::{
+    extract::State,
     response::Redirect,
     routing::{any, get, MethodRouter},
     Router,
@@ -8,32 +9,35 @@ use axum::{
 use enum_iterator::{all, Sequence};
 
 use super::{route, APIModule, ApiModule};
+use crate::broadcast;
 use crate::{app_state::SharedState, AppRouter, API_PREFIX};
-
 pub mod counter;
 pub mod error;
 pub mod hello;
+pub mod ping;
 
 #[derive(Debug, PartialEq, Sequence, Clone)]
 enum TestModule {
     Hello,
     Counter,
     Error,
+    Ping,
 }
 impl ApiModule for TestModule {
-    fn main() -> AppRouter {
+    fn main(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> AppRouter {
         // Adds all routes for all modules in APIModule:
         let mut app = Router::new();
         for m in all::<TestModule>() {
-            app = app.merge(m.router());
+            app = app.merge(m.router(shutdown.clone(), state.clone()));
         }
         app
     }
-    fn router(&self) -> AppRouter {
+    fn router(&self, _shutdown: broadcast::Sender<()>, _state: State<SharedState>) -> AppRouter {
         match self {
             TestModule::Hello => hello::main(),
             TestModule::Counter => counter::main(),
             TestModule::Error => error::main(),
+            TestModule::Ping => ping::main(),
         }
     }
     fn to_string(&self) -> String {
@@ -49,8 +53,8 @@ impl ApiModule for TestModule {
     }
 }
 
-pub fn router() -> AppRouter {
-    TestModule::main().route("/", get(|| async { "Test" }))
+pub fn router(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> AppRouter {
+    TestModule::main(shutdown, state).route("/", get(|| async { "Test" }))
 }
 
 fn test_route(

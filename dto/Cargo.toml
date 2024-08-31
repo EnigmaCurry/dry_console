@@ -1,0 +1,21 @@
+[package]
+name = "dry_console_dto"
+edition = "2021"
+version.workspace = true
+description.workspace = true
+repository.workspace = true
+documentation.workspace = true
+authors.workspace = true
+
+[dependencies]
+utoipa = { version = "4.2.3", features = ["axum_extras", "ulid"] }
+serde_json = { version = "1.0.120", features = ["preserve_order"] }
+serde = { version = "1.0.204", features = ["derive"] }
+strum = { version = "0.26.3", features = ["derive"] }
+utoipauto = "0.1.14"
+os-release = "0.1.0"
+ulid = { version = "1.1.3", features = ["serde"] }
+num_enum = "0.7.3"
+sha2 = "0.10.8"
+indoc = "2.0.5"
+dry_console_common = { path = "../common" }

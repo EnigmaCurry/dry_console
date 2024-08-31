@@ -2,23 +2,16 @@ use crate::api::auth::Backend;
 use crate::{
     api::route,
     app_state::SharedState,
-    response::{AppError, AppJson, JsonResult},
+    response::{AppJson, JsonResult},
     AppRouter,
 };
 use axum::{
     extract::State, http::StatusCode, response::IntoResponse, routing::post, Extension, Router,
 };
 use axum_login::AuthSession;
-use serde::Serialize;
+use dry_console_dto::session::Credentials;
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
-use utoipa::ToSchema;
-
-#[derive(Default, Serialize, ToSchema)]
-pub struct NewCredentials {
-    /// New token for login:
-    token: String,
-}
 
 pub fn router() -> AppRouter {
     Router::new().merge(shutdown()).merge(enable_login())
@@ -52,22 +45,23 @@ fn shutdown() -> AppRouter {
     post,
     path = "/api/admin/enable_login/",
     responses(
-        (status = OK, description = "Login (re-)enabled", body = NewCredentials)
+        (status = OK, description = "Login (re-)enabled", body = Credentials)
     ),
 )]
 fn enable_login() -> AppRouter {
     async fn handler(
         State(state): State<SharedState>,
         auth_session: AuthSession<Backend>,
-    ) -> JsonResult<NewCredentials> {
-        match state.write() {
-            Ok(mut state) => {
-                state.enable_login();
-                Ok(AppJson(NewCredentials {
-                    token: auth_session.backend.get_token(State(state.clone())),
-                }))
-            }
-            Err(e) => Err(AppError::Internal(e.to_string())),
+    ) -> JsonResult<Credentials> {
+        {
+            let mut state = state.write().await;
+            state.enable_login();
+        }
+        {
+            let state = state.read().await;
+            Ok(AppJson(Credentials {
+                token: auth_session.backend.get_token(state.clone()),
+            }))
         }
     }
     route("/enable_login", post(handler))
