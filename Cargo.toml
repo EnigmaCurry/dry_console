@@ -7,7 +7,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.3"
+version = "0.2.4"
 description = "dry_console"
 repository = "https://github.com/EnigmaCurry/dry_console"
 documentation = "https://docs.rs/dry_console"
