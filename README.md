@@ -1,12 +1,17 @@
 # dry_console
 
-A workstation tool for managing remote Docker servers/VMs, and for
-deploying containers with [d.rymcg.tech](d.rymcg.tech).
-
+An experimental workstation tool for managing remote Docker
+servers/VMs, and for deploying containers with
+[d.rymcg.tech](d.rymcg.tech).
 
 ## Platforms
 
-This tool is built for the following platforms:
+The developer of this tool uses a Fedora 40 toolbx container (podman)
+for all testing. This project has the goal to support every mainstream
+Linux distribution (including WSL2), and MacOS, but the testing of
+these environments is at a secondary priority, for the time being.
+
+This tool is built (untested) for the following platforms:
 
  * Linux x86_64 (AMD64)
  * Linux aarch64 (ARM64)
@@ -21,19 +26,20 @@ For MS Windows, use the Linux version inside WSL2.
 
 `dry_console` is implemented as a local web service that you launch
 from your terminal, which automatically opens up your preferred web
-browser, and logs you into the application. Security for this powerful
-application is a top concern. Authentication relies upon a
-one-time-use token, which is randomized on each startup of
-`dry_console`. The client must provide this token in the URL (which it
-does automatically, when the browser is opened via `dry_console`), and
-after the first successful login, the login service is disabled to
-prevent all future login attempts. Therefore, the cookie that is
-assigned to the first authenticated web browser becomes the only
-authorized client key. To allow multiple sessions, there is an option
-in the admin interface: the first client may reset the token, which
-allows one additional client to login (this may be repeated for N
-clients), but otherwise you can simply restart `dry_console` to create
-a new session (invalidating all others).
+browser, and logs you into the application. The security of this
+powerful application is of prime concern, as it is essentially a
+remote control agent that runs commands (even sudo) on your behalf.
+Authentication relies upon a one-time-use token, which is randomized
+on every startup of `dry_console`. The client must provide this token
+in the URL (which it does automatically, when the browser is opened
+via `dry_console`), and after the first successful login, the login
+service is disabled to prevent all future login attempts. Therefore,
+the cookie that is assigned to the first authenticated web browser
+becomes the only authorized client key. To allow multiple sessions,
+there is an option in the admin interface: the first client may reset
+the token, which allows one additional client to login (this may be
+repeated for N clients), but otherwise you can simply restart
+`dry_console` to create a new session (invalidating all others).
 
 ## Install script
 
