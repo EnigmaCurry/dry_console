@@ -17,7 +17,9 @@ pub fn button_link(props: &ButtonLinkProps) -> Html {
 
     let onclick = Callback::from(move |e: MouseEvent| {
         e.prevent_default();
-        window().location().set_href(&href).unwrap();
+        let _ = window()
+            .open_with_url_and_target(&href, "_blank")
+            .expect("failed to open new tab");
     });
 
     html! {
