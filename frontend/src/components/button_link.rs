@@ -6,6 +6,8 @@ use yew::prelude::*;
 pub struct ButtonLinkProps {
     pub href: String,
     #[prop_or_default]
+    pub target: Option<String>,
+    #[prop_or_default]
     pub children: Children,
     #[prop_or_default]
     pub icon: Option<String>,
@@ -14,12 +16,15 @@ pub struct ButtonLinkProps {
 #[function_component(ButtonLink)]
 pub fn button_link(props: &ButtonLinkProps) -> Html {
     let href = props.href.clone();
+    let target = props.target.clone().unwrap_or_else(|| "_self".into());
 
     let onclick = Callback::from(move |e: MouseEvent| {
         e.prevent_default();
         let _ = window()
-            .open_with_url_and_target(&href, "_blank")
-            .expect("failed to open new tab");
+            .open_with_url_and_target(&href, &target)
+            .expect(&format!(
+                "failed to open url with target: href:{href} target:{target}"
+            ));
     });
 
     html! {
