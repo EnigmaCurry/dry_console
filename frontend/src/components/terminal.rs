@@ -1,6 +1,8 @@
 use crate::components::color_picker::ColorPicker;
 use crate::components::loading_state::LoadingState;
 use crate::components::markdown::MarkdownContent;
+use crate::components::terminal_context_provider::TerminalStyleContext;
+use crate::components::terminal_context_provider::*;
 use crate::{app::WindowDimensions, pages::workstation::WorkstationTab};
 use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::websocket::Command;
@@ -10,8 +12,6 @@ use dry_console_dto::websocket::StreamType;
 use gloo::console::debug;
 use gloo::console::error;
 use gloo::net::http::Request;
-use gloo_storage::LocalStorage;
-use gloo_storage::Storage;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
 use std::rc::Rc;
@@ -27,19 +27,9 @@ use web_sys::js_sys::Reflect;
 use web_sys::window;
 use web_sys::Blob;
 use web_sys::FileReader;
-use web_sys::HtmlInputElement;
 use web_sys::MessageEvent;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
-
-const SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY: &str = "terminal:show_line_numbers";
-const BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY: &str = "terminal:background_color_change";
-const BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY: &str = "terminal:background_color_success";
-const BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY: &str = "terminal:background_color_failure";
-const BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY: &str = "terminal:background_color_normal";
-const TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY: &str = "terminal:text_color_stdout";
-const TEXT_COLOR_STDERR_LOCALSTORAGE_KEY: &str = "terminal:text_color_stderr";
-const SHOW_META_STREAM_LOCALSTORAGE_KEY: &str = "terminal:show_meta_stream";
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
@@ -267,40 +257,9 @@ impl TerminalOutputProps {
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
+    let style_ctx = use_context::<TerminalStyleContext>().expect("No TerminalStyleContext found");
+    let style = style_ctx.get_settings();
     let num_lines = use_state(|| 1);
-    let show_line_numbers = use_state(|| {
-        LocalStorage::get::<bool>(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY).unwrap_or(false)
-    });
-    let show_meta_stream =
-        use_state(|| LocalStorage::get::<bool>(SHOW_META_STREAM_LOCALSTORAGE_KEY).unwrap_or(true));
-    let background_color_change = use_state(|| {
-        LocalStorage::get::<bool>(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY).unwrap_or(true)
-    });
-    let background_color_success = use_state(|| {
-        LocalStorage::get::<String>(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY)
-            .unwrap_or("#275346".to_string())
-    });
-    let background_color_success_clone = background_color_success.clone();
-    let background_color_failure = use_state(|| {
-        LocalStorage::get::<String>(BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY)
-            .unwrap_or("#712121".to_string())
-    });
-    let background_color_failure_clone = background_color_failure.clone();
-    let background_color_normal = use_state(|| {
-        LocalStorage::get::<String>(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY)
-            .unwrap_or("#000000".to_string())
-    });
-    let background_color_normal_clone = background_color_normal.clone();
-    let text_color_stdout = use_state(|| {
-        LocalStorage::get::<String>(TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY)
-            .unwrap_or("#ffffff".to_string())
-    });
-    let text_color_stdout_clone = text_color_stdout.clone();
-    let text_color_stderr = use_state(|| {
-        LocalStorage::get::<String>(TEXT_COLOR_STDERR_LOCALSTORAGE_KEY)
-            .unwrap_or("#dc8add".to_string())
-    });
-    let text_color_stderr_clone = text_color_stderr.clone();
     let user_attempted_scroll = use_state(|| false);
     let terminal_ref = use_node_ref();
     let terminal_content_ref = use_node_ref();
@@ -513,59 +472,17 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let settings_link = html! {
         <Button>{"📻️ Settings"}</Button>
     };
-    let toggle_line_numbers = {
-        let show_line_numbers = show_line_numbers.clone();
-        Callback::from(move |value: bool| {
-            show_line_numbers.set(value);
-            LocalStorage::set(SHOW_LINE_NUMBERS_LOCALSTORAGE_KEY, value)
-                .expect("Failed to store setting in local storage");
-        })
-    };
-    let toggle_meta_stream = {
-        let show_meta_stream = show_meta_stream.clone();
-        Callback::from(move |value: bool| {
-            show_meta_stream.set(value);
-            LocalStorage::set(SHOW_META_STREAM_LOCALSTORAGE_KEY, value)
-                .expect("Failed to store setting in local storage");
-        })
-    };
-    let toggle_background_change = {
-        let background_color_change = background_color_change.clone();
-        Callback::from(move |value: bool| {
-            background_color_change.set(value);
-            LocalStorage::set(BACKGROUND_COLOR_CHANGE_LOCALSTORAGE_KEY, value)
-                .expect("Failed to store setting in local storage");
-        })
-    };
-    let update_success_color = Callback::from(move |event: Event| {
-        let input: HtmlInputElement = event.target_unchecked_into();
-        background_color_success_clone.set(input.value());
-        LocalStorage::set(BACKGROUND_COLOR_SUCCESS_LOCALSTORAGE_KEY, input.value())
-            .expect("Failed to store setting in local storage");
-    });
-    let update_failure_color = Callback::from(move |event: Event| {
-        let input: HtmlInputElement = event.target_unchecked_into();
-        background_color_failure_clone.set(input.value());
-        LocalStorage::set(BACKGROUND_COLOR_FAILURE_LOCALSTORAGE_KEY, input.value())
-            .expect("Failed to store setting in local storage");
-    });
-    let update_normal_background_color = Callback::from(move |color: String| {
-        background_color_normal_clone.set(color.clone());
-        LocalStorage::set(BACKGROUND_COLOR_NORMAL_LOCALSTORAGE_KEY, color)
-            .expect("Failed to store setting in local storage");
-    });
-    let update_stdout_text_color = Callback::from(move |event: Event| {
-        let input: HtmlInputElement = event.target_unchecked_into();
-        text_color_stdout_clone.set(input.value());
-        LocalStorage::set(TEXT_COLOR_STDOUT_LOCALSTORAGE_KEY, input.value())
-            .expect("Failed to store setting in local storage");
-    });
-    let update_stderr_text_color = Callback::from(move |event: Event| {
-        let input: HtmlInputElement = event.target_unchecked_into();
-        text_color_stderr_clone.set(input.value());
-        LocalStorage::set(TEXT_COLOR_STDERR_LOCALSTORAGE_KEY, input.value())
-            .expect("Failed to store setting in local storage");
-    });
+    let toggle_line_numbers_cb = toggle_line_numbers(style.show_line_numbers.clone());
+    let toggle_meta_stream_cb = toggle_meta_stream(style.show_meta_stream.clone());
+    let toggle_background_change_cb =
+        toggle_background_change(style.background_color_change.clone());
+    let update_success_color_cb = update_success_color(style.background_color_success.clone());
+    let update_failure_color_cb = update_failure_color(style.background_color_failure.clone());
+    let update_normal_background_color_cb =
+        update_normal_background_color(style.background_color_normal.clone());
+    let update_stdout_text_color_cb = update_stdout_text_color(style.text_color_stdout.clone());
+    let update_stderr_text_color_cb = update_stderr_text_color(style.text_color_stderr.clone());
+
     let settings_panel = html_nested!(
         <PopoverBody
             header={html!("")}
@@ -575,79 +492,67 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 <ListItem>
                     <Switch
                         label="Show line numbers"
-                        checked={*show_line_numbers}
-                        onchange={toggle_line_numbers.clone()}
+                        checked={*style.show_line_numbers.clone()}
+                        onchange={toggle_line_numbers_cb.clone()}
                     />
                 </ListItem>
                 <ListItem>
                     <Switch
                         label="Show meta stream"
-                        checked={*show_meta_stream}
-                        onchange={toggle_meta_stream.clone()}
+                        checked={*style.show_meta_stream.clone()}
+                        onchange={toggle_meta_stream_cb.clone()}
                     />
                 </ListItem>
                 <ListItem>
-            <div class={"visible flex-container"}>
+                   <div class={"visible flex-container"}>
                    <ColorPicker
-                      onchange={update_normal_background_color.clone()}
-                      color={(*background_color_normal).clone()}
+                      onchange={update_normal_background_color_cb.clone()}
+                      color={(*style.background_color_normal).clone()}
                      />
                           <label for="normalBackgroundColor">{"Terminal background color"}</label>
                     </div>
                 </ListItem>
                 <ListItem>
-                    <div class={"visible flex-container"}>
-                        <input
-                            type="color"
-                            id="normalTextColor"
-                            name="normalTextColor"
-                            value={<std::string::String as Clone>::clone(&*text_color_stdout)}
-                            onchange={update_stdout_text_color.clone()}
-                        />
-                        <label for="normalTextColor">{"Terminal stdout color"}</label>
+                   <div class={"visible flex-container"}>
+                   <ColorPicker
+                      onchange={update_stdout_text_color_cb.clone()}
+                      color={(*style.text_color_stdout).clone()}
+                     />
+                          <label for="stdoutTextColor">{"Terminal stdout color"}</label>
                     </div>
                 </ListItem>
                 <ListItem>
-                    <div class={"visible flex-container"}>
-                        <input
-                            type="color"
-                            id="normalTextColor"
-                            name="normalTextColor"
-                            value={<std::string::String as Clone>::clone(&*text_color_stderr)}
-                            onchange={update_stderr_text_color.clone()}
-                        />
-                        <label for="normalTextColor">{"Terminal stderr color"}</label>
+                   <div class={"visible flex-container"}>
+                   <ColorPicker
+                      onchange={update_stderr_text_color_cb.clone()}
+                      color={(*style.text_color_stderr).clone()}
+                     />
+                          <label for="stderrTextColor">{"Terminal stderr color"}</label>
                     </div>
                 </ListItem>
                 <ListItem>
                     <Switch
                         label="Background color changes on success / failure"
-                        checked={*background_color_change}
-                        onchange={toggle_background_change.clone()}
+                        checked={*style.background_color_change}
+                        onchange={toggle_background_change_cb.clone()}
                     />
                 </ListItem>
                 <ListItem>
-                    <div class={if *background_color_change { "visible flex-container" } else { "hidden" }}>
-                        <input
-                            type="color"
-                            id="successColor"
-                            name="successColor"
-                            value={<std::string::String as Clone>::clone(&*background_color_success)}
-                            onchange={update_success_color.clone()}
-                        />
-                        <label for="successColor">{"Color to indicate success"}</label>
+                    <div class={if *style.background_color_change { "visible flex-container" } else { "hidden" }}>
+                   <ColorPicker
+                      onchange={update_success_color_cb.clone()}
+                      color={(*style.background_color_success).clone()}
+                     />
+                          <label for="stderrTextColor">{"Color to indicate success"}</label>
                     </div>
                 </ListItem>
                 <ListItem>
-                    <div class={if *background_color_change { "visible flex-container" } else { "hidden" }}>
-                        <input
-                            type="color"
-                            id="failureColor"
-                            name="failureColor"
-                            value={<std::string::String as Clone>::clone(&*background_color_failure)}
-                            onchange={update_failure_color.clone()}
-                        />
-                        <label for="failureColor">{"Color to indicate failure"}</label>
+                    <div class={if *style.background_color_change { "visible flex-container" } else { "hidden" }}>
+                   <ColorPicker
+                      onchange={update_failure_color_cb.clone()}
+                      color={(*style.background_color_failure).clone()}
+                     />
+                          <label for="stderrTextColor">{"Color to indicate failure"}</label>
                     </div>
                 </ListItem>
             </List>
@@ -764,16 +669,16 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         });
     }
 
-    let output_background_color = match *background_color_change {
+    let output_background_color = match *style.background_color_change {
         true => match ws_state.status {
-            TerminalStatus::Complete => &background_color_success,
-            TerminalStatus::Failed => &background_color_failure,
-            _ => &background_color_normal,
+            TerminalStatus::Complete => &style.background_color_success,
+            TerminalStatus::Failed => &style.background_color_failure,
+            _ => &style.background_color_normal,
         },
-        false => &background_color_normal,
+        false => &style.background_color_normal,
     };
 
-    let output_stdout_color = &text_color_stdout;
+    let output_stdout_color = &style.text_color_stdout;
     let output_copy_button_text = use_state(|| "📋".to_string());
 
     // Initialize script entry
@@ -838,7 +743,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         } else if ws_state.status == TerminalStatus::Uninitialized {
             <LoadingState/>
         } else {
-            <CommandArea description={script_entry.description.clone()} script={script_entry.script} background_color={(*background_color_normal).clone()} foreground_color={(*text_color_stdout).clone()}/>
+            <CommandArea description={script_entry.description.clone()} script={script_entry.script} background_color={(*style.background_color_normal).clone()} foreground_color={(*style.text_color_stdout).clone()}/>
             <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
             <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {
@@ -862,11 +767,11 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 </div>
             </div>
             <div class="terminal_display" ref={terminal_ref.clone()}>
-                if *show_line_numbers && ws_state.status != TerminalStatus::Initialized {
+                if *style.show_line_numbers && ws_state.status != TerminalStatus::Initialized {
                     <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
                     {
                         for ws_state.messages.iter().filter_map(|(stream, _message)| {
-                            if *stream == StreamType::Meta && !*show_meta_stream {
+                            if *stream == StreamType::Meta && !*style.show_meta_stream {
                                 None
                             } else {
                                 let gutter_content = match stream {
@@ -892,7 +797,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         <div class="content" ref={terminal_content_ref.clone()} {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
         {
             for ws_state.messages.iter().filter_map(|(stream, message)| {
-                if *stream == StreamType::Meta && !*show_meta_stream {
+                if *stream == StreamType::Meta && !*style.show_meta_stream {
                     None
                 } else {
                     let (class_name, id, style) = match stream {
@@ -901,7 +806,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                             line_number_output += 1;
                             ("stream-stdout", id, "".to_string())
                         },
-                        StreamType::Stderr => ("stream-stderr", "".to_string(), format!("color: {}", *text_color_stderr)),
+                        StreamType::Stderr => ("stream-stderr", "".to_string(), format!("color: {}", *style.text_color_stderr)),
                         StreamType::Meta => ("stream-meta", "".to_string(), "".to_string()),
                     };
                     Some(html!{

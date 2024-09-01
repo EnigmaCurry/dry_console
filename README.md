@@ -1,7 +1,7 @@
 # dry_console
 
-An experimental workstation tool for managing remote Docker
-servers/VMs, and for deploying containers with
+An experimental workstation tool for managing remote Docker servers
+(or local VM), and for deploying containers with
 [d.rymcg.tech](d.rymcg.tech).
 
 ## Platforms

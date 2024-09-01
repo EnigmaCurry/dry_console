@@ -1,4 +1,5 @@
 use crate::components::logout;
+use crate::components::terminal_context_provider::TerminalContextProvider;
 use crate::components::ButtonLink;
 use crate::pages::{apps, login, routes, workstation};
 use anyhow::{anyhow, Error};
@@ -372,7 +373,9 @@ fn page(props: &AppPageProps) -> Html {
 
     html! {
         <Page {brand} {sidebar} {tools} {open}>
+            <TerminalContextProvider>
             { for props.children.iter() }
+            </TerminalContextProvider>
         </Page>
     }
 }
