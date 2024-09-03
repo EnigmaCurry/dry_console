@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::Serialize;
 use std::{io, sync::PoisonError};
-use tracing::error;
+use tracing::{error, warn};
 use ulid::Ulid;
 
 /// JSON response
@@ -61,9 +61,9 @@ impl IntoResponse for AppError {
             | AppError::SharedState(error, url)
             | AppError::StateMachineConflict(error, url) => {
                 error!(
-                    "Internal server error: {:?} - Request URL: {:?}",
+                    "Request URL: {:?} - Internal server error: {:?}",
+                    url.clone().unwrap_or("None".to_string()),
                     error,
-                    url.clone().unwrap_or("None".to_string())
                 );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -73,9 +73,9 @@ impl IntoResponse for AppError {
             }
             AppError::Io(error, url) => {
                 error!(
-                    "IO error: {:?} - Request URL: {:?}",
+                    "Request URL: {:?} - IO error: {:?}",
+                    url.clone().unwrap_or("None".to_string()),
                     error,
-                    url.clone().unwrap_or("None".to_string())
                 );
                 (
                     StatusCode::BAD_REQUEST,
@@ -85,9 +85,9 @@ impl IntoResponse for AppError {
             }
             AppError::Config(error, url) => {
                 error!(
-                    "Configuration error: {:?} - Request URL: {:?}",
+                    "Request URL: {:?} - Configuration error: {:?}",
+                    url.clone().unwrap_or("None".to_string()),
                     error,
-                    url.clone().unwrap_or("None".to_string())
                 );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -97,9 +97,9 @@ impl IntoResponse for AppError {
             }
             AppError::Json(error, url) => {
                 error!(
-                    "JSON validation error: {:?} - Request URL: {:?}",
+                    "Request URL: {:?} - JSON validation error: {:?}",
+                    url.clone().unwrap_or("None".to_string()),
                     error,
-                    url.clone().unwrap_or("None".to_string())
                 );
                 (
                     StatusCode::BAD_REQUEST,
@@ -107,11 +107,17 @@ impl IntoResponse for AppError {
                     url.clone(),
                 )
             }
-            AppError::NotFound(url) => (
-                StatusCode::NOT_FOUND,
-                "Object not found".to_string(),
-                url.clone(),
-            ),
+            AppError::NotFound(url) => {
+                warn!(
+                    "404 not found: {}",
+                    url.clone().unwrap_or("Unknown".to_string())
+                );
+                (
+                    StatusCode::NOT_FOUND,
+                    "Object not found".to_string(),
+                    url.clone(),
+                )
+            }
         };
 
         (
