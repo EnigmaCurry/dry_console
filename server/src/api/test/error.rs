@@ -5,7 +5,7 @@ use crate::{
     response::{AppError, AppJson, JsonResult},
     AppRouter,
 };
-use anyhow::{anyhow};
+use anyhow::anyhow;
 use axum::{
     body::Body,
     extract::Request,

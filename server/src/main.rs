@@ -1,6 +1,7 @@
 mod api;
 mod app_state;
 mod config;
+mod path;
 mod response;
 mod routing;
 mod sudo;
@@ -185,7 +186,6 @@ async fn main() {
         process::exit(1);
     }
 
-    
     let shared_state = match app_state::create_shared_state(&opt) {
         Ok(state) => state,
         Err(e) => panic!("Could not create shared state: {}", e),

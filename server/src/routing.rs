@@ -1,8 +1,4 @@
-use axum::{
-    body::Body,
-    http::Request,
-    response::{Response},
-};
+use axum::{body::Body, http::Request, response::Response};
 use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};

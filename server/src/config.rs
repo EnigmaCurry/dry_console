@@ -8,8 +8,6 @@ use std::io::Write;
 use std::path::Path;
 use tracing::{debug, info};
 
-const DEFAULT_D_RYMCG_TECH_ROOT_DIR: &str = "~/git/vendor/enigmacurry/d.rymcg.tech";
-
 pub fn default_config_path() -> String {
     let mut path = config_dir().expect("Could not find platform specific config directory.");
     path.push("dry_console/config.ron");
@@ -26,23 +24,11 @@ pub fn load_config(config_path: &str) -> Result<Config, Box<dyn Error>> {
     } else {
         // If the file does not exist, create a default config and save it.
         config = Config::default();
-        // Expand the "~" in the suggested path
-        let suggested_root_path = if DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string().starts_with("~") {
-            if let Some(home) = dirs::home_dir() {
-                DEFAULT_D_RYMCG_TECH_ROOT_DIR.replacen("~", &home.to_string_lossy(), 1)
-            } else {
-                DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string()
-            }
-        } else {
-            DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string()
-        };
         // Add the d.rymcg.tech section:
         config.sections.insert(
             ConfigSection::DRymcgTech,
             ConfigData::DRymcgTech(DRymcgTechConfig {
-                installed: false,
-                root_path: None,
-                suggested_root_path: Some(suggested_root_path),
+                root_dir: None,
                 ..Default::default()
             }),
         );
