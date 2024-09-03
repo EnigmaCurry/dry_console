@@ -45,7 +45,7 @@ pub fn config() -> AppRouter {
             },
             None => Err(AppError::Internal(
                 anyhow!("Could not read config section"),
-                None,
+                Some(req.uri().to_string()),
             )),
         }
     }

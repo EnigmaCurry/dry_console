@@ -39,7 +39,7 @@ pub enum AppError {
     #[error("StateMachineConflict: {0}")]
     StateMachineConflict(Error, Option<String>),
     #[error("Not found")]
-    NotFound,
+    NotFound(Option<String>),
     #[error("Config error: {0}")]
     Config(String, Option<String>),
 }
@@ -62,7 +62,8 @@ impl IntoResponse for AppError {
             | AppError::StateMachineConflict(error, url) => {
                 error!(
                     "Internal server error: {:?} - Request URL: {:?}",
-                    error, url
+                    error,
+                    url.clone().unwrap_or("None".to_string())
                 );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -71,7 +72,11 @@ impl IntoResponse for AppError {
                 )
             }
             AppError::Io(error, url) => {
-                error!("IO error: {:?} - Request URL: {:?}", error, url);
+                error!(
+                    "IO error: {:?} - Request URL: {:?}",
+                    error,
+                    url.clone().unwrap_or("None".to_string())
+                );
                 (
                     StatusCode::BAD_REQUEST,
                     "Bad request: IO error".to_string(),
@@ -79,7 +84,11 @@ impl IntoResponse for AppError {
                 )
             }
             AppError::Config(error, url) => {
-                error!("Configuration error: {:?} - Request URL: {:?}", error, url);
+                error!(
+                    "Configuration error: {:?} - Request URL: {:?}",
+                    error,
+                    url.clone().unwrap_or("None".to_string())
+                );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Something went wrong".to_string(),
@@ -89,7 +98,8 @@ impl IntoResponse for AppError {
             AppError::Json(error, url) => {
                 error!(
                     "JSON validation error: {:?} - Request URL: {:?}",
-                    error, url
+                    error,
+                    url.clone().unwrap_or("None".to_string())
                 );
                 (
                     StatusCode::BAD_REQUEST,
@@ -97,7 +107,11 @@ impl IntoResponse for AppError {
                     url.clone(),
                 )
             }
-            AppError::NotFound => (StatusCode::NOT_FOUND, "Object not found".to_string(), None),
+            AppError::NotFound(url) => (
+                StatusCode::NOT_FOUND,
+                "Object not found".to_string(),
+                url.clone(),
+            ),
         };
 
         (

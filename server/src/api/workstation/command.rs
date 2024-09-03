@@ -174,7 +174,7 @@ pub fn command() -> AppRouter {
                     );
                     Ok(AppJson(script_entry))
                 }
-                Err(_) => Err(AppError::NotFound),
+                Err(_) => Err(AppError::NotFound(Some(req.uri().to_string()))),
             },
         }
     }
