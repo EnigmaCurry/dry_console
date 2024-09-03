@@ -19,8 +19,12 @@ pub enum ConfigData {
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct DRymcgTechConfig {
+    #[serde(default)]
     pub installed: bool,
+    #[serde(default)]
     pub root_path: Option<String>,
+    #[serde(default)]
+    pub suggested_root_path: Option<String>,
 }
 
 impl ConfigData {
@@ -31,6 +35,10 @@ impl ConfigData {
                     return Err("installed cannot be true if root_path is None".into());
                 } else if config.root_path.is_some() && !config.installed {
                     return Err("root_path cannot be Some if installed == false".into());
+                } else if config.root_path.is_some() && config.suggested_root_path.is_some() {
+                    return Err("suggested_root_path should not be set if root_path is.".into());
+                } else if config.suggested_root_path.is_none() && config.root_path.is_none() {
+                    return Err("suggested_root_path should be Some if root_path is None".into());
                 }
                 Ok(true)
             }

@@ -408,3 +408,7 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
 .color_picker button {
     color: #000;
 }
+
+.terminal .env > form {
+    padding-left: 1em;
+}

@@ -14,13 +14,15 @@ use gloo::console::error;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
+use std::any::Any;
+use std::any::TypeId;
+use std::collections::HashMap;
 use std::rc::Rc;
 use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::js_sys;
 use web_sys::js_sys::JsString;
 use web_sys::js_sys::Promise;
 use web_sys::js_sys::Reflect;
@@ -28,8 +30,10 @@ use web_sys::window;
 use web_sys::Blob;
 use web_sys::FileReader;
 use web_sys::MessageEvent;
+use web_sys::{js_sys, HtmlInputElement};
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
+use yew::virtual_dom::{VChild, VNode};
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
@@ -241,13 +245,71 @@ enum TerminalStatus {
     Complete,
 }
 
+#[derive(Properties, PartialEq, Clone)]
+pub struct EnvVarProps {
+    pub name: String,
+    pub description: String,
+    #[prop_or_default]
+    pub on_value_change: Option<Callback<(String, String)>>,
+}
+
+#[function_component(EnvVar)]
+pub fn env_var(props: &EnvVarProps) -> Html {
+    let env_var_value = use_state(|| "".to_string());
+
+    // Clone necessary data from props
+    let name = props.name.clone();
+    let description = props.description.clone();
+    let on_value_change = props.on_value_change.clone();
+
+    // Callback to handle the value change
+    let on_input_change = {
+        let env_var_value = env_var_value.clone();
+        let name = name.clone();
+        let on_value_change = on_value_change.clone();
+        Callback::from(move |value: String| {
+            env_var_value.set(value.clone());
+            if let Some(on_value_change) = &on_value_change {
+                on_value_change.emit((name.clone(), value));
+            }
+        })
+    };
+
+    // Create a Callback<String> directly
+    let onchange = {
+        let on_input_change = on_input_change.clone();
+        Callback::from(move |value: String| {
+            on_input_change.emit(value);
+        })
+    };
+
+    html! {
+        <Form>
+            <FormGroup label={format!("{name} - {description}")} required=true>
+                <TextInput
+                    required=true
+                    value={(*env_var_value).clone()}
+                    onchange={onchange}  // This is now a Callback<String>
+                />
+            </FormGroup>
+        </Form>
+    }
+}
+
+pub trait IsEnvVar {}
+
+impl IsEnvVar for EnvVar {}
+
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
     pub script: String,
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
     pub on_done: Option<Callback<MouseEvent>>,
+    #[prop_or_default]
+    pub children: Children,
 }
+
 impl TerminalOutputProps {
     pub fn default_on_done() -> Callback<MouseEvent> {
         Callback::from(|_| {})
@@ -257,6 +319,7 @@ impl TerminalOutputProps {
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
+    let env_vars = use_state(|| HashMap::new());
     let style_ctx = use_context::<TerminalStyleContext>().expect("No TerminalStyleContext found");
     let style = style_ctx.get_settings();
     let num_lines = use_state(|| 1);
@@ -298,6 +361,15 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         //     }
         // });
     }
+
+    let default_on_env_var_change = {
+        let env_vars = env_vars.clone();
+        Callback::from(move |(name, value): (String, String)| {
+            let mut vars = (*env_vars).clone();
+            vars.insert(name, value);
+            env_vars.set(vars);
+        })
+    };
 
     // Update gutter height dynamically
     {
@@ -615,6 +687,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         pub description: String,
         pub background_color: String,
         pub foreground_color: String,
+        pub env_vars: HashMap<String, String>,
     }
     #[function_component(CommandArea)]
     fn command_area(props: &CommandAreaProps) -> Html {
@@ -623,6 +696,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             description,
             background_color,
             foreground_color,
+            env_vars,
         } = props;
         let code_block_ref = NodeRef::default();
         let button_text = use_state(|| "📋".to_string());
@@ -738,18 +812,29 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
     html! {
         <div class="terminal">
-        if ws_state.status == TerminalStatus::Critical {
-            <Alert title="Error" r#type={AlertType::Danger}>{ws_state.error.clone()}</Alert>
-        } else if ws_state.status == TerminalStatus::Uninitialized {
-            <LoadingState/>
-        } else {
-            <CommandArea description={script_entry.description.clone()} script={script_entry.script} background_color={(*style.background_color_normal).clone()} foreground_color={(*style.text_color_stdout).clone()}/>
-            <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
-            <div class="pf-u-display-flex">
+            if ws_state.status == TerminalStatus::Critical {
+                <Alert title="Error" r#type={AlertType::Danger}>{ws_state.error.clone()}</Alert>
+            } else if ws_state.status == TerminalStatus::Uninitialized {
+                <LoadingState/>
+            } else {
+                <CommandArea
+                    description={script_entry.description.clone()}
+                    script={script_entry.script}
+                    background_color={(*style.background_color_normal).clone()}
+                    foreground_color={(*style.text_color_stdout).clone()}
+                    env_vars={(*env_vars).clone()}
+                />
+                    if !props.children.is_empty() {
+                        <div class="env">
+                        { for props.children.iter().map(|child| child.clone()) }
+                        </div>
+                    }
+                <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
+                    <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {
-                          <Button onclick={run_command.clone()}>{"🚀 Run script"}</Button>
+                            <Button onclick={run_command.clone()}>{"🚀 Run script"}</Button>
                         } else if ws_state.status == TerminalStatus::Processing {
-                          <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
+                            <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {
                             <Button onclick={done.clone()}>{"👍️ Done"}</Button>
                         } else if ws_state.status == TerminalStatus::Connecting {
@@ -757,67 +842,67 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                         } else {
                             <Button onclick={reset_terminal.clone()}>{"💥 Reset"}</Button>
                         }
-            </div>
-                <div class="pf-u-display-flex">
-                    <Popover target={settings_link} body={settings_panel} />
-                    if ws_state.status != TerminalStatus::Initialized {
-                      <Button onclick={scroll_to_top.clone()}>{"⬆️ Top"}</Button>
-                      <Button onclick={scroll_to_bottom.clone()}>{"⬇️ Bottom"}</Button>
-                    }
+                    </div>
+                    <div class="pf-u-display-flex">
+                        <Popover target={settings_link} body={settings_panel} />
+                        if ws_state.status != TerminalStatus::Initialized {
+                            <Button onclick={scroll_to_top.clone()}>{"⬆️ Top"}</Button>
+                            <Button onclick={scroll_to_bottom.clone()}>{"⬇️ Bottom"}</Button>
+                        }
+                    </div>
                 </div>
-            </div>
-            <div class="terminal_display" ref={terminal_ref.clone()}>
-                if *style.show_line_numbers && ws_state.status != TerminalStatus::Initialized {
-                    <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
+                <div class="terminal_display" ref={terminal_ref.clone()}>
+                    if *style.show_line_numbers && ws_state.status != TerminalStatus::Initialized {
+                        <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
+                        {
+                            for ws_state.messages.iter().filter_map(|(stream, _message)| {
+                                if *stream == StreamType::Meta && !*style.show_meta_stream {
+                                    None
+                                } else {
+                                    let gutter_content = match stream {
+                                        StreamType::Stdout => {
+                                            let content = line_number_gutter.to_string();
+                                            line_number_gutter += 1;
+                                            content
+                                        }
+                                        StreamType::Stderr => "E".to_string(),         // "E" for StdErr
+                                        StreamType::Meta => "#".to_string(),           // "#" for Meta (assuming this is the correct symbol)
+                                    };
+                                    Some(html!{
+                                        <div class="gutter-line">{gutter_content}</div>
+                                    })
+                                }
+                            })
+                        }
+                        </div>
+                    }
+                    if ws_state.status == TerminalStatus::Complete || ws_state.status == TerminalStatus::Failed {
+                        <button title="Copy output" class="copy-button" onclick={copy_code(terminal_ref.clone(), output_copy_button_text.clone())}><div class="copy-button-text">{ (*output_copy_button_text).clone() }</div></button>
+                    }
+                    <div class="content" ref={terminal_content_ref.clone()} {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
                     {
-                        for ws_state.messages.iter().filter_map(|(stream, _message)| {
+                        for ws_state.messages.iter().filter_map(|(stream, message)| {
                             if *stream == StreamType::Meta && !*style.show_meta_stream {
                                 None
                             } else {
-                                let gutter_content = match stream {
+                                let (class_name, id, style) = match stream {
                                     StreamType::Stdout => {
-                                        let content = line_number_gutter.to_string();
-                                        line_number_gutter += 1;
-                                        content
-                                    }
-                                    StreamType::Stderr => "E".to_string(),         // "E" for StdErr
-                                    StreamType::Meta => "#".to_string(),           // "#" for Meta (assuming this is the correct symbol)
+                                        let id = format!("line-{}", line_number_output);
+                                        line_number_output += 1;
+                                        ("stream-stdout", id, "".to_string())
+                                    },
+                                    StreamType::Stderr => ("stream-stderr", "".to_string(), format!("color: {}", *style.text_color_stderr)),
+                                    StreamType::Meta => ("stream-meta", "".to_string(), "".to_string()),
                                 };
                                 Some(html!{
-                                    <div class="gutter-line">{gutter_content}</div>
+                                    <span id={id} class={class_name} style={style}>{message}</span>
                                 })
                             }
                         })
                     }
                     </div>
+                </div>
             }
-        if ws_state.status == TerminalStatus::Complete || ws_state.status == TerminalStatus::Failed {
-            <button title="Copy output" class="copy-button" onclick={copy_code(terminal_ref.clone(), output_copy_button_text.clone())}><div class="copy-button-text">{ (*output_copy_button_text).clone() }</div></button>
-        }
-        <div class="content" ref={terminal_content_ref.clone()} {onscroll} style={format!("max-height: {}em; background-color: {}; color: {}", *num_lines, **output_background_color, **output_stdout_color)}>
-        {
-            for ws_state.messages.iter().filter_map(|(stream, message)| {
-                if *stream == StreamType::Meta && !*style.show_meta_stream {
-                    None
-                } else {
-                    let (class_name, id, style) = match stream {
-                        StreamType::Stdout => {
-                            let id = format!("line-{}", line_number_output);
-                            line_number_output += 1;
-                            ("stream-stdout", id, "".to_string())
-                        },
-                        StreamType::Stderr => ("stream-stderr", "".to_string(), format!("color: {}", *style.text_color_stderr)),
-                        StreamType::Meta => ("stream-meta", "".to_string(), "".to_string()),
-                    };
-                    Some(html!{
-                        <span id={id} class={class_name} style={style}>{message}</span>
-                    })
-                }
-            })
-        }
-        </div>
-        </div>
-        }
         </div>
     }
 }

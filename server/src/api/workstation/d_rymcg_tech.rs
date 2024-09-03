@@ -9,7 +9,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::routing::MethodRouter;
 use axum::{extract::State, routing::get, Router};
-use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfig};
+use dry_console_dto::config::{ConfigSection, DRymcgTechConfig};
 
 pub fn main() -> AppRouter {
     Router::new().merge(config())
