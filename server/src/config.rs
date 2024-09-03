@@ -27,10 +27,7 @@ pub fn load_config(config_path: &str) -> Result<Config, Box<dyn Error>> {
         // Add the d.rymcg.tech section:
         config.sections.insert(
             ConfigSection::DRymcgTech,
-            ConfigData::DRymcgTech(DRymcgTechConfig {
-                root_dir: None,
-                ..Default::default()
-            }),
+            ConfigData::DRymcgTech(DRymcgTechConfig { root_dir: None }),
         );
         // Save the config:
         save_config(&config, config_path)?;

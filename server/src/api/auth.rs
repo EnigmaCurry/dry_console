@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use axum::extract::State;
 use axum_login::{AuthUser, AuthnBackend, UserId};
 pub use dry_console_dto::session::Credentials;
-use tracing::debug;
 
 pub const TOKEN_CACHE_NAME: &str = "token";
 const ADMIN_USER: &str = "admin";

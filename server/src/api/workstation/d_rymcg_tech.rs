@@ -10,7 +10,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::routing::MethodRouter;
 use axum::{extract::State, routing::get, Router};
-use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfig, DRymcgTechConfigState};
+use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfigState};
 use tracing::debug;
 
 const DEFAULT_D_RYMCG_TECH_ROOT_DIR: &str = "~/git/vendor/enigmacurry/d.rymcg.tech";
@@ -47,16 +47,12 @@ pub fn config() -> AppRouter {
                     let mut candidate_root_dir = None;
                     if !installed {
                         let default_dir =
-                            if DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string().starts_with("~") {
-                                if let Some(home) = dirs::home_dir() {
-                                    Some(DEFAULT_D_RYMCG_TECH_ROOT_DIR.replacen(
-                                        "~",
+                            if DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string().starts_with('~') {
+                                dirs::home_dir().map(|home| DEFAULT_D_RYMCG_TECH_ROOT_DIR.replacen(
+                                        '~',
                                         &home.to_string_lossy(),
                                         1,
                                     ))
-                                } else {
-                                    None
-                                }
                             } else {
                                 Some(DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string())
                             };
@@ -66,10 +62,10 @@ pub fn config() -> AppRouter {
                         } else {
                             // Expand the "~" in the suggested path
                             suggested_root_dir =
-                                if DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string().starts_with("~") {
+                                if DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string().starts_with('~') {
                                     if let Some(home) = dirs::home_dir() {
                                         Some(DEFAULT_D_RYMCG_TECH_ROOT_DIR.replacen(
-                                            "~",
+                                            '~',
                                             &home.to_string_lossy(),
                                             1,
                                         ))
@@ -85,7 +81,7 @@ pub fn config() -> AppRouter {
                             }
                             // Check that the suggested directory could actually be created
                             suggested_root_dir = match suggested_root_dir {
-                                Some(dir) => match could_create_path(&std::path::Path::new(&dir)) {
+                                Some(dir) => match could_create_path(std::path::Path::new(&dir)) {
                                     Ok(_) => Some(dir),
                                     Err(_e) => None,
                                 },

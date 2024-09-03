@@ -1,7 +1,7 @@
 use crate::components::loading_state::LoadingState;
 use crate::components::terminal::{EnvVar, TerminalOutput, TerminalOutputProps};
 use crate::pages::workstation::WorkstationTab;
-use dry_console_dto::config::{DRymcgTechConfig, DRymcgTechConfigState};
+use dry_console_dto::config::{DRymcgTechConfigState};
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;

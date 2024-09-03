@@ -14,8 +14,6 @@ use gloo::console::error;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
-use std::any::Any;
-use std::any::TypeId;
 use std::collections::HashMap;
 use std::rc::Rc;
 use ulid::Ulid;
@@ -23,6 +21,7 @@ use wasm_bindgen::closure::Closure;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::spawn_local;
 use wasm_bindgen_futures::JsFuture;
+use web_sys::js_sys;
 use web_sys::js_sys::JsString;
 use web_sys::js_sys::Promise;
 use web_sys::js_sys::Reflect;
@@ -30,10 +29,8 @@ use web_sys::window;
 use web_sys::Blob;
 use web_sys::FileReader;
 use web_sys::MessageEvent;
-use web_sys::{js_sys, HtmlInputElement};
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
-use yew::virtual_dom::{VChild, VNode};
 
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
@@ -319,7 +316,7 @@ impl TerminalOutputProps {
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
-    let env_vars = use_state(|| HashMap::new());
+    let env_vars = use_state(HashMap::new);
     let style_ctx = use_context::<TerminalStyleContext>().expect("No TerminalStyleContext found");
     let style = style_ctx.get_settings();
     let num_lines = use_state(|| 1);
@@ -826,7 +823,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 />
                     if !props.children.is_empty() {
                         <div class="env">
-                        { for props.children.iter().map(|child| child.clone()) }
+                        { for props.children.iter() }
                         </div>
                     }
                 <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">

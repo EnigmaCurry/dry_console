@@ -12,7 +12,7 @@ use dry_console_dto::workstation::Platform;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{info};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Global app state
@@ -72,9 +72,9 @@ pub fn create_shared_state(opt: &Opt) -> Result<SharedState, AppError> {
         command_script.insert(ulid.clone(), script);
     }
 
-    let config;
-    match config::load_config(&opt.config_path) {
-        Ok(cfg) => config = cfg,
+    
+    let config = match config::load_config(&opt.config_path) {
+        Ok(cfg) => cfg,
         Err(e) => return Err(AppError::Config(anyhow!(e.to_string()), None)),
     };
 
