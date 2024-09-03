@@ -411,4 +411,5 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
 
 .terminal .env > form {
     padding-left: 1em;
+    padding-right: 1em;
 }

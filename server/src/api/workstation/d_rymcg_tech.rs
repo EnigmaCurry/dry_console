@@ -9,7 +9,8 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::routing::MethodRouter;
 use axum::{extract::State, routing::get, Router};
-use dry_console_dto::config::{ConfigSection, DRymcgTechConfig};
+use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfig};
+use tracing::debug;
 
 pub fn main() -> AppRouter {
     Router::new().merge(config())
@@ -35,28 +36,30 @@ pub fn config() -> AppRouter {
             let state = state.read().await;
             state.config.clone()
         };
+
         match config.sections.get(&ConfigSection::DRymcgTech) {
-            Some(cfg) => match serde_json::to_string(&cfg) {
-                Ok(s) => match cfg.validate() {
-                    Ok(true) => Ok(AppJson(serde_json::from_str(&s)?)),
-                    Ok(false) => Err(AppError::Config(
-                        anyhow!("Config is invalid."),
-                        Some(req.uri().to_string()),
-                    )),
-                    Err(e) => Err(AppError::Config(
-                        anyhow!("Config is invalid: {e}"),
-                        Some(req.uri().to_string()),
-                    )),
-                },
-                Err(e) => Err(AppError::Internal(e.into(), Some(req.uri().to_string()))),
-            },
-            _ => {
-                let cfg = DRymcgTechConfig::default();
-                match serde_json::to_string(&cfg) {
-                    Ok(s) => Ok(AppJson(serde_json::from_str(&s)?)),
-                    Err(e) => Err(AppError::Internal(e.into(), Some(req.uri().to_string()))),
+            Some(cfg) => match cfg {
+                ConfigData::DRymcgTech(d_rymcg_tech_config) => {
+                    match d_rymcg_tech_config.validate() {
+                        Ok(true) => {
+                            debug!("cfg: {:?}", d_rymcg_tech_config);
+                            Ok(AppJson(d_rymcg_tech_config.clone()))
+                        }
+                        Ok(false) => Err(AppError::Config(
+                            anyhow!("Config is invalid."),
+                            Some(req.uri().to_string()),
+                        )),
+                        Err(e) => Err(AppError::Config(
+                            anyhow!("Config is invalid: {e}"),
+                            Some(req.uri().to_string()),
+                        )),
+                    }
                 }
-            }
+            },
+            None => Err(AppError::Config(
+                anyhow!("Missing d.rymcg.tech config section."),
+                Some(req.uri().to_string()),
+            )),
         }
     }
     route("/config", get(handler))

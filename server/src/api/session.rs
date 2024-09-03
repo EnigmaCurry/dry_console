@@ -101,9 +101,7 @@ fn login() -> AppRouter {
                 }
                 {
                     // Tokens are one-time passwords, reset it now:
-                    debug!("yea");
                     let _token = auth_session.backend.reset_token(State(state.clone())).await;
-                    debug!("nope");
                 }
                 user
             }

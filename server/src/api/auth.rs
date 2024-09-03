@@ -45,9 +45,7 @@ impl Backend {
     }
     pub async fn reset_token(&mut self, State(state): State<SharedState>) -> String {
         {
-            debug!("reset_token() ...");
             let mut state = state.write().await;
-            debug!("nooope");
             state.cache_set_string(TOKEN_CACHE_NAME, &generate_token());
         }
         {
