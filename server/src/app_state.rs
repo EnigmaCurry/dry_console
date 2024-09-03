@@ -5,6 +5,7 @@ use crate::api::workstation::platform::detect_platform;
 use crate::api::workstation::WorkstationDependencyState;
 use crate::response::AppError;
 use crate::{config, Opt};
+use anyhow::anyhow;
 use axum::body::Bytes;
 use dry_console_dto::config::Config;
 use dry_console_dto::workstation::Platform;
@@ -74,12 +75,7 @@ pub fn create_shared_state(opt: &Opt) -> Result<SharedState, AppError> {
     let config;
     match config::load_config(&opt.config_path) {
         Ok(cfg) => config = cfg,
-        Err(e) => {
-            return Err(AppError::Config(
-                format!("could not load config file: {}", e),
-                None,
-            ))
-        }
+        Err(e) => return Err(AppError::Config(anyhow!(e.to_string()), None)),
     };
 
     info!("\n\nLogin URL:\n{0}\n", url);

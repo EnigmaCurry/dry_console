@@ -9,7 +9,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::routing::MethodRouter;
 use axum::{extract::State, routing::get, Router};
-use dry_console_dto::config::DRymcgTechConfig;
+use dry_console_dto::config::{ConfigSection, DRymcgTechConfig};
 
 pub fn main() -> AppRouter {
     Router::new().merge(config())
@@ -35,18 +35,23 @@ pub fn config() -> AppRouter {
             let state = state.read().await;
             state.config.clone()
         };
-        match config
-            .sections
-            .get(&dry_console_dto::config::ConfigSection::DRymcgTech)
-        {
+        match config.sections.get(&ConfigSection::DRymcgTech) {
             Some(cfg) => match serde_json::to_string(&cfg) {
-                Ok(s) => Ok(AppJson(serde_json::from_str(&s)?)),
+                Ok(s) => {
+                    //
+                    Ok(AppJson(serde_json::from_str(&s)?))
+                }
                 Err(e) => Err(AppError::Internal(e.into(), Some(req.uri().to_string()))),
             },
-            None => Err(AppError::Internal(
-                anyhow!("Could not read config section"),
-                Some(req.uri().to_string()),
-            )),
+            None => {
+                // could not read d.rymcg.tech section.
+                // Create a default config:
+                let cfg = DRymcgTechConfig::default();
+                match serde_json::to_string(&cfg) {
+                    Ok(s) => Ok(AppJson(serde_json::from_str(&s)?)),
+                    Err(e) => Err(AppError::Internal(e.into(), Some(req.uri().to_string()))),
+                }
+            }
         }
     }
     route("/config", get(handler))

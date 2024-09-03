@@ -19,5 +19,14 @@ pub enum ConfigData {
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct DRymcgTechConfig {
-    pub root_path: String,
+    pub installed: bool,
+    pub root_path: Option<String>,
+}
+impl DRymcgTechConfig {
+    pub fn validate(&self) -> Result<bool, String> {
+        if self.installed && self.root_path.is_none() {
+            return Err("installed cannot be true if root_path is None".into());
+        }
+        Ok(true)
+    }
 }

@@ -41,7 +41,7 @@ pub enum AppError {
     #[error("Not found")]
     NotFound(Option<String>),
     #[error("Config error: {0}")]
-    Config(String, Option<String>),
+    Config(Error, Option<String>),
 }
 
 impl IntoResponse for AppError {
