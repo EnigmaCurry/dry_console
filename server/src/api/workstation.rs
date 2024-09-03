@@ -1,6 +1,8 @@
 use crate::broadcast;
 use crate::{api::route, app_state::SharedState, response::AppError};
-use axum::extract::State;
+use anyhow::anyhow;
+use axum::body::Body;
+use axum::extract::{Request, State};
 use axum::{extract::Path, response::IntoResponse, routing::get, Json, Router};
 pub use dry_console_dto::workstation::{
     WorkstationDependencyInfo, WorkstationPackage, WorkstationPackageManager, WorkstationState,
@@ -17,6 +19,7 @@ use which::which;
 
 pub mod command;
 pub mod command_execute;
+pub mod d_rymcg_tech;
 mod dependencies;
 pub mod platform;
 
@@ -31,6 +34,7 @@ pub fn router(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> Rou
         .merge(workstation())
         .merge(required_dependencies())
         .merge(dependencies())
+        .merge(d_rymcg_tech::main())
         .merge(command::command())
         .merge(command_execute::main(shutdown, state))
 }
@@ -162,6 +166,7 @@ fn dependencies() -> Router<SharedState> {
     async fn handler(
         Path(name): Path<String>,
         State(state): State<SharedState>,
+        req: Request<Body>,
     ) -> impl IntoResponse {
         match WorkstationDependency::from_str(&name.clone().replace('-', "_")).ok() {
             Some(dependency) => {
@@ -316,7 +321,8 @@ fn dependencies() -> Router<SharedState> {
                 Json(dep_state)
             }
             .into_response(),
-            None => AppError::Internal("Invalid dependency".to_string()).into_response(),
+            None => AppError::Internal(anyhow!("Invalid dependency"), Some(req.uri().to_string()))
+                .into_response(),
         }
     }
     route("/dependency/:name/", get(handler))

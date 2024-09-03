@@ -1,8 +1,9 @@
-use std::{convert::Infallible};
+use std::convert::Infallible;
 
 use aper::{NeverConflict, StateMachine};
 use axum::{
-    extract::State,
+    body::Body,
+    extract::{Request, State},
     routing::{get, post, MethodRouter},
     Router,
 };
@@ -77,12 +78,15 @@ fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> Ap
     )
 )]
 fn get_counter() -> AppRouter {
-    async fn handler(State(state): State<SharedState>) -> JsonResult<TestCounter> {
+    async fn handler(
+        State(state): State<SharedState>,
+        req: Request<Body>,
+    ) -> JsonResult<TestCounter> {
         let state = state.read().await;
         match state.cache_get_string("test::counter", "").as_str() {
             "" => match serde_json::to_string(&TestCounter::default()) {
                 Ok(c) => Ok(AppJson(serde_json::from_str(&c)?)),
-                Err(e) => Err(AppError::Internal(e.to_string())),
+                Err(e) => Err(AppError::Internal(e.into(), Some(req.uri().to_string()))),
             },
             j => Ok(AppJson(serde_json::from_str(j)?)),
         }

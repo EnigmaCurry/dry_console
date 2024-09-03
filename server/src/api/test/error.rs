@@ -5,7 +5,13 @@ use crate::{
     response::{AppError, AppJson, JsonResult},
     AppRouter,
 };
-use axum::{routing::get, routing::MethodRouter, Router};
+use anyhow::{anyhow, Error};
+use axum::{
+    body::Body,
+    extract::Request,
+    routing::{get, MethodRouter},
+    Router,
+};
 use serde::Serialize;
 
 pub fn main() -> AppRouter {
@@ -43,8 +49,11 @@ fn good_user() -> AppRouter {
 }
 
 fn bad_user() -> AppRouter {
-    async fn handler() -> JsonResult<User> {
-        Err(AppError::Internal("hmm".to_string()))
+    async fn handler(req: Request<Body>) -> JsonResult<User> {
+        Err(AppError::Internal(
+            anyhow!("bad user"),
+            Some(req.uri().to_string()),
+        ))
     }
     route("/bad_user", get(handler))
 }

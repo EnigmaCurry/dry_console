@@ -1,7 +1,6 @@
 use gloo_storage::LocalStorage;
 use gloo_storage::Storage;
 use std::rc::Rc;
-use web_sys::HtmlInputElement;
 use yew::context::ContextProvider;
 use yew::html::ChildrenProps;
 use yew::prelude::*;

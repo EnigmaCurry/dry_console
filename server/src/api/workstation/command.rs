@@ -1,7 +1,9 @@
 use crate::app_state::SharedState;
 use crate::response::{AppError, AppJson, JsonResult};
 use crate::{routing::route, AppRouter};
-use axum::extract::State;
+use anyhow::anyhow;
+use axum::body::Body;
+use axum::extract::{Request, State};
 use axum::{extract::Path, routing::get};
 pub use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::workstation::{Distribution, WorkstationPackageManager};
@@ -112,6 +114,7 @@ pub fn command() -> AppRouter {
     async fn handler(
         Path(command): Path<String>,
         State(state): State<SharedState>,
+        req: Request<Body>,
     ) -> JsonResult<ScriptEntry> {
         // Special handling for scripts by name:
         match command.as_str() {
@@ -125,8 +128,10 @@ pub fn command() -> AppRouter {
                     Distribution::Fedora => WorkstationPackageManager::Dnf,
                     _ => {
                         return Err(AppError::Internal(
-                            "Unimplemented package manager for InstallDependencies script:"
-                                .to_string(),
+                            anyhow!(
+                                "Unimplemented package manager for InstallDependencies script:"
+                            ),
+                            Some(req.uri().to_string()),
                         ))
                     }
                 };

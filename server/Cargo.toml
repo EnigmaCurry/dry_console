@@ -18,7 +18,7 @@ axum-login = "0.15.3"
 axum-messages = "0.6.1"
 axum-typed-websockets = "0.6.0"
 base64 = "0.22.1"
-clap = { version = "4.5.8", features = ["derive"] }
+clap = { version = "4.5.8", features = ["derive", "env"] }
 cookie = { version = "0.18.1", features = ["signed"] }
 enum-iterator = "2.1.0"
 hostname = "0.4.0"
@@ -56,6 +56,8 @@ futures = "0.3.30"
 indoc = "2.0.5"
 lazy_static = "1.5.0"
 itertools = "0.13.0"
+dirs = "5.0.1"
+ron = "0.8.1"
 
 # [[package]]
 # path = ../

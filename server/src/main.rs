@@ -1,5 +1,6 @@
 mod api;
 mod app_state;
+mod config;
 mod response;
 mod routing;
 mod sudo;
@@ -22,7 +23,7 @@ use std::str::FromStr;
 use tokio::sync::broadcast;
 use tower_http::trace::TraceLayer;
 use tower_livereload::LiveReloadLayer;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 use uzers::get_current_uid;
 
 const API_PREFIX: &str = "/api";
@@ -81,36 +82,63 @@ async fn serve_inline_file(
 )]
 pub struct Opt {
     /// set the log level
-    #[clap(short = 'l', long = "log", default_value = "info")]
+    #[clap(
+        short = 'l',
+        long = "log",
+        default_value = "info",
+        env = "DRY_CONSOLE_LOG_LEVEL"
+    )]
     log_level: String,
 
     /// set the listen addr
-    #[clap(short = 'a', long = "addr", default_value = "127.0.0.1")]
+    #[clap(
+        short = 'a',
+        long = "addr",
+        default_value = "127.0.0.1",
+        env = "DRY_CONSOLE_LISTEN_ADDRESS"
+    )]
     addr: String,
 
     /// set the listen port
-    #[clap(short = 'p', long = "port", default_value = "8080")]
+    #[clap(
+        short = 'p',
+        long = "port",
+        default_value = "8080",
+        env = "DRY_CONSOLE_LISTEN_PORT"
+    )]
     port: u16,
 
     /// open the web-browser automatically on startup
-    #[clap(long = "open")]
+    #[clap(long = "open", env = "DRY_CONSOLE_OPEN")]
     open: bool,
 
     /// Acquire root privileges via sudo and maintain its session indefinitely (This feature is activated automatically if the host is a toolbox container)
-    #[clap(long = "sudo", action = ArgAction::SetTrue)]
+    #[clap(long = "sudo", action = ArgAction::SetTrue, env = "DRY_CONSOLE_SUDO")]
     sudo: bool,
 
     /// Explicitly disable sudo (overrides --sudo)
-    #[clap(long = "no-sudo", action = ArgAction::SetTrue)]
+    #[clap(long = "no-sudo", action = ArgAction::SetTrue, env = "DRY_CONSOLE_NO_SUDO")]
     no_sudo: bool,
 
     /// Timeout for sudo authentication, in seconds
-    #[clap(long = "sudo-timeout-seconds", default_value = "60")]
+    #[clap(
+        long = "sudo-timeout-seconds",
+        default_value = "60",
+        env = "DRY_CONSOLE_SUDO_TIMEOUT_SECONDS"
+    )]
     sudo_timeout_seconds: u64,
 
     /// Refresh interval to keep sudo session alive, in seconds
-    #[clap(long = "sudo-refresh-interval", default_value = "60")]
+    #[clap(
+        long = "sudo-refresh-interval",
+        default_value = "60",
+        env = "DRY_CONSOLE_SUDO_REFRESH_INTERVAL"
+    )]
     sudo_refresh_interval: u64,
+
+    /// Path to the local config/state file
+    #[clap(short = 'c', long = "config", default_value_t = config::default_config_path(), env = "DRY_CONSOLE_CONFIG_FILE")]
+    config_path: String,
 }
 
 impl Opt {
@@ -157,14 +185,18 @@ async fn main() {
         process::exit(1);
     }
 
-    let shared_state = app_state::create_shared_state(&opt);
+    let shared_state;
+    match app_state::create_shared_state(&opt) {
+        Ok(state) => shared_state = state,
+        Err(e) => panic!("Could not create shared state: {}", e),
+    }
 
     // Acquire root privilege only if configured to do so, unless the
     // host is detected to be a toolbox or distrobox container, in
     // which case the feature should be enabled by default:
     match opt.resolve_sudo() {
         Some(true) => {
-            warn!("Root access will now be requested via sudo:");
+            warn!("Root access will now be acquired via sudo and the session will be maintained indefinitely:");
             match sudo::acquire_sudo(opt.sudo_timeout_seconds).await {
                 Ok(_) => {
                     tokio::spawn(async move {
@@ -266,7 +298,6 @@ async fn main() {
             .expect("Couldn't open web browser.");
     }
 
-    debug!("now");
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
             shutdown_rx.recv().await.ok();

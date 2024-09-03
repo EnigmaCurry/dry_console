@@ -143,3 +143,7 @@ clippy:
 # Run clippy linter and apply fixes
 clippy-fix:
     RUSTFLAGS="-D warnings" cargo clippy --fix --color=always 2>&1 | less -R
+
+# Run the binary with the --help argument:
+help: build
+    cargo run --bin dry_console -- --help

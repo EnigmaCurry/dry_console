@@ -4,8 +4,9 @@ use crate::api::workstation::command::CommandLibrary;
 use crate::api::workstation::platform::detect_platform;
 use crate::api::workstation::WorkstationDependencyState;
 use crate::response::AppError;
-use crate::Opt;
+use crate::{config, Opt};
 use axum::body::Bytes;
+use dry_console_dto::config::Config;
 use dry_console_dto::workstation::Platform;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,6 +21,7 @@ pub struct AppState {
     #[allow(dead_code)]
     pub opt: Opt,
     pub cache: HashMap<String, Bytes>,
+    pub config: Config,
     pub login_allowed: bool,
     pub sudo_enabled: bool,
     pub missing_dependencies: Vec<WorkstationDependencyState>,
@@ -55,10 +57,9 @@ impl AppState {
 }
 pub type SharedState = Arc<RwLock<AppState>>;
 
-pub fn create_shared_state(opt: &Opt) -> SharedState {
+pub fn create_shared_state(opt: &Opt) -> Result<SharedState, AppError> {
     let token = generate_token();
     let url = format!("http://{0}:{1}/login#token:{token}", opt.addr, opt.port);
-    info!("\n\nLogin URL:\n{0}\n", url);
 
     let mut command_id = HashMap::<CommandLibrary, String>::new();
     let mut command_library = HashMap::<String, CommandLibrary>::new();
@@ -70,8 +71,21 @@ pub fn create_shared_state(opt: &Opt) -> SharedState {
         command_script.insert(ulid.clone(), script);
     }
 
-    Arc::new(RwLock::new(AppState {
+    let config;
+    match config::load_config(&opt.config_path) {
+        Ok(cfg) => config = cfg,
+        Err(e) => {
+            return Err(AppError::Config(
+                format!("could not load config file: {}", e),
+                None,
+            ))
+        }
+    };
+
+    info!("\n\nLogin URL:\n{0}\n", url);
+    Ok(Arc::new(RwLock::new(AppState {
         opt: opt.clone(),
+        config,
         cache: HashMap::from([(TOKEN_CACHE_NAME.to_string(), Bytes::from(token))]),
         login_allowed: true,
         sudo_enabled: false,
@@ -80,7 +94,7 @@ pub fn create_shared_state(opt: &Opt) -> SharedState {
         command_library,
         command_script,
         platform: detect_platform(),
-    }))
+    })))
 }
 
 pub trait ShareableState {

@@ -58,6 +58,11 @@ INSTALL_DIR=/usr/local/bin
 REPO_DOWNLOAD=https://github.com/EnigmaCurry/dry_console/releases/download
 USE_SUDO=true
 
+if [ -z "$BASH_VERSION" ]; then
+    echo "Error: This script must be run only in Bash." >&2
+    exit 1
+fi
+
 # Download and extract the platform specific release tarball:
 PLATFORM=$(uname -s)-$(uname -m)
 PROGRAM=dry_console
@@ -111,7 +116,7 @@ Install `dry_console`:
 just install
 ```
 
-(`dry_console` is now installed in `~/.cargo/bin`, which should be
+(`dry_console` is now installed in `~/.cargo/bin`, which needs to be
 added to your shell's `PATH` variable.)
 
 ## Run development server
@@ -122,31 +127,39 @@ just run
 
 ### Release (Github actions)
 
-#### Bump release version
+#### Bump release version and push new branch
 
-Update the version number in Cargo.toml, Cargo.lock, and README.md as
-suggested by git-cliff:
+The `bump-version` target will automatically update the version number
+in Cargo.toml, Cargo.lock, and README.md as suggested by git-cliff.
+This creates a new branch named `release-{VERSION}`, and automatically
+checks it out. You just need to `git push` the branch:
 
 ```
 just bump-version
+# ... automatically checks out a new branch named release-{VERSION}
+
+git push
 ```
 
-#### Make PR with the changeset
+#### Make a new PR with the changeset
 
 Branch protection is enabled, all changesets must come in the form of
-a Pull Request.
+a Pull Request. On GitHub, create a new Pull Request for the
+`release-{VERSION}` branch into the master branch.
 
-#### Merge PR and tag release
+#### Merge the PR and tag the release
 
-Once the PR is merged, tag the release `vX.X.X` and push it to the
-`master` branch.
+Once the PR is merged, update your local repo, and run the release
+target:
 
 ```
 git checkout master
-git pull origin master
-git tag vX.X.X
-git push origin tag vX.X.X
+git pull
+just release
 ```
+
+New binaries will be automatically built by github actions, and a new
+packaged release will be posted.
 
 ## Credits
 
@@ -154,3 +167,6 @@ This project was initialized from a starter project:
 [rksm/axum-yew-setup](https://github.com/rksm/axum-yew-setup), used by
 permission, see [LICENSE](LICENSE).
 
+Thanks to all of the dependendency authors listed in Cargo.toml, to
+the developers of Rust, Docker, GNU, Linux, and the rest of the mountain
+this stack is built upon.
