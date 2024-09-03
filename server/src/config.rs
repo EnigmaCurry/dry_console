@@ -1,7 +1,3 @@
-use axum::body::Body;
-use axum::extract::Request;
-use axum::middleware::Next;
-use axum::response::Response;
 use dirs::config_dir;
 pub use dry_console_dto::config::*;
 use ron::de::from_str;
@@ -10,10 +6,8 @@ use std::fs;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
-use std::sync::Arc;
 use tracing::{debug, info};
 
-use crate::response::AppError;
 
 pub fn default_config_path() -> String {
     let mut path = config_dir().expect("Could not find platform specific config directory.");

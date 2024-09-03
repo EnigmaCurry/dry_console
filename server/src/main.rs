@@ -185,11 +185,11 @@ async fn main() {
         process::exit(1);
     }
 
-    let shared_state;
-    match app_state::create_shared_state(&opt) {
-        Ok(state) => shared_state = state,
+    
+    let shared_state = match app_state::create_shared_state(&opt) {
+        Ok(state) => state,
         Err(e) => panic!("Could not create shared state: {}", e),
-    }
+    };
 
     // Acquire root privilege only if configured to do so, unless the
     // host is detected to be a toolbox or distrobox container, in

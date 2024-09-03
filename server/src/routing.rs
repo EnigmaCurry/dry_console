@@ -1,15 +1,13 @@
 use axum::{
     body::Body,
     http::Request,
-    middleware::Next,
-    response::{IntoResponse, Response},
+    response::{Response},
 };
 use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::app_state::SharedState;
-use crate::response::AppError;
 
 use axum::http::StatusCode;
 use axum::routing::MethodRouter;
