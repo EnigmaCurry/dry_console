@@ -9,7 +9,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::routing::MethodRouter;
 use axum::{extract::State, routing::get, Router};
-use dry_console_dto::config::{ConfigSection, DRymcgTechConfig};
+use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfig};
 
 pub fn main() -> AppRouter {
     Router::new().merge(config())
@@ -37,15 +37,20 @@ pub fn config() -> AppRouter {
         };
         match config.sections.get(&ConfigSection::DRymcgTech) {
             Some(cfg) => match serde_json::to_string(&cfg) {
-                Ok(s) => {
-                    //
-                    Ok(AppJson(serde_json::from_str(&s)?))
-                }
+                Ok(s) => match cfg.validate() {
+                    Ok(true) => Ok(AppJson(serde_json::from_str(&s)?)),
+                    Ok(false) => Err(AppError::Config(
+                        anyhow!("Config is invalid."),
+                        Some(req.uri().to_string()),
+                    )),
+                    Err(e) => Err(AppError::Config(
+                        anyhow!("Config is invalid: {e}"),
+                        Some(req.uri().to_string()),
+                    )),
+                },
                 Err(e) => Err(AppError::Internal(e.into(), Some(req.uri().to_string()))),
             },
-            None => {
-                // could not read d.rymcg.tech section.
-                // Create a default config:
+            _ => {
                 let cfg = DRymcgTechConfig::default();
                 match serde_json::to_string(&cfg) {
                     Ok(s) => Ok(AppJson(serde_json::from_str(&s)?)),

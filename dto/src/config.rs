@@ -22,11 +22,18 @@ pub struct DRymcgTechConfig {
     pub installed: bool,
     pub root_path: Option<String>,
 }
-impl DRymcgTechConfig {
+
+impl ConfigData {
     pub fn validate(&self) -> Result<bool, String> {
-        if self.installed && self.root_path.is_none() {
-            return Err("installed cannot be true if root_path is None".into());
+        match self {
+            ConfigData::DRymcgTech(config) => {
+                if config.installed && config.root_path.is_none() {
+                    return Err("installed cannot be true if root_path is None".into());
+                } else if config.root_path.is_some() && !config.installed {
+                    return Err("root_path cannot be Some if installed == false".into());
+                }
+                Ok(true)
+            }
         }
-        Ok(true)
     }
 }
