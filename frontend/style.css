@@ -1,3 +1,4 @@
+/* General styling */
 body {
     background-color: #000;
     color: #fff;
@@ -11,6 +12,7 @@ main section {
     max-width: 100%;
 }
 
+/* Masthead styling */
 .pf-v5-c-masthead__main {
     font-size: 1.2em;
     color: inherit;
@@ -19,24 +21,31 @@ main section {
     color: inherit;
     text-decoration: none;
 }
+
+/* Selected and hover states */
 .pf-m-selected,
 .pf-m-selected:hover {
     background-color: #0066cc;
 }
+
 .pf-v5-c-toggle-group__button:not(.pf-m-selected):hover {
     background-color: #4b6784;
 }
+
+/* Card component styling */
 .pf-v5-c-card {
-    border-radius: 0 0px 15px 15px;
+    border-radius: 0 0 15px 15px;
     border-top: 1px solid #b98d8d;
 }
 
+/* Alert group (toast) styling */
 .pf-v5-c-alert-group.pf-m-toast {
     inset-block-start: unset;
     inset-block-end: 1rem;
     inset-inline-end: 1rem;
 }
 
+/* Alert background colors */
 .pf-v5-c-alert-group.pf-m-toast .pf-v5-c-alert.pf-m-success {
     background-color: #133333a1;
 }
@@ -47,6 +56,7 @@ main section {
     background-color: #51401899;
 }
 
+/* Dark theme exceptions */
 html:not(.pf-v5-theme-dark) .pf-v5-c-card {
     background-color: #6a634f8a;
 }
@@ -54,48 +64,43 @@ html:not(.pf-v5-theme-dark) .pf-v5-c-masthead,
 html:not(.pf-v5-theme-dark) .pf-v5-c-toolbar__content {
     background-color: #534b4b;
 }
-
 html:not(.pf-v5-theme-dark) .pf-v5-c-page__sidebar {
     background-color: #3a1e1e;
 }
-
 html:not(.pf-v5-theme-dark) .pf-v5-c-toggle-group__button:not(.pf-m-selected) {
     background-color: #4c6275;
 }
-
 html:not(.pf-v5-theme-dark) .pf-v5-c-accordion,
 html:not(.pf-v5-theme-dark) .pf-v5-c-accordion__toggle:hover,
 html:not(.pf-v5-theme-dark) .pf-v5-c-accordion__toggle:focus {
     background-color: #f5f5dc;
 }
-
 html:not(.pf-v5-theme-dark) .pf-v5-c-accordion .pf-v5-c-description-list {
     background-color: #dcddb1;
     border-radius: 15px;
     padding: 0.5em;
 }
 
+/* Tab styling */
 .tabs .pf-v5-c-tabs.pf-m-box button {
     background-color: #2d2121;
 }
-
 .tabs .pf-v5-c-tabs__item.pf-m-current button {
     background-color: #4f4848;
 }
-
-
 html:not(.pf-v5-theme-dark) .tabs .pf-v5-c-tabs.pf-m-box button {
     background-color: #d0d0d0;
 }
-
 html:not(.pf-v5-theme-dark) .tabs .pf-v5-c-tabs__item.pf-m-current button {
     background-color: #b9b9b9;
 }
 
+/* Button styling */
 .pf-v5-c-button {
     color: white;
 }
 
+/* Code block styling */
 code {
     font-size: 85%;
     white-space: break-spaces;
@@ -103,33 +108,25 @@ code {
     font-weight: bold;
 }
 
+/* Description list */
 .pf-v5-c-description-list {
     font-size: 130%;
 }
 
+/* Flex utilities */
 .flex-center {
     display: flex;
     justify-content: center;
 }
 
-h1 {
-    font-size: 200%;
-}
-h2 {
-    font-size: 166.67%;
-}
-h3 {
-    font-size: 133.33%;
-}
-h4 {
-    font-size: 116.67%;
-}
-h5 {
-    font-size: 108.33%;
-}
-h6 {
-    font-size: 100%;
-}
+/* Headings */
+h1 { font-size: 200%; }
+h2 { font-size: 166.67%; }
+h3 { font-size: 133.33%; }
+h4 { font-size: 116.67%; }
+h5 { font-size: 108.33%; }
+h6 { font-size: 100%; }
+
 ol {
     margin-left: 2em;
 }
@@ -138,6 +135,7 @@ hr {
     margin: 1em;
 }
 
+/* Terminal styling */
 .terminal {
     margin-bottom: 1em;
     display: flex;
@@ -152,6 +150,7 @@ html:not(.pf-v5-theme-dark) .terminal {
     background-color: #c6c6c5;
 }
 
+/* Toolbar inside terminal */
 .terminal .toolbar {
     text-align: center;
     display: flex;
@@ -165,6 +164,7 @@ html:not(.pf-v5-theme-dark) .terminal {
     margin: 0.5em;
 }
 
+/* Terminal content and gutter */
 .terminal .terminal_display {
     display: flex;
     position: relative;
@@ -177,14 +177,7 @@ html:not(.pf-v5-theme-dark) .terminal {
     flex-direction: column;
     line-height: 1.3em;
     font-family: monospace;
-    padding: 0;
-    margin: 0;
-    padding-block-start: 1em;
-    padding-block-end: 1em;
-}
-
-.terminal .content:empty {
-    padding: 0;
+    padding-block: 1em;
 }
 
 .terminal .gutter {
@@ -192,12 +185,9 @@ html:not(.pf-v5-theme-dark) .terminal {
     background-color: #262424;
     text-align: right;
     color: #ac7c7c;
-    padding-right: 10px;
-    overflow: hidden;
-    padding-left: 0.5em;
+    padding: 0 10px;
     box-shadow: -2px 0 0 0 #f7a9a9;
 }
-
 html:not(.pf-v5-theme-dark) .terminal .gutter {
     background-color: #534b4b;
     color: #bda9a9;
@@ -207,8 +197,6 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     position: relative;
     color: white;
     padding-left: 10px;
-    width: 100%;
-    /*border-left: 1px double #ccc;*/
     overflow: scroll;
     flex-grow: 1;
 }
@@ -218,25 +206,21 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
     margin-right: 1em;
 }
 
-input[type="color"]:disabled + label {
-    opacity: 0.5;
-    color: #999
-    cursor: not-allowed;
-    border-color: #ccc;
-}
+/* Hidden and visible classes */
 .hidden {
     display: none;
 }
 
 .visible {
-    display: block; /* or inline-block, depending on your layout needs */
+    display: block; /* Use inline-block depending on layout needs */
 }
 
+/* Flex container for color picker */
 .flex-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 100%; /* Ensures the container spans the full width */
+    width: 100%;
 }
 
 .flex-container label {
@@ -250,24 +234,24 @@ input[type="color"] {
     width: 50px;
     height: 30px;
 }
-label {
-    color: #fff;
-}
-html:not(.pf-v5-theme-dark) label {
-    color: #000;
+
+/* Disabled color input styling */
+input[type="color"]:disabled + label {
+    opacity: 0.5;
+    color: #999;
+    cursor: not-allowed;
+    border-color: #ccc;
 }
 
+/* Command area styling */
 .command_area .header {
     color: #fff;
     font-weight: bold;
     background-color: darkblue;
-    padding: 0 0 0 1em;
-    border-radius: 0px 0px 4px 4px;
+    padding-left: 1em;
+    border-radius: 0 0 4px 4px;
     border: 3px solid #48358c;
-    border-top-style: none;
-    border-bottom-style: groove;
-    border-left-style: none;
-    border-right-style: none;
+    border-top: none;
     user-select: none;
 }
 
@@ -277,32 +261,12 @@ html:not(.pf-v5-theme-dark) label {
     color: #1ad91a;
     max-height: 24em;
     overflow-y: scroll;
-    overflow-x: hidden;
 }
 html:not(.pf-v5-theme-dark) .command_area .code_container {
     color: #000;
 }
 
-.command_area .pf-v5-c-expandable-section__content {
-    margin-block-start: 0;
-}
-.command_area .pf-v5-c-expandable-section__toggle {
-    padding-left: 2em;
-}
-.command_area .code_container {
-    background-color: #141a1a;
-}
-.command_area .code_container .pf-v5-c-code-block {
-    background: transparent;
-}
-
-.command_area .pf-v5-c-expandable-section__toggle-text {
-    font-weight: bold;
-}
-.command_area .command_description {
-    margin-left: 2em;
-    margin-block-start: 1em;
-}
+/* Copy button for code block */
 .copy-button {
     position: absolute;
     top: 0;
@@ -313,89 +277,41 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
     background-color: rgba(0, 0, 0, 0);
     color: white;
     border: none;
-    padding: 0 10px 0 0;
+    padding-right: 10px;
     border-radius: 5px;
     cursor: pointer;
     opacity: 0.85;
     transition: opacity 0.3s ease;
 }
 .copy-button-text {
-    transform: scale(2)  translate(5%, -5%);
+    transform: scale(2) translate(5%, -5%);
     transform-origin: top right;
 }
 .copy-button:hover {
     opacity: 1;
 }
 
+/* Markdown render styling */
 .markdown_render {
-    padding-top: 0.5em;
-    padding-left: 2em;
-    padding-right: 2em;
+    padding: 0.5em 2em;
 }
+
 .markdown_render ul {
     margin-left: 2em;
     list-style: unset;
 }
-.markdown_render h1 {
-    font-size: 150%;
-}
-.markdown_render h2 {
-    font-size: 120%;
-}
-.markdown_render h3 {
-    font-size: 100%;
-}
-.markdown_render h4 {
-    font-size: 100%;
-    margin-left: 1em;
-}
-.markdown_render h5 {
-    font-size: 100%;
-    margin-left: 2em;
-}
+
+.markdown_render h1 { font-size: 150%; }
+.markdown_render h2 { font-size: 120%; }
+.markdown_render h3 { font-size: 100%; }
+.markdown_render h4,
+.markdown_render h5,
 .markdown_render h6 {
     font-size: 100%;
-    margin-left: 3em;
-}
-
-
-.manual_intervention {
-    margin-bottom: 1em;
-    display: flex;
-    flex-direction: column;
-    border-radius: 10px; 
-    border: 10px solid #333;
-    padding: 0;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
-    background-color: #1e1c1c;
-}
-html:not(.pf-v5-theme-dark) .manual_intervention {
-    background-color: #c6c6c5;
-}
-.manual_intervention .command_area .header {
-    background-color: #4d4e5e;
-    margin-bottom: 1em;
-}
-.manual_intervention .command_area p {
     margin-left: 1em;
-    margin-top: 0.5em;    
-}
-.manual_intervention .command_area h1,
-.manual_intervention .command_area h2,
-.manual_intervention .command_area h3,
-.manual_intervention .command_area h4,
-.manual_intervention .command_area h5 {
-    margin-left: 0.5em;
-    margin-top: 0em;
-}
-.manual_intervention ul {
-    margin-left: 2em;
-    list-style: unset;
-}
-.manual_intervention button {
-    margin-left: 2em;
 }
 
+/* Color picker styling */
 .color_picker {
     display: flex;
     align-items: center;
@@ -414,11 +330,6 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
     border: 2px solid #5a5c65;
     pointer-events: none;
 }
-
-.color_picker .picker_arrow {
-    display: none;
-}
-
 .color_picker .picker_wrapper.popup {
     background: #423a3a;
     position: fixed;
@@ -426,11 +337,49 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
     left: 50%;
     transform: translate(-50%, -50%);
 }
+
 .color_picker button {
     color: #000;
 }
 
+/* Form inside terminal */
 .terminal .env > form {
-    padding-left: 1em;
-    padding-right: 1em;
+    padding: 0 1em;
+}
+
+/* Manual intervention section */
+.manual_intervention {
+    margin-bottom: 1em;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    border: 10px solid #333;
+    padding: 0;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+    background-color: #1e1c1c;
+}
+html:not(.pf-v5-theme-dark) .manual_intervention {
+    background-color: #c6c6c5;
+}
+
+.manual_intervention .command_area .header {
+    background-color: #4d4e5e;
+    margin-bottom: 1em;
+}
+.manual_intervention .command_area p,
+.manual_intervention .command_area h1,
+.manual_intervention .command_area h2,
+.manual_intervention .command_area h3,
+.manual_intervention .command_area h4,
+.manual_intervention .command_area h5 {
+    margin-left: 1em;
+}
+
+.manual_intervention ul {
+    margin-left: 2em;
+    list-style: unset;
+}
+
+.manual_intervention button {
+    margin-left: 2em;
 }
