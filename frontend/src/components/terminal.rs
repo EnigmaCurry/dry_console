@@ -266,6 +266,8 @@ pub struct EnvVarProps {
     pub description: String,
     #[prop_or_default]
     pub on_value_change: Option<Callback<(String, String)>>,
+    #[prop_or_default]
+    pub default_value: String,
 }
 
 #[function_component(EnvVar)]
