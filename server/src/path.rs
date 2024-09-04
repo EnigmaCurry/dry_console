@@ -36,10 +36,8 @@ pub fn path_is_git_repo_root(path: Option<String>) -> bool {
         None => false,
         Some(path) => {
             let path = Path::new(&path);
-            debug!("checking pathzz : {:?}", path);
             if path.exists() && path.is_dir() {
                 let git_dir = path.join(".git");
-                debug!("checking .git dir : {:?}", git_dir);
                 if git_dir.exists() && git_dir.is_dir() {
                     return Command::new("git")
                         .arg("-C")

@@ -48,11 +48,13 @@ pub fn config() -> AppRouter {
                     if !installed {
                         let default_dir =
                             if DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string().starts_with('~') {
-                                dirs::home_dir().map(|home| DEFAULT_D_RYMCG_TECH_ROOT_DIR.replacen(
+                                dirs::home_dir().map(|home| {
+                                    DEFAULT_D_RYMCG_TECH_ROOT_DIR.replacen(
                                         '~',
                                         &home.to_string_lossy(),
                                         1,
-                                    ))
+                                    )
+                                })
                             } else {
                                 Some(DEFAULT_D_RYMCG_TECH_ROOT_DIR.to_string())
                             };

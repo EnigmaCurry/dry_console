@@ -165,7 +165,7 @@ async fn main() {
         std::env::set_var(
             "RUST_LOG",
             format!(
-                "{},hyper=info,mio=info,wasm_bindgen_wasm_interpreter=info",
+                "{},hyper=info,mio=info,wasm_bindgen_wasm_interpreter=info,tower_sessions=info,axum_login=info",
                 opt.log_level
             ),
         )

@@ -7,6 +7,10 @@ html:not(.pf-v5-theme-dark) section {
     color: #000;
 }
 
+main section {
+    max-width: 100%;
+}
+
 .pf-v5-c-masthead__main {
     font-size: 1.2em;
     color: inherit;
@@ -26,6 +30,23 @@ html:not(.pf-v5-theme-dark) section {
     border-radius: 0 0px 15px 15px;
     border-top: 1px solid #b98d8d;
 }
+
+.pf-v5-c-alert-group.pf-m-toast {
+    inset-block-start: unset;
+    inset-block-end: 1rem;
+    inset-inline-end: 1rem;
+}
+
+.pf-v5-c-alert-group.pf-m-toast .pf-v5-c-alert.pf-m-success {
+    background-color: #133333a1;
+}
+.pf-v5-c-alert-group.pf-m-toast .pf-v5-c-alert.pf-m-danger {
+    background-color: #51182b99;
+}
+.pf-v5-c-alert-group.pf-m-toast .pf-v5-c-alert.pf-m-warning {
+    background-color: #51401899;
+}
+
 html:not(.pf-v5-theme-dark) .pf-v5-c-card {
     background-color: #6a634f8a;
 }

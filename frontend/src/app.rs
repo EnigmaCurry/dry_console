@@ -263,25 +263,19 @@ fn sidebar(
                 // <NavExpandable title="Routes" expanded={false}>
                 //     {nav_items}
                 // </NavExpandable>
-                <NavExpandable title="Preferences" expanded={true}>
-                    <NavItem>
-                        <patternfly_yew::prelude::Switch
-                            checked={*darkmode}
-                            onchange={onthemeswitch}
-                            label="Dark Theme"
-                        />
-                    </NavItem>
-                </NavExpandable>
-                <NavExpandable title="Session" expanded={true}>
-                    <NavItem>
-                      <logout::Logout {session_state}/>
-                    </NavItem>
-                </NavExpandable>
-                <NavExpandable title="Source code" expanded={true}>
-                    <NavItem>
-                      <ButtonLink target="_blank" href="https://github.com/EnigmaCurry/dry_console">{"Github"}</ButtonLink>
-                    </NavItem>
-                </NavExpandable>
+                <NavItem>
+                    <patternfly_yew::prelude::Switch
+                        checked={*darkmode}
+                        onchange={onthemeswitch}
+                        label="Dark Theme"
+                    />
+                </NavItem>
+                <NavItem>
+                  <logout::Logout {session_state}/>
+                </NavItem>
+                <NavItem>
+                  <ButtonLink target="_blank" href="https://github.com/EnigmaCurry/dry_console">{"Source code"}</ButtonLink>
+                </NavItem>
             </NavList>
         </Nav>
     }
