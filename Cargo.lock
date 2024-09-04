@@ -811,6 +811,7 @@ dependencies = [
  "indoc",
  "num_enum",
  "os-release",
+ "regex",
  "serde",
  "serde_json",
  "sha2",

@@ -12,6 +12,10 @@ main section {
     max-width: 100%;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* Masthead styling */
 .pf-v5-c-masthead__main {
     font-size: 1.2em;
@@ -255,14 +259,17 @@ input[type="color"]:disabled + label {
     user-select: none;
 }
 
-.command_area .code_container {
+.terminal .code_container {
     position: relative;
     user-select: none;
-    color: #1ad91a;
     max-height: 24em;
     overflow-y: scroll;
 }
-html:not(.pf-v5-theme-dark) .command_area .code_container {
+.terminal .code_container .pf-v5-c-code-block {
+	margin-right: 0.5em;
+}
+
+html:not(.pf-v5-theme-dark) .terminal .code_container {
     color: #000;
 }
 
@@ -293,7 +300,7 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
 
 /* Markdown render styling */
 .markdown_render {
-    padding: 0.5em 2em;
+    padding: 0.5em 1em;
 }
 
 .markdown_render ul {
@@ -342,9 +349,15 @@ html:not(.pf-v5-theme-dark) .command_area .code_container {
     color: #000;
 }
 
-/* Form inside terminal */
-.terminal .env > form {
-    padding: 0 1em;
+/* Env var list inside terminal */
+.terminal .env-var-list {
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-bottom: 1em;
+}
+.terminal .pf-v5-c-expandable-section {
+    padding-left: 1em;
+    padding-right: 1em;
 }
 
 /* Manual intervention section */

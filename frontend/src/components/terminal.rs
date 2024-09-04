@@ -28,6 +28,7 @@ use web_sys::js_sys::Reflect;
 use web_sys::window;
 use web_sys::Blob;
 use web_sys::FileReader;
+use web_sys::HtmlInputElement;
 use web_sys::MessageEvent;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
@@ -242,7 +243,24 @@ enum TerminalStatus {
     Complete,
 }
 
-#[derive(Properties, PartialEq, Clone)]
+#[derive(Properties, PartialEq)]
+pub struct EnvVarListProps {
+    pub env_vars: Vec<EnvVarProps>,
+}
+
+#[function_component(EnvVarList)]
+pub fn env_var_list(props: &EnvVarListProps) -> Html {
+    html! {
+        <div class="env-var-list">
+            <h3>{"Configure script environment:"}</h3>
+            { for props.env_vars.iter().map(|env_var| html! {
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} />
+            }) }
+        </div>
+    }
+}
+
+#[derive(Properties, PartialEq, Clone, Default)]
 pub struct EnvVarProps {
     pub name: String,
     pub description: String,
@@ -260,11 +278,13 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     let on_value_change = props.on_value_change.clone();
 
     // Callback to handle the value change
-    let on_input_change = {
+    let onchange = {
         let env_var_value = env_var_value.clone();
         let name = name.clone();
         let on_value_change = on_value_change.clone();
-        Callback::from(move |value: String| {
+        Callback::from(move |event: Event| {
+            let input: HtmlInputElement = event.target_unchecked_into();
+            let value = input.value();
             env_var_value.set(value.clone());
             if let Some(on_value_change) = &on_value_change {
                 on_value_change.emit((name.clone(), value));
@@ -272,13 +292,10 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         })
     };
 
-    // Create a Callback<String> directly
-    let onchange = {
-        let on_input_change = on_input_change.clone();
-        Callback::from(move |value: String| {
-            on_input_change.emit(value);
-        })
-    };
+    // Transform the callback to match Callback<String>
+    let string_onchange = Callback::from(move |value: String| {
+        onchange.emit(Event::new("input").unwrap()); // emit the original event if needed, or handle directly
+    });
 
     html! {
         <Form>
@@ -286,7 +303,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
                 <TextInput
                     required=true
                     value={(*env_var_value).clone()}
-                    onchange={onchange}  // This is now a Callback<String>
+                    onchange={string_onchange}  // Pass the corrected Callback<String>
                 />
             </FormGroup>
         </Form>
@@ -678,56 +695,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         })
     }
 
-    #[derive(Properties, PartialEq, Clone)]
-    pub struct CommandAreaProps {
-        pub script: String,
-        pub description: String,
-        pub background_color: String,
-        pub foreground_color: String,
-        pub env_vars: HashMap<String, String>,
-    }
-    #[function_component(CommandArea)]
-    fn command_area(props: &CommandAreaProps) -> Html {
-        let CommandAreaProps {
-            script,
-            description,
-            background_color,
-            foreground_color,
-            env_vars,
-        } = props;
-        let code_block_ref = NodeRef::default();
-        let button_text = use_state(|| "📋".to_string());
-        let expanded = use_state_eq(|| false);
-        let ontoggle = use_callback(expanded.clone(), |(), expanded| {
-            expanded.set(!**expanded);
-        });
-        html! {
-            <div class="command_area" style="position: relative;">
-                <div class="header">
-                {"💻️ Run bash script"}
-                </div>
-                <Stack gutter=true>
-                <StackItem>
-                <MarkdownContent source={description.to_string()}/>
-                <ExpandableSectionToggle toggle_text_expanded={"Hide script"} toggle_text_hidden={"Show script"} {ontoggle} expanded={*expanded} direction={ExpandableSectionToggleDirection::Down}/>
-                </StackItem>
-                <StackItem>
-                <ExpandableSection detached=true expanded={*expanded}>
-                <div class="code_container" ref={code_block_ref.clone()}>
-                <div class="content" style={format!("background-color: {}; color: {}", background_color, foreground_color)}>
-                <CodeBlock>
-                <CodeBlockCode>{script}</CodeBlockCode>
-                </CodeBlock>
-            </div>
-            <button title="Copy script" class="copy-button" onclick={copy_code(code_block_ref.clone(), button_text.clone())}><div class="copy-button-text">{ (*button_text).clone() }</div></button>
-                </div>
-                </ExpandableSection>
-                </StackItem>
-                </Stack>
-            </div>
-        }
-    }
-
     {
         let user_attempted_scroll = user_attempted_scroll.clone();
         let content_ref = terminal_content_ref.clone();
@@ -807,6 +774,18 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         })
     };
 
+    let code_block_ref = NodeRef::default();
+    let copy_code_button_text = use_state(|| "📋".to_string());
+    let code_block_expanded = use_state_eq(|| false);
+    let code_block_ontoggle = use_callback(code_block_expanded.clone(), |(), expanded| {
+        expanded.set(!**expanded);
+    });
+
+    let terminal_classes = match ws_state.status {
+        TerminalStatus::Initialized => "terminal_display hidden",
+        _ => "terminal_display",
+    };
+
     html! {
         <div class="terminal">
             if ws_state.status == TerminalStatus::Critical {
@@ -814,18 +793,32 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             } else if ws_state.status == TerminalStatus::Uninitialized {
                 <LoadingState/>
             } else {
-                <CommandArea
-                    description={script_entry.description.clone()}
-                    script={script_entry.script}
-                    background_color={(*style.background_color_normal).clone()}
-                    foreground_color={(*style.text_color_stdout).clone()}
-                    env_vars={(*env_vars).clone()}
-                />
+                <div class="command_area" style="position: relative;">
+                    <div class="header">
+                {"💻️ Run bash script"}
+                </div>
+                    <Stack gutter=true>
+                    <StackItem>
+                    <MarkdownContent source={script_entry.description.clone()}/>
+                    </StackItem>
+                    <StackItem>
+                    </StackItem>
+                    </Stack>
+                    </div>
                     if !props.children.is_empty() {
-                        <div class="env">
                         { for props.children.iter() }
-                        </div>
                     }
+                <ExpandableSectionToggle toggle_text_expanded={"Hide script"} toggle_text_hidden={"Show script"} ontoggle={code_block_ontoggle} expanded={*code_block_expanded} direction={ExpandableSectionToggleDirection::Down}/>
+                <ExpandableSection detached=true expanded={*code_block_expanded}>
+                <div class="code_container" ref={code_block_ref.clone()}>
+                <div class="content" style={format!("background-color: {}; color: {}", (*style.background_color_normal).clone(), (*style.text_color_stdout).clone())}>
+                <CodeBlock>
+                <CodeBlockCode>{script_entry.script}</CodeBlockCode>
+                </CodeBlock>
+            </div>
+            <button title="Copy script" class="copy-button" onclick={copy_code(code_block_ref.clone(), copy_code_button_text.clone())}><div class="copy-button-text">{ (*copy_code_button_text).clone() }</div></button>
+                </div>
+                </ExpandableSection>
                 <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                     <div class="pf-u-display-flex">
                         if ws_state.status == TerminalStatus::Initialized {
@@ -848,7 +841,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                         }
                     </div>
                 </div>
-                <div class="terminal_display" ref={terminal_ref.clone()}>
+                <div class={terminal_classes} ref={terminal_ref.clone()}>
                     if *style.show_line_numbers && ws_state.status != TerminalStatus::Initialized {
                         <div class="gutter" ref={gutter_ref} style={format!("max-height: {}em", *num_lines)}>
                         {

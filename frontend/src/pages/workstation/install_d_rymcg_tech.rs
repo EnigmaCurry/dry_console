@@ -1,5 +1,7 @@
 use crate::components::loading_state::LoadingState;
-use crate::components::terminal::{EnvVar, TerminalOutput, TerminalOutputProps};
+use crate::components::terminal::{
+    EnvVar, EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps,
+};
 use crate::pages::workstation::WorkstationTab;
 use dry_console_dto::config::DRymcgTechConfigState;
 use gloo::console::debug;
@@ -42,10 +44,13 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                     <CardTitle><h1>{"Install d.rymcg.tech"}</h1></CardTitle>
                     <CardBody>
                     <TerminalOutput script="InstallDRymcgTech" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                    // if let Some(candidate_root_dir) = &config.candidate_root_dir {
-                    //     <div>{format!("Existing installation candidate found: {}.", candidate_root_dir)}</div>
-                    // }
-                    <EnvVar name="ROOT_DIR" description="Enter the filesystem path to clone the d.rymcg.tech git repository to:"/>
+                    <EnvVarList env_vars={vec![
+                        EnvVarProps {
+                            name: "ROOT_DIR".to_string(),
+                            description: "The directory path where to clone d.rymcg.tech".to_string(),
+                            ..EnvVarProps::default()
+                        }
+                    ]}/>
                     </TerminalOutput>
                     </CardBody>
                 </Card>

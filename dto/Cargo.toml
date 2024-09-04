@@ -19,3 +19,4 @@ num_enum = "0.7.3"
 sha2 = "0.10.8"
 indoc = "2.0.5"
 dry_console_common = { path = "../common" }
+regex = "1.10.6"
