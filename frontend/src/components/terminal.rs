@@ -254,13 +254,13 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
         <div class="env-var-list">
             <h3>{"Configure script environment:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} />
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()}/>
             }) }
         </div>
     }
 }
 
-#[derive(Properties, PartialEq, Clone, Default)]
+#[derive(Debug, Properties, PartialEq, Clone, Default)]
 pub struct EnvVarProps {
     pub name: String,
     pub description: String,
@@ -279,25 +279,26 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     let description = props.description.clone();
     let on_value_change = props.on_value_change.clone();
 
-    // Callback to handle the value change
+    // Callback to handle the value change from InputEvent
     let onchange = {
         let env_var_value = env_var_value.clone();
         let name = name.clone();
         let on_value_change = on_value_change.clone();
-        Callback::from(move |event: Event| {
-            let input: HtmlInputElement = event.target_unchecked_into();
-            let value = input.value();
-            env_var_value.set(value.clone());
-            if let Some(on_value_change) = &on_value_change {
-                on_value_change.emit((name.clone(), value));
+        Callback::from(move |event: InputEvent| {
+            //debug!("Input event received");
+            // Extract the input element from the event target
+            if let Some(input) = event.target_dyn_into::<HtmlInputElement>() {
+                let value = input.value();
+                env_var_value.set(value.clone());
+                // Emit the custom on_value_change callback if it exists
+                if let Some(on_value_change) = &on_value_change {
+                    on_value_change.emit((name.clone(), value));
+                }
+            } else {
+                debug!("Failed to cast InputEvent target to HtmlInputElement");
             }
         })
     };
-
-    // Transform the callback to match Callback<String>
-    let string_onchange = Callback::from(move |value: String| {
-        onchange.emit(Event::new("input").unwrap()); // emit the original event if needed, or handle directly
-    });
 
     html! {
         <Form>
@@ -305,7 +306,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
                 <TextInput
                     required=true
                     value={(*env_var_value).clone()}
-                    onchange={string_onchange}  // Pass the corrected Callback<String>
+                    oninput={onchange}  // Pass the corrected Callback<InputEvent>
                 />
             </FormGroup>
         </Form>

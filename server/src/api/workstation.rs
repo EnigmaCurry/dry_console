@@ -21,6 +21,7 @@ pub mod command;
 pub mod command_execute;
 pub mod d_rymcg_tech;
 mod dependencies;
+pub mod filesystem;
 pub mod platform;
 
 #[derive(Debug, Clone)]
@@ -37,6 +38,7 @@ pub fn router(shutdown: broadcast::Sender<()>, state: State<SharedState>) -> Rou
         .merge(d_rymcg_tech::main())
         .merge(command::command())
         .merge(command_execute::main(shutdown, state))
+        .merge(filesystem::validate_path())
 }
 
 #[allow(non_camel_case_types)]

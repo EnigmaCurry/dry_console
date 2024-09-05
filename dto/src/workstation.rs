@@ -100,3 +100,12 @@ impl Default for Platform {
         }
     }
 }
+
+#[derive(serde::Serialize)]
+pub struct PathValidationResult {
+    pub path: std::path::PathBuf,
+    pub exists: bool,
+    pub writable: bool,
+    pub is_directory: bool,
+    pub can_be_created: bool,
+}

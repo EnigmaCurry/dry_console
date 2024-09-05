@@ -7,6 +7,7 @@ use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
 use gloo::console::debug;
 use gloo::net::http::Request;
+use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
 use yew::prelude::*;
 
@@ -15,19 +16,60 @@ pub struct InstallDRyMcGTechProps {
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
 }
+
 #[function_component(InstallDRyMcGTech)]
 pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let script_name = "InstallDRymcgTech";
     let config_state = use_state(|| None::<DRymcgTechConfigState>);
     let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
 
+    // Store the debounce timeout to allow resetting it
+    let debounce_timeout = use_mut_ref(|| None::<Timeout>);
+
     {
         let config_state = config_state.clone();
         let env_vars_state = env_vars_state.clone(); // Clone env_vars_state for use in async block
 
+        let on_value_change = Callback::from(move |(name, value): (String, String)| {
+            // Cancel previous timeout if it exists
+            if let Some(timeout) = debounce_timeout.borrow_mut().take() {
+                timeout.cancel();
+            }
+
+            // Set a new timeout for debouncing (1 second)
+            let debounce_timeout_clone = debounce_timeout.clone();
+            let name_clone = name.clone();
+            let value_clone = value.clone();
+
+            *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
+                // Fire the callback after 1 second of inactivity
+                match name_clone.as_str() {
+                    "ROOT_DIR" => {
+                        wasm_bindgen_futures::spawn_local(async move {
+                            // Perform async HTTP request to check if ROOT_DIR is valid
+                            let url = format!("/api/validate_root_dir?path={}", value_clone);
+                            let response = Request::get(&url).send().await;
+
+                            if let Ok(response) = response {
+                                if response.status() == 200 {
+                                    // Handle success (e.g., update the state)
+                                    debug!("ROOT_DIR is valid");
+                                } else {
+                                    // Handle failure (e.g., show error message)
+                                    debug!("ROOT_DIR is invalid");
+                                }
+                            }
+                        });
+                    }
+                    _ => {}
+                }
+            }));
+        });
+
         use_effect_with((), move |_| {
             let config = config_state.clone();
             let env_vars = env_vars_state.clone();
+            let on_value_change = on_value_change.clone(); // Clone callback to use within async
 
             wasm_bindgen_futures::spawn_local(async move {
                 // Fetch config state
@@ -55,7 +97,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                                 name: env_var.name,
                                 description: env_var.description,
                                 default_value: env_var.default_value,
-                                ..EnvVarProps::default()
+                                on_value_change: Some(on_value_change.clone()), // Set the callback
                             })
                             .collect();
 
@@ -77,7 +119,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                         <CardTitle><h1>{"Install d.rymcg.tech"}</h1></CardTitle>
                         <CardBody>
                             <TerminalOutput script="InstallDRymcgTech" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                            <EnvVarList env_vars={env_vars}/>
+                                <EnvVarList env_vars={env_vars}/>
                             </TerminalOutput>
                         </CardBody>
                     </Card>

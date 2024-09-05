@@ -11,7 +11,7 @@ use api::workstation::platform::detect_toolbox;
 use app_state::SharedState;
 use axum::extract::State;
 use axum::http::{header, StatusCode};
-use axum::response::{Html, IntoResponse};
+use axum::response::{Html, IntoResponse, Redirect};
 use axum::routing::{get, MethodRouter};
 use axum::Router;
 use clap::ArgAction;
@@ -261,6 +261,14 @@ async fn main() {
         .nest(
             API_PREFIX,
             api::router(auth_backend, shutdown_tx, State(shared_state.clone())),
+        )
+        .route(
+            "/api",
+            get(|| async { Redirect::temporary("/api/docs/ui/") }),
+        )
+        .route(
+            "/api/",
+            get(|| async { Redirect::temporary("/api/docs/ui/") }),
         )
         .route("/", get(client_index_html))
         .route("/frontend.js", get(client_js))
