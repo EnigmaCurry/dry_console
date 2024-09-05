@@ -4,7 +4,7 @@ body {
     color: #fff;
 }
 
-html:not(.pf-v5-theme-dark) section {
+html:not(.pf-v5-theme-dark) body {
     color: #000;
 }
 
@@ -14,6 +14,18 @@ main section {
 
 .hidden {
     display: none !important;
+}
+
+button {
+    background-color: #373742;
+}
+
+html:not(.pf-v5-theme-dark) button {
+    background-color: #30406a;
+}
+
+.pf-v5-c-expandable-section__toggle {
+    background: transparent !important;
 }
 
 /* Masthead styling */
@@ -199,12 +211,13 @@ html:not(.pf-v5-theme-dark) .terminal .gutter {
 
 .terminal .content {
     position: relative;
-    color: white;
     padding-left: 10px;
     overflow: scroll;
     flex-grow: 1;
 }
-
+.terminal .content .pf-v5-c-code-block {
+    background-color: unset;
+}
 .terminal .content .stream-meta {
     background-color: #847b6f55;
     margin-right: 1em;
@@ -281,7 +294,7 @@ html:not(.pf-v5-theme-dark) .terminal .code_container {
     display: inline-flex;
     z-index: 10;
     justify-content: flex-end;
-    background-color: rgba(0, 0, 0, 0);
+    background-color: unset !important;
     color: white;
     border: none;
     padding-right: 10px;
@@ -355,39 +368,66 @@ html:not(.pf-v5-theme-dark) .terminal .code_container {
     padding-right: 1em;
     padding-bottom: 1em;
 }
-.terminal .env_var_list .validated_input {
+.terminal .env_var_entry .validated_input {
     display: flex;
     align-items: center;
 }
-.terminal .env_var_list .validated_input .pf-v5-c-form-control {
+.terminal .env_var_entry .validated_input .pf-v5-c-form-control {
     flex-grow: 1;
+    background-color: #033a37;
 }
-.terminal .env_var_list .validated_input .validation {
+
+html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-form-control {
+    background-color: #ffffff;
+}
+
+.terminal .env_var_entry .validated_input .validation {
     flex-shrink: 0;
+}
+.terminal .env_var_entry .validated_input .validation button {
+    font-size: 1.5em;
+    padding: 0em 0.5em;
 }
 .terminal .pf-v5-c-expandable-section {
     padding-left: 1em;
     padding-right: 1em;
 }
-
-.terminal .env_var_list .validation .tooltip {
+.terminal .env_var_entry .pf-v5-c-form__group-label {
+    padding-bottom: 0;
+}
+.terminal .env_var_entry {
+    border: 2px solid #0c7992;
+    border-radius: 10px;
+    padding: 0em 0.5em 0.5em 0.5em;
+    margin-top: 0.5em;
+    margin-bottom: 1.5em;
+}
+.pf-v5-c-tooltip__content {
+    background-color: unset;
+}
+.terminal .env_var_entry .validation .tooltip {
     position: absolute;
-    top: 100%;
-    left: 0;
-    width: 300px;
-    visibility: hidden;
-    background-color: #333;
+    top: 2.7em;
+    left: 2.6em;
+    min-width: 25em;
+    outline: 1px solid white;
+    padding: 2px;
     color: #fff;
-    padding: 10px;
     border-radius: 4px;
     z-index: 10;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: #592b2b;
+    font-weight: bold;
 }
-
-.terminal .env_var_list .validation button:hover + .tooltip {
-    visibility: visible;
+html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validation .tooltip {
+    background-color: #857;
 }
-
+.terminal .env_var_entry .validation .tooltip .pf-v5-c-tooltip__content {
+    padding: 0;
+}
+.terminal .env_var_entry .validation .pf-v5-c-tooltip__arrow {
+    background-color: #d2691e;
+    outline: double 3px #3188bbaa;
+}
 /* Manual intervention section */
 .manual_intervention {
     margin-bottom: 1em;
