@@ -303,7 +303,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     // Use effect to attach focus and blur events using use_effect_with
     let input_ref_clone = input_ref.clone();
     let is_input_focused_clone_for_focus = is_input_focused.clone();
-    let is_input_focused_clone_for_blur = is_input_focused.clone(); // Clone for the blur closure
+    let is_input_focused_clone_for_blur = is_input_focused.clone();
 
     use_effect_with(input_ref.clone(), move |input_ref| {
         let input_element = input_ref.cast::<HtmlInputElement>();
@@ -318,6 +318,10 @@ pub fn env_var(props: &EnvVarProps) -> Html {
 
             input_element.set_onfocus(Some(focus_closure.as_ref().unchecked_ref()));
             input_element.set_onblur(Some(blur_closure.as_ref().unchecked_ref()));
+
+            // Retain closures to prevent dropping
+            let _focus_closure = focus_closure.into_js_value();
+            let _blur_closure = blur_closure.into_js_value();
 
             Box::new(move || {
                 input_element.set_onfocus(None);
@@ -345,8 +349,11 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         (false, false) => "⁉️",
     };
 
-    // Conditionally display the tooltip if the input is not focused
-    let show_tooltip = !*is_input_focused;
+    let validation_help = match (props.is_valid, env_var_value.is_empty()) {
+        (true, _) => "This value looks good!".to_string(),
+        (false, true) => format!("Please enter the value of {name}"),
+        (false, false) => "This value is invalid.".to_string(),
+    };
 
     html! {
         <Form>
@@ -354,18 +361,12 @@ pub fn env_var(props: &EnvVarProps) -> Html {
                 <div class="validated_input">
                     <div class="validation" style="position: relative;">
                         <Button onclick={on_focus_input}>{validation_text}</Button>
-                        { if show_tooltip {
-                            html! {
-                                <div class="pf-v5-c-tooltip pf-m-bottom-left tooltip" role="tooltip">
-                                  <div class="pf-v5-c-tooltip__arrow"></div>
-                                  <div class="pf-v5-c-tooltip__content"
-                                        id="tooltip-bottom-left-content"
-                                  >{"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam id feugiat augue, nec fringilla turpis."}</div>
-                                </div>
-                            }
-                        } else {
-                            html! {}
-                        }}
+            <div class="pf-v5-c-tooltip pf-m-bottom-left tooltip" role="tooltip">
+            <div class="pf-v5-c-tooltip__arrow"></div>
+            <div class="pf-v5-c-tooltip__content"
+            id="tooltip-bottom-left-content"
+            >{validation_help}</div>
+            </div>
                     </div>
                     <TextInput
                         required=true
