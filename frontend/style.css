@@ -350,14 +350,42 @@ html:not(.pf-v5-theme-dark) .terminal .code_container {
 }
 
 /* Env var list inside terminal */
-.terminal .env-var-list {
+.terminal .env_var_list {
     padding-left: 1em;
     padding-right: 1em;
     padding-bottom: 1em;
 }
+.terminal .env_var_list .validated_input {
+    display: flex;
+    align-items: center;
+}
+.terminal .env_var_list .validated_input .pf-v5-c-form-control {
+    flex-grow: 1;
+}
+.terminal .env_var_list .validated_input .validation {
+    flex-shrink: 0;
+}
 .terminal .pf-v5-c-expandable-section {
     padding-left: 1em;
     padding-right: 1em;
+}
+
+.tooltip {
+    position: absolute;
+    top: 100%;              /* Adjusts position below the button */
+    left: 0;                /* Adjust horizontal positioning as needed */
+    width: 300px;           /* Set a fixed width or use `max-width` for a flexible size */
+    visibility: hidden;     /* Hidden by default */
+    background-color: #333; /* Add background color to differentiate the tooltip */
+    color: #fff;            /* Text color */
+    padding: 10px;          /* Add padding inside the tooltip */
+    border-radius: 4px;     /* Rounded corners */
+    z-index: 10;            /* Ensure the tooltip appears above other content */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Optional shadow */
+}
+
+.validation:hover .tooltip {
+    visibility: visible;    /* Show tooltip when hovering over the button */
 }
 
 /* Manual intervention section */

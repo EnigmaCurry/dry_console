@@ -5,7 +5,8 @@ use crate::components::terminal::{
 use crate::pages::workstation::WorkstationTab;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
-use gloo::console::debug;
+use dry_console_dto::workstation::PathValidationResult;
+use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
@@ -22,6 +23,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let script_name = "InstallDRymcgTech";
     let config_state = use_state(|| None::<DRymcgTechConfigState>);
     let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
+    let root_dir_validation = use_state(|| None::<bool>); // Track validation for ROOT_DIR
 
     // Store the debounce timeout to allow resetting it
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
@@ -37,27 +39,43 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             }
 
             // Set a new timeout for debouncing (1 second)
-            let debounce_timeout_clone = debounce_timeout.clone();
             let name_clone = name.clone();
             let value_clone = value.clone();
+            let root_dir_validation = root_dir_validation.clone();
 
             *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
                 // Fire the callback after 1 second of inactivity
                 match name_clone.as_str() {
                     "ROOT_DIR" => {
+                        root_dir_validation.set(None);
                         wasm_bindgen_futures::spawn_local(async move {
                             // Perform async HTTP request to check if ROOT_DIR is valid
-                            let url = format!("/api/validate_root_dir?path={}", value_clone);
+                            let url = format!(
+                                "/api/workstation/filesystem/validate_path/?path={}",
+                                value_clone
+                            );
                             let response = Request::get(&url).send().await;
 
                             if let Ok(response) = response {
                                 if response.status() == 200 {
-                                    // Handle success (e.g., update the state)
-                                    debug!("ROOT_DIR is valid");
+                                    // Deserialize the response
+                                    if let Ok(result) =
+                                        response.json::<PathValidationResult>().await
+                                    {
+                                        if result.can_be_created {
+                                            root_dir_validation.set(Some(true));
+                                        }
+                                    } else {
+                                        root_dir_validation.set(Some(false));
+                                        error!("Failed to deserialize PathValidationResult");
+                                    }
                                 } else {
-                                    // Handle failure (e.g., show error message)
-                                    debug!("ROOT_DIR is invalid");
+                                    root_dir_validation.set(Some(false));
+                                    error!("Error: Received non-200 status code");
                                 }
+                            } else {
+                                root_dir_validation.set(Some(false));
+                                error!("Error: Failed to send request");
                             }
                         });
                     }
@@ -96,6 +114,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                             .map(|env_var| EnvVarProps {
                                 name: env_var.name,
                                 description: env_var.description,
+                                is_valid: false, //TODO compute this
                                 default_value: env_var.default_value,
                                 on_value_change: Some(on_value_change.clone()), // Set the callback
                             })
@@ -116,7 +135,6 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             if let Some(env_vars) = (*env_vars_state).clone() {
                 html! {
                     <Card>
-                        <CardTitle><h1>{"Install d.rymcg.tech"}</h1></CardTitle>
                         <CardBody>
                             <TerminalOutput script="InstallDRymcgTech" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
                                 <EnvVarList env_vars={env_vars}/>

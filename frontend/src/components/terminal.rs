@@ -251,10 +251,10 @@ pub struct EnvVarListProps {
 #[function_component(EnvVarList)]
 pub fn env_var_list(props: &EnvVarListProps) -> Html {
     html! {
-        <div class="env-var-list">
+        <div class="env_var_list">
             <h3>{"Configure script environment:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()}/>
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={false} />
             }) }
         </div>
     }
@@ -264,6 +264,7 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
 pub struct EnvVarProps {
     pub name: String,
     pub description: String,
+    pub is_valid: bool,
     #[prop_or_default]
     pub on_value_change: Option<Callback<(String, String)>>,
     #[prop_or_default]
@@ -273,11 +274,13 @@ pub struct EnvVarProps {
 #[function_component(EnvVar)]
 pub fn env_var(props: &EnvVarProps) -> Html {
     let env_var_value = use_state(|| "".to_string());
-
-    // Clone necessary data from props
+    let is_input_focused = use_state(|| false);
     let name = props.name.clone();
     let description = props.description.clone();
     let on_value_change = props.on_value_change.clone();
+
+    // Create a NodeRef to reference the TextInput element
+    let input_ref = use_node_ref();
 
     // Callback to handle the value change from InputEvent
     let onchange = {
@@ -285,12 +288,9 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         let name = name.clone();
         let on_value_change = on_value_change.clone();
         Callback::from(move |event: InputEvent| {
-            //debug!("Input event received");
-            // Extract the input element from the event target
             if let Some(input) = event.target_dyn_into::<HtmlInputElement>() {
                 let value = input.value();
                 env_var_value.set(value.clone());
-                // Emit the custom on_value_change callback if it exists
                 if let Some(on_value_change) = &on_value_change {
                     on_value_change.emit((name.clone(), value));
                 }
@@ -300,14 +300,80 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         })
     };
 
+    // Use effect to attach focus and blur events using use_effect_with
+    let input_ref_clone = input_ref.clone();
+    let is_input_focused_clone_for_focus = is_input_focused.clone();
+    let is_input_focused_clone_for_blur = is_input_focused.clone(); // Clone for the blur closure
+
+    use_effect_with(input_ref.clone(), move |input_ref| {
+        let input_element = input_ref.cast::<HtmlInputElement>();
+        if let Some(input_element) = input_element {
+            let focus_closure = Closure::wrap(Box::new(move || {
+                is_input_focused_clone_for_focus.set(true);
+            }) as Box<dyn Fn()>);
+
+            let blur_closure = Closure::wrap(Box::new(move || {
+                is_input_focused_clone_for_blur.set(false);
+            }) as Box<dyn Fn()>);
+
+            input_element.set_onfocus(Some(focus_closure.as_ref().unchecked_ref()));
+            input_element.set_onblur(Some(blur_closure.as_ref().unchecked_ref()));
+
+            Box::new(move || {
+                input_element.set_onfocus(None);
+                input_element.set_onblur(None);
+            }) as Box<dyn Fn()>
+        } else {
+            Box::new(|| ()) as Box<dyn Fn()>
+        }
+    });
+
+    // Callback to handle Button click and focus the TextInput
+    let on_focus_input = {
+        let input_ref = input_ref.clone();
+        Callback::from(move |_| {
+            if let Some(input_element) = input_ref.cast::<HtmlInputElement>() {
+                input_element.focus().unwrap();
+            }
+        })
+    };
+
+    // Determine the validation text based on is_valid and env_var_value
+    let validation_text = match (props.is_valid, env_var_value.is_empty()) {
+        (true, _) => "✅",
+        (false, true) => "🫴",
+        (false, false) => "⁉️",
+    };
+
+    // Conditionally display the tooltip if the input is not focused
+    let show_tooltip = !*is_input_focused;
+
     html! {
         <Form>
             <FormGroup label={format!("{name} - {description}")} required=true>
-                <TextInput
-                    required=true
-                    value={(*env_var_value).clone()}
-                    oninput={onchange}  // Pass the corrected Callback<InputEvent>
-                />
+                <div class="validated_input">
+                    <div class="validation" style="position: relative;">
+                        <Button onclick={on_focus_input}>{validation_text}</Button>
+                        { if show_tooltip {
+                            html! {
+                                <div class="pf-v5-c-tooltip pf-m-bottom-left tooltip" role="tooltip">
+                                  <div class="pf-v5-c-tooltip__arrow"></div>
+                                  <div class="pf-v5-c-tooltip__content"
+                                        id="tooltip-bottom-left-content"
+                                  >{"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam id feugiat augue, nec fringilla turpis."}</div>
+                                </div>
+                            }
+                        } else {
+                            html! {}
+                        }}
+                    </div>
+                    <TextInput
+                        required=true
+                        value={(*env_var_value).clone()}
+                        oninput={onchange}
+                        r#ref={input_ref}
+                    />
+                </div>
             </FormGroup>
         </Form>
     }

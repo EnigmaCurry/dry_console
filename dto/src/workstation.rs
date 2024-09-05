@@ -101,7 +101,7 @@ impl Default for Platform {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PathValidationResult {
     pub path: std::path::PathBuf,
     pub exists: bool,
