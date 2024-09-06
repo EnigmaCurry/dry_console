@@ -374,7 +374,7 @@ html:not(.pf-v5-theme-dark) .terminal .code_container {
 }
 .terminal .env_var_entry .validated_input .pf-v5-c-form-control {
     flex-grow: 1;
-    background-color: #033a37;
+    background-color: #2a3135;
 }
 
 html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-form-control {
@@ -387,6 +387,8 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-f
 .terminal .env_var_entry .validated_input .validation button {
     font-size: 1.5em;
     padding: 0em 0.5em;
+    outline: 1px solid #797070;
+    margin-right: 2px;
 }
 .terminal .pf-v5-c-expandable-section {
     padding-left: 1em;
@@ -396,7 +398,7 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-f
     padding-bottom: 0;
 }
 .terminal .env_var_entry {
-    border: 2px solid #0c7992;
+    border: 2px dashed #0c799273;
     border-radius: 10px;
     padding: 0em 0.5em 0.5em 0.5em;
     margin-top: 0.5em;

@@ -318,10 +318,9 @@ pub fn env_var(props: &EnvVarProps) -> Html {
             let focus_closure = Closure::wrap(Box::new(move || {
                 is_input_focused_clone_for_focus.set(true);
 
-                // Show tooltip only if the button was clicked
-                if *is_button_clicked_clone_for_focus {
-                    is_tooltip_visible_clone_for_focus.set(true);
-                }
+                // Show tooltip if the input is focused, either by button or manually
+                is_tooltip_visible_clone_for_focus.set(true);
+                is_button_clicked_clone_for_focus.set(true);
             }) as Box<dyn Fn()>);
 
             let blur_closure = Closure::wrap(Box::new(move || {
@@ -359,24 +358,6 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         })
     };
 
-    // Callback to show the tooltip when hovering over the button
-    let on_mouseover = {
-        let is_tooltip_visible = is_tooltip_visible.clone();
-        Callback::from(move |_| {
-            is_tooltip_visible.set(true);
-        })
-    };
-
-    // Callback to hide the tooltip when the mouse leaves the button
-    let on_mouseout = {
-        let is_tooltip_visible = is_tooltip_visible.clone();
-        Callback::from(move |_| {
-            if !*is_input_focused {
-                is_tooltip_visible.set(false);
-            }
-        })
-    };
-
     // Determine the validation text based on is_valid and env_var_value
     let validation_text = match (props.is_valid, env_var_value.is_empty()) {
         (true, _) => "✅",
@@ -399,11 +380,8 @@ pub fn env_var(props: &EnvVarProps) -> Html {
             <FormGroup label={format!("{name} - {description}")} required=true>
                 <div class="validated_input">
                     <div class="validation" style="position: relative;">
-                        <div
-                            onmouseover={on_mouseover}
-                            onmouseout={on_mouseout}
-                        >
-                            <Button onclick={on_focus_input}>
+                        <div>
+                            <Button tabindex={Some(-1)} onclick={on_focus_input}>
                                 {validation_text}
                             </Button>
                         </div>
