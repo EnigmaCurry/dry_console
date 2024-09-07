@@ -23,7 +23,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let script_name = "InstallDRymcgTech";
     let config_state = use_state(|| None::<DRymcgTechConfigState>);
     let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
-    let root_dir_validation = use_state(|| None::<bool>); // Track validation for ROOT_DIR
+    let root_dir_validation = use_state(|| Some(false)); // Track validation for ROOT_DIR
 
     // Store the debounce timeout to allow resetting it
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
@@ -35,6 +35,10 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         let root_dir_validation2 = root_dir_validation.clone();
 
         let on_value_change = Callback::from(move |(name, value): (String, String)| {
+            // Reset validation:
+            root_dir_validation.set(None);
+            let root_dir_validation = root_dir_validation.clone();
+
             // Cancel previous timeout if it exists
             if let Some(timeout) = debounce_timeout.borrow_mut().take() {
                 timeout.cancel();
@@ -43,15 +47,12 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             // Set a new timeout for debouncing (1 second)
             let name_clone = name.clone();
             let value_clone = value.clone();
-            let root_dir_validation = root_dir_validation.clone();
-            root_dir_validation.set(Some(false));
 
             *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
                 let root_dir_validation = root_dir_validation.clone();
                 // Fire the callback after 1 second of inactivity
                 match name_clone.as_str() {
                     "ROOT_DIR" => {
-                        root_dir_validation.set(None);
                         wasm_bindgen_futures::spawn_local(async move {
                             // Perform async HTTP request to check if ROOT_DIR is valid
                             let response = Request::get(&format!(
@@ -68,6 +69,8 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                                     {
                                         if result.can_be_created {
                                             root_dir_validation.set(Some(true));
+                                        } else {
+                                            root_dir_validation.set(Some(false));
                                         }
                                     } else {
                                         root_dir_validation.set(Some(false));
@@ -126,8 +129,8 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                                 on_value_change: Some(on_value_change.clone()),
                                 // Validation:
                                 is_valid: match env_var.clone().name.as_str() {
-                                    "ROOT_DIR" => root_dir_validation_value.unwrap_or(false),
-                                    _ => false,
+                                    "ROOT_DIR" => *root_dir_validation_value,
+                                    _ => Some(false),
                                 },
                                 ..Default::default()
                             })
@@ -141,7 +144,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         });
     }
 
-    let is_valid = (*root_dir_validation).unwrap_or(false);
+    let is_valid = *root_dir_validation;
 
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {

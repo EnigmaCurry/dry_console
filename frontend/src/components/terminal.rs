@@ -66,7 +66,6 @@ pub struct WebSocketState {
     status: TerminalStatus,
     messages: Vec<(StreamType, String)>,
     error: String,
-    is_script_env_valid: bool,
 }
 // Reducer actions to manage WebSocketState
 #[derive(Debug)]
@@ -99,7 +98,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Initialized,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -111,7 +109,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Validated,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
-                    is_script_env_valid: true,
                 }
                 .into()
             }
@@ -123,7 +120,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Connecting,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -147,7 +143,6 @@ impl Reducible for WebSocketState {
                     },
                     messages: self.messages.clone(),
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -159,7 +154,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Processing,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -176,7 +170,6 @@ impl Reducible for WebSocketState {
                     status: self.status.clone(),
                     messages,
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -195,7 +188,6 @@ impl Reducible for WebSocketState {
                     },
                     messages: self.messages.clone(),
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -212,7 +204,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Failed,
                     messages,
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -228,7 +219,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Initialized,
                     messages: Vec::new(),
                     error: self.error.clone(),
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -252,7 +242,6 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Critical,
                     messages: Vec::new(),
                     error: e,
-                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -300,7 +289,7 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
 pub struct EnvVarProps {
     pub name: String,
     pub description: String,
-    pub is_valid: bool,
+    pub is_valid: Option<bool>,
     pub help: Vec<String>,
     #[prop_or_default]
     pub on_value_change: Option<Callback<(String, String)>>,
@@ -385,23 +374,25 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     };
 
     let validation_text = match (props.is_valid, env_var_value.is_empty()) {
-        (true, _) => "✅",
-        (false, true) => "✍️",
-        (false, false) => "⁉️",
+        (Some(true), _) => "✅",
+        (Some(false), true) => "✍️",
+        (Some(false), false) => "⁉️",
+        (_, _) => "⌛️",
     };
 
     let validation_help = match (props.is_valid, env_var_value.is_empty()) {
-        (true, _) => format!("{name} looks good! ✅"),
-        (false, true) => format!("Please enter a value for {name}. ✍️"),
-        (false, false) => format!("{name} is invalid ⁉️"),
+        (Some(true), _) => format!("{name} looks good! ✅"),
+        (Some(false), true) => format!("Please enter a value for {name}. ✍️"),
+        (Some(false), false) => format!("{name} is invalid ⁉️"),
+        (_, _) => "Validating input ...".to_string(),
     };
 
     let show_tooltip = *is_tooltip_visible;
     //let show_tooltip = true;
 
     let tooltip_classes = match props.is_valid {
-        true => "pf-v5-c-tooltip pf-m-bottom-left tooltip valid",
-        false => "pf-v5-c-tooltip pf-m-bottom-left tooltip",
+        Some(true) => "pf-v5-c-tooltip pf-m-bottom-left tooltip valid",
+        Some(false) | None => "pf-v5-c-tooltip pf-m-bottom-left tooltip",
     };
 
     // Render the tooltip with validation help and additional help messages
@@ -468,7 +459,7 @@ pub struct TerminalOutputProps {
     pub on_done: Option<Callback<MouseEvent>>,
     #[prop_or_default]
     pub children: Children,
-    pub is_valid: bool,
+    pub is_valid: Option<bool>,
 }
 
 impl TerminalOutputProps {
@@ -495,7 +486,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         status: TerminalStatus::Uninitialized,
         messages: Vec::new(),
         error: "".to_string(),
-        is_script_env_valid: props.is_valid,
     });
 
     // Cleanup websocket on tab change
@@ -871,11 +861,16 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     {
         let ws_state = ws_state.clone();
         let is_valid = props.is_valid.clone();
-        use_effect_with(is_valid, move |is_valid| {
-            if !*is_valid && ws_state.status == TerminalStatus::Validated {
-                ws_state.dispatch(WebSocketAction::Reset);
-            } else if *is_valid && ws_state.status == TerminalStatus::Initialized {
-                ws_state.dispatch(WebSocketAction::Validated);
+        use_effect_with(is_valid, move |is_valid| match is_valid {
+            Some(true) => {
+                if ws_state.status == TerminalStatus::Initialized {
+                    ws_state.dispatch(WebSocketAction::Validated);
+                }
+            }
+            None | Some(false) => {
+                if ws_state.status == TerminalStatus::Validated {
+                    ws_state.dispatch(WebSocketAction::Reset);
+                }
             }
         });
     }
