@@ -1013,7 +1013,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     </div>
                     <div class="pf-u-display-flex">
                         <Popover target={settings_link} body={settings_panel} />
-                        if ws_state.status != TerminalStatus::Initialized {
+                        if ws_state.status != TerminalStatus::Initialized && ws_state.status != TerminalStatus::Validated {
                             <Button onclick={scroll_to_top.clone()}>{"⬆️ Top"}</Button>
                             <Button onclick={scroll_to_bottom.clone()}>{"⬇️ Bottom"}</Button>
                         }
