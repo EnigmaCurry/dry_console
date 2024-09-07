@@ -412,9 +412,17 @@ pub fn env_var(props: &EnvVarProps) -> Html {
                     <div class="validated_input">
                         <div class="validation" style="position: relative;">
                             <div>
-                                <Button tabindex={Some(-1)} onclick={on_focus_input}>
-                                    {validation_text}
-                                </Button>
+                             if !props.disabled.unwrap_or(false) {
+                               <Button tabindex={Some(-1)} onclick={on_focus_input}>
+                                 {validation_text}
+                                 </Button>
+                             } else {
+                               <Tooltip text={"This field is read-only once the script has executed. Reset the script to edit."}>
+                                     <Button tabindex={Some(-1)} onclick={on_focus_input} disabled={true}>
+                                 {validation_text}
+                                 </Button>
+                               </Tooltip>
+                             }
                             </div>
                             { if show_tooltip {
                                 html! {
