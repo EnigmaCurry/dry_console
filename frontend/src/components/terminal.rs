@@ -254,7 +254,7 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
         <div class="env_var_list">
             <h3>{"Configure script environment:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={false} />
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={false} help={env_var.help.clone()}/>
             }) }
         </div>
     }
@@ -265,6 +265,7 @@ pub struct EnvVarProps {
     pub name: String,
     pub description: String,
     pub is_valid: bool,
+    pub help: Vec<String>,
     #[prop_or_default]
     pub on_value_change: Option<Callback<(String, String)>>,
     #[prop_or_default]
@@ -276,7 +277,6 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     let env_var_value = use_state(|| "".to_string());
     let is_input_focused = use_state(|| false);
     let is_tooltip_visible = use_state(|| false);
-    let is_button_clicked = use_state(|| false);
     let name = props.name.clone();
     let description = props.description.clone();
     let on_value_change = props.on_value_change.clone();
@@ -305,36 +305,29 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     // Use effect to attach focus and blur events using use_effect_with
     let is_input_focused_clone_for_focus = is_input_focused.clone();
     let is_input_focused_clone_for_blur = is_input_focused.clone();
-
     let is_tooltip_visible_clone_for_focus = is_tooltip_visible.clone();
     let is_tooltip_visible_clone_for_blur = is_tooltip_visible.clone();
-
-    let is_button_clicked_clone_for_focus = is_button_clicked.clone();
-    let is_button_clicked_clone_for_blur = is_button_clicked.clone();
-
     use_effect_with(input_ref.clone(), move |input_ref| {
         let input_element = input_ref.cast::<HtmlInputElement>();
         if let Some(input_element) = input_element {
             let focus_closure = Closure::wrap(Box::new(move || {
                 is_input_focused_clone_for_focus.set(true);
-
-                // Show tooltip if the input is focused, either by button or manually
                 is_tooltip_visible_clone_for_focus.set(true);
-                is_button_clicked_clone_for_focus.set(true);
             }) as Box<dyn Fn()>);
 
             let blur_closure = Closure::wrap(Box::new(move || {
                 is_input_focused_clone_for_blur.set(false);
                 is_tooltip_visible_clone_for_blur.set(false);
-                is_button_clicked_clone_for_blur.set(false);
             }) as Box<dyn Fn()>);
 
             input_element.set_onfocus(Some(focus_closure.as_ref().unchecked_ref()));
             input_element.set_onblur(Some(blur_closure.as_ref().unchecked_ref()));
 
-            let _focus_closure = focus_closure.into_js_value();
-            let _blur_closure = blur_closure.into_js_value();
+            // Call `forget` to ensure the closures are not dropped prematurely
+            focus_closure.forget();
+            blur_closure.forget();
 
+            // Log when the cleanup function is set
             Box::new(move || {
                 input_element.set_onfocus(None);
                 input_element.set_onblur(None);
@@ -347,18 +340,14 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     // Callback to handle Button click and focus the TextInput
     let on_focus_input = {
         let input_ref = input_ref.clone();
-        let is_tooltip_visible = is_tooltip_visible.clone();
-        let is_button_clicked = is_button_clicked.clone();
         Callback::from(move |_| {
+            debug!("here2");
             if let Some(input_element) = input_ref.cast::<HtmlInputElement>() {
                 input_element.focus().unwrap();
-                is_tooltip_visible.set(true);
-                is_button_clicked.set(true);
             }
         })
     };
 
-    // Determine the validation text based on is_valid and env_var_value
     let validation_text = match (props.is_valid, env_var_value.is_empty()) {
         (true, _) => "✅",
         (false, true) => "✍️",
@@ -366,47 +355,57 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     };
 
     let validation_help = match (props.is_valid, env_var_value.is_empty()) {
-        (true, _) => format!("{name} looks good! 👍️"),
-        (false, true) => format!("Please enter a value for {name}"),
-        (false, false) => format!("{name} is invalid. ❌"),
+        (true, _) => format!("{name} looks good! ✅"),
+        (false, true) => format!("Please enter a value for {name}. ✍️"),
+        (false, false) => format!("{name} is invalid⁉️"),
     };
 
     let show_tooltip = *is_tooltip_visible;
-    //let show_tooltip = true;
 
+    let tooltip_classes = match props.is_valid {
+        true => "pf-v5-c-tooltip pf-m-bottom-left tooltip valid",
+        false => "pf-v5-c-tooltip pf-m-bottom-left tooltip",
+    };
+
+    // Render the tooltip with validation help and additional help messages
     html! {
         <div class="env_var_entry">
-        <Form>
-            <FormGroup label={format!("{name} - {description}")} required=true>
-                <div class="validated_input">
-                    <div class="validation" style="position: relative;">
-                        <div>
-                            <Button tabindex={Some(-1)} onclick={on_focus_input}>
-                                {validation_text}
-                            </Button>
+            <Form>
+                <FormGroup label={format!("{name} - {description}")} required=true>
+                    <div class="validated_input">
+                        <div class="validation" style="position: relative;">
+                            <div>
+                                <Button tabindex={Some(-1)} onclick={on_focus_input}>
+                                    {validation_text}
+                                </Button>
+                            </div>
+                            { if show_tooltip {
+                                html! {
+                                    <div class={tooltip_classes} role="tooltip">
+                                        <div class="pf-v5-c-tooltip__arrow"></div>
+                                        <div class="pf-v5-c-tooltip__content">
+                                            {validation_help}
+                                            <ul>
+                                                { for props.help.iter().map(|help_text| html! {
+                                                    <li>{help_text}</li>
+                                                }) }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
+                            } else {
+                                html! {}
+                            }}
                         </div>
-                        { if show_tooltip {
-                            html! {
-                                <div class="pf-v5-c-tooltip pf-m-bottom-left tooltip" role="tooltip">
-                                  <div class="pf-v5-c-tooltip__arrow"></div>
-                                  <div class="pf-v5-c-tooltip__content"
-                                        id="tooltip-bottom-left-content"
-                                  >{validation_help}</div>
-                                </div>
-                            }
-                        } else {
-                            html! {}
-                        }}
+                        <TextInput
+                            required=true
+                            value={(*env_var_value).clone()}
+                            oninput={onchange}
+                            r#ref={input_ref}
+                        />
                     </div>
-                    <TextInput
-                        required=true
-                        value={(*env_var_value).clone()}
-                        oninput={onchange}
-                        r#ref={input_ref}
-                    />
-                </div>
-            </FormGroup>
-        </Form>
+                </FormGroup>
+            </Form>
         </div>
     }
 }

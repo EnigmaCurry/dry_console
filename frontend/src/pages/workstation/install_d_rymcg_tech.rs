@@ -55,7 +55,6 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                                 value_clone
                             );
                             let response = Request::get(&url).send().await;
-
                             if let Ok(response) = response {
                                 if response.status() == 200 {
                                     // Deserialize the response
@@ -114,9 +113,10 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                             .map(|env_var| EnvVarProps {
                                 name: env_var.name,
                                 description: env_var.description,
+                                help: env_var.help.unwrap_or(Vec::<String>::new()),
                                 is_valid: false, //TODO compute this
                                 default_value: env_var.default_value,
-                                on_value_change: Some(on_value_change.clone()), // Set the callback
+                                on_value_change: Some(on_value_change.clone()),
                             })
                             .collect();
 
@@ -137,7 +137,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                     <Card>
                         <CardBody>
                             <TerminalOutput script="InstallDRymcgTech" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                                <EnvVarList env_vars={env_vars}/>
+                            <EnvVarList env_vars={env_vars}/>
                             </TerminalOutput>
                         </CardBody>
                     </Card>

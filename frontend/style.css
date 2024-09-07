@@ -411,17 +411,28 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-f
     position: absolute;
     top: 2.7em;
     left: 2.6em;
-    min-width: 25em;
+    min-width: 35em;
     outline: 1px solid white;
     padding: 2px;
     color: #fff;
     border-radius: 4px;
     z-index: 10;
-    background-color: #592b2b;
     font-weight: bold;
+    background-color: #331414;
+}
+.terminal .env_var_entry .validation .tooltip.valid {
+    background-color: #181235;
+}
+.terminal .env_var_entry .validation .tooltip .pf-v5-c-tooltip__content {
+    text-align: left !important;
+    margin-left: 2em;
 }
 html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validation .tooltip {
     background-color: #857;
+}
+.terminal .env_var_entry .validation .tooltip ul {
+    margin-left: 2em;
+    list-style: unset;
 }
 .terminal .env_var_entry .validation .tooltip .pf-v5-c-tooltip__content {
     padding: 0;
