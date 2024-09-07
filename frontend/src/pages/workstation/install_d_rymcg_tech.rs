@@ -149,6 +149,8 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
             html! { <div>{format!("Already installed at {}.", root_dir)}</div> }
+        } else if let Some(candidate_dir) = config.candidate_root_dir {
+            html! { <div>{format!("Probably already installed at {}.", candidate_dir)}</div> }
         } else {
             if let Some(env_vars) = (*env_vars_state).clone() {
                 html! {
