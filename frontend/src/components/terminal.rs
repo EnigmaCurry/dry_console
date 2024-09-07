@@ -861,18 +861,21 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     {
         let ws_state = ws_state.clone();
         let is_valid = props.is_valid.clone();
-        use_effect_with(is_valid, move |is_valid| match is_valid {
-            Some(true) => {
-                if ws_state.status == TerminalStatus::Initialized {
-                    ws_state.dispatch(WebSocketAction::Validated);
+        use_effect_with(
+            (is_valid, ws_state.clone()),
+            move |(is_valid, ws_state)| match is_valid {
+                Some(true) => {
+                    if ws_state.status == TerminalStatus::Initialized {
+                        ws_state.dispatch(WebSocketAction::Validated);
+                    }
                 }
-            }
-            None | Some(false) => {
-                if ws_state.status == TerminalStatus::Validated {
-                    ws_state.dispatch(WebSocketAction::Reset);
+                None | Some(false) => {
+                    if ws_state.status == TerminalStatus::Validated {
+                        ws_state.dispatch(WebSocketAction::Reset);
+                    }
                 }
-            }
-        });
+            },
+        );
     }
 
     // Initialize script entry
