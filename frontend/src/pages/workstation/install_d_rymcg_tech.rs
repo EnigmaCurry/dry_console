@@ -128,6 +128,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                                     "ROOT_DIR" => root_dir_validation_value.unwrap_or(false),
                                     _ => false,
                                 },
+                                ..Default::default()
                             })
                             .collect();
 
@@ -150,7 +151,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                     <Card>
                         <CardBody>
                         <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                            <EnvVarList env_vars={env_vars}/>
+                        <EnvVarList env_vars={env_vars}/>
                             </TerminalOutput>
                         </CardBody>
                     </Card>

@@ -33,6 +33,15 @@ use web_sys::MessageEvent;
 use web_sys::{HtmlElement, WebSocket};
 use yew::prelude::*;
 
+#[derive(Clone, PartialEq)]
+pub struct WebSocketStateContext(Rc<WebSocketState>);
+
+impl WebSocketStateContext {
+    pub fn new(state: WebSocketState) -> Self {
+        WebSocketStateContext(Rc::new(state))
+    }
+}
+
 pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     if let Some(element) = node_ref.cast::<web_sys::HtmlElement>() {
         //debug!(element.clone());
@@ -50,7 +59,7 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct WebSocketState {
     websocket: Option<WebSocket>,
     script_entry: Option<ScriptEntry>,
@@ -250,11 +259,13 @@ pub struct EnvVarListProps {
 
 #[function_component(EnvVarList)]
 pub fn env_var_list(props: &EnvVarListProps) -> Html {
+    let ws_state = use_context::<WebSocketStateContext>().expect("No WebSocketStateContext found");
+    let disabled = ws_state.0.status != TerminalStatus::Initialized;
     html! {
         <div class="env_var_list">
             <h3>{"Configure script inputs:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()}/>
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()} disabled={Some(disabled)}/>
             }) }
         </div>
     }
@@ -270,6 +281,7 @@ pub struct EnvVarProps {
     pub on_value_change: Option<Callback<(String, String)>>,
     #[prop_or_default]
     pub default_value: String,
+    pub disabled: Option<bool>,
 }
 
 #[function_component(EnvVar)]
@@ -402,6 +414,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
                             value={(*env_var_value).clone()}
                             oninput={onchange}
                             r#ref={input_ref}
+                            disabled={props.disabled.unwrap_or(true)}
                         />
                     </div>
                 </FormGroup>
@@ -906,9 +919,13 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     </StackItem>
                     </Stack>
                     </div>
+                    <ContextProvider<WebSocketStateContext> context={WebSocketStateContext::new((*ws_state).clone())}>
+                    <div class="children">
                     if !props.children.is_empty() {
                         { for props.children.iter() }
                     }
+                    </div>
+                    </ContextProvider<WebSocketStateContext>>
                 <ExpandableSectionToggle toggle_text_expanded={"Hide script"} toggle_text_hidden={"Show script"} ontoggle={code_block_ontoggle} expanded={*code_block_expanded} direction={ExpandableSectionToggleDirection::Down}/>
                 <ExpandableSection detached=true expanded={*code_block_expanded}>
                 <div class="code_container" ref={code_block_ref.clone()}>
