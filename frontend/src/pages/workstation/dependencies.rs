@@ -390,7 +390,7 @@ pub fn dependency_list(props: &DependencyListProps) -> Html {
                 <CardBody>
                 if !*all_installed {
                     if props.system_info.user.can_sudo {
-                        <TerminalOutput script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={on_click.clone()}/>
+                        <TerminalOutput script="InstallDependencies" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={on_click.clone()} is_valid=true/>
                             <br/>
                             <Button label="🔄 Recheck dependencies" onclick={on_click.clone()} />
                             <br/>

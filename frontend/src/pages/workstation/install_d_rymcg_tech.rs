@@ -139,6 +139,8 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         });
     }
 
+    let is_valid = (*root_dir_validation).unwrap_or(false);
+
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
             html! { <div>{format!("Already installed at {}.", root_dir)}</div> }
@@ -147,7 +149,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                 html! {
                     <Card>
                         <CardBody>
-                            <TerminalOutput script="InstallDRymcgTech" reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
+                        <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
                             <EnvVarList env_vars={env_vars}/>
                             </TerminalOutput>
                         </CardBody>

@@ -404,7 +404,16 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-f
     margin-top: 0.5em;
     margin-bottom: 1.5em;
 }
+.tooltip,
+.pf-v5-c-tooltip {
+    background-color: #331414;
+    outline: 1px solid white;
+    border-radius: 4px;
+    z-index: 10;
+}
 .pf-v5-c-tooltip__content {
+    color: #fff;
+    font-weight: bold;
     background-color: unset;
 }
 .terminal .env_var_entry .validation .tooltip {
@@ -412,22 +421,16 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-f
     top: 2.7em;
     left: 2.6em;
     min-width: 35em;
-    outline: 1px solid white;
     padding: 2px;
-    color: #fff;
-    border-radius: 4px;
-    z-index: 10;
-    font-weight: bold;
-    background-color: #331414;
 }
-.terminal .env_var_entry .validation .tooltip.valid {
+.tooltip.valid {
     background-color: #181235;
 }
 .terminal .env_var_entry .validation .tooltip .pf-v5-c-tooltip__content {
     text-align: left !important;
     margin-left: 2em;
 }
-html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validation .tooltip {
+html:not(.pf-v5-theme-dark) {
     background-color: #857;
 }
 .terminal .env_var_entry .validation .tooltip ul {
@@ -437,7 +440,7 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validation .tooltip {
 .terminal .env_var_entry .validation .tooltip .pf-v5-c-tooltip__content {
     padding: 0;
 }
-.terminal .env_var_entry .validation .pf-v5-c-tooltip__arrow {
+.pf-v5-c-tooltip__arrow {
     background-color: #d2691e;
     outline: double 3px #3188bbaa;
 }

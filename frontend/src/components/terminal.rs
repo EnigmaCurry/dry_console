@@ -252,7 +252,7 @@ pub struct EnvVarListProps {
 pub fn env_var_list(props: &EnvVarListProps) -> Html {
     html! {
         <div class="env_var_list">
-            <h3>{"Configure script environment:"}</h3>
+            <h3>{"Configure script inputs:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
                 <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()}/>
             }) }
@@ -360,6 +360,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     };
 
     let show_tooltip = *is_tooltip_visible;
+    //let show_tooltip = true;
 
     let tooltip_classes = match props.is_valid {
         true => "pf-v5-c-tooltip pf-m-bottom-left tooltip valid",
@@ -421,6 +422,7 @@ pub struct TerminalOutputProps {
     pub on_done: Option<Callback<MouseEvent>>,
     #[prop_or_default]
     pub children: Children,
+    pub is_valid: bool,
 }
 
 impl TerminalOutputProps {
@@ -920,8 +922,20 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 </ExpandableSection>
                 <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                     <div class="pf-u-display-flex">
-                        if ws_state.status == TerminalStatus::Initialized {
-                            <Button onclick={run_command.clone()}>{"🚀 Run script"}</Button>
+                    if ws_state.status == TerminalStatus::Initialized {
+                        if !props.is_valid {
+                            <Tooltip text={"All script inputs must be valid before you can run this. ❌"}>
+                                <Button
+                                onclick={run_command.clone()}
+                                disabled=true
+                                >{"🚀 Run script"}</Button>
+                                </Tooltip>
+                        } else {
+                            <Button
+                                onclick={run_command.clone()}
+                                disabled=false
+                                >{"🚀 Run script"}</Button>
+                        }
                         } else if ws_state.status == TerminalStatus::Processing {
                             <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {
