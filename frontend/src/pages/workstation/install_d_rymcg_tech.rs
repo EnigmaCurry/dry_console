@@ -5,17 +5,85 @@ use crate::components::terminal::{
 use crate::pages::workstation::WorkstationTab;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
+use dry_console_dto::workstation::ConfirmInstalledRequest;
 use dry_console_dto::workstation::PathValidationResult;
 use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
+use std::rc;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct InstallDRyMcGTechProps {
     pub reload_trigger: u32,
     pub selected_tab: WorkstationTab,
+}
+
+#[derive(Properties, PartialEq)]
+pub struct ConfirmInstallProps {
+    pub candidate_dir: String,
+}
+
+#[function_component(ConfirmInstall)]
+pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
+    let candidate_dir = rc::Rc::new(props.candidate_dir.clone());
+
+    let on_click = {
+        let candidate_dir = candidate_dir.clone(); // Clone the Rc here, not the string itself
+        Callback::from(move |_| {
+            let candidate_dir = candidate_dir.clone(); // Clone the Rc again inside the closure
+            wasm_bindgen_futures::spawn_local(async move {
+                let body = serde_json::to_string(&ConfirmInstalledRequest {
+                    root_dir: (*candidate_dir).clone(), // Dereference Rc to access the inner String
+                })
+                .expect("Failed to serialize request.");
+
+                let request_result =
+                    Request::post("/api/workstation/d.rymcg.tech/confirm_installed")
+                        .header("Content-Type", "application/json")
+                        .body(body);
+
+                if let Ok(request) = request_result {
+                    let response = request.send().await;
+
+                    match response {
+                        Ok(resp) if resp.ok() => {
+                            // Handle success (e.g., show a success message or redirect)
+                            //log::debug!("API call successful!");
+                        }
+                        Ok(resp) => {
+                            // Handle API errors
+                            log::error!("API error: {:?}", resp);
+                        }
+                        Err(err) => {
+                            // Handle network or other errors
+                            log::error!("Request failed: {:?}", err);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to create request.");
+                }
+            });
+        })
+    };
+
+    html! {
+        <Card>
+            <CardTitle>
+                <h3>{"It looks like d.rymcg.tech may already be installed"}</h3>
+            </CardTitle>
+            <CardBody>
+                <p>{format!("Please examine this directory:")}</p>
+                <ul><li><code>{&*candidate_dir}</code></li></ul>
+                <p>{"Does this directory contain an existing installation that you wish to import?"}</p>
+                <div class="button_group">
+                    <Button class="deny" onclick={on_click.clone()} >{"No, use a different directory"}</Button>
+                    <Button class="confirm" onclick={on_click} >{"Yes, use this directory"}</Button>
+                </div>
+            </CardBody>
+        </Card>
+    }
 }
 
 #[function_component(InstallDRyMcGTech)]
@@ -148,9 +216,20 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
 
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
-            html! { <div>{format!("Already installed at {}.", root_dir)}</div> }
+            html! {
+                <Card>
+                    <CardTitle>
+                    <h3>{"d.rymcg.tech is already installed"}</h3>
+                    </CardTitle>
+                    <CardBody>
+                    <p>{root_dir}</p>
+                    </CardBody>
+                </Card>
+            }
         } else if let Some(candidate_dir) = config.candidate_root_dir {
-            html! { <div>{format!("Probably already installed at {}.", candidate_dir)}</div> }
+            html! {
+                <ConfirmInstall {candidate_dir}/>
+            }
         } else {
             if let Some(env_vars) = (*env_vars_state).clone() {
                 html! {

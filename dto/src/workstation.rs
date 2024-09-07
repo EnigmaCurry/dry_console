@@ -109,3 +109,8 @@ pub struct PathValidationResult {
     pub is_directory: bool,
     pub can_be_created: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct ConfirmInstalledRequest {
+    pub root_dir: String,
+}

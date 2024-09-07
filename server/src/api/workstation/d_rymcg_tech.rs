@@ -8,7 +8,7 @@ use crate::{app_state::SharedState, AppRouter};
 use anyhow::anyhow;
 use axum::body::Body;
 use axum::extract::Request;
-use axum::routing::MethodRouter;
+use axum::routing::{post, MethodRouter};
 use axum::{extract::State, routing::get, Router};
 use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfigState};
 use tracing::debug;
@@ -16,7 +16,7 @@ use tracing::debug;
 const DEFAULT_D_RYMCG_TECH_ROOT_DIR: &str = "~/git/vendor/enigmacurry/d.rymcg.tech";
 
 pub fn main() -> AppRouter {
-    Router::new().merge(config())
+    Router::new().merge(config()).merge(confirm_installed())
 }
 
 fn route(path: &str, method_router: MethodRouter<SharedState, Infallible>) -> AppRouter {
@@ -106,4 +106,22 @@ pub fn config() -> AppRouter {
         }
     }
     route("/", get(handler))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/workstation/d.rymcg.tech/confirm_installed",
+    responses(
+        (status = OK, description = "Set the existing d.rymcg.tech ROOT_DIR", body = str)
+    )
+)]
+pub fn confirm_installed() -> AppRouter {
+    async fn handler(State(state): State<SharedState>, req: Request<Body>) -> JsonResult<bool> {
+        let config = {
+            let state = state.read().await;
+            state.config.clone()
+        };
+        Ok(AppJson(true))
+    }
+    route("/confirm_installed", post(handler))
 }

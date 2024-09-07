@@ -316,8 +316,9 @@ html:not(.pf-v5-theme-dark) .terminal .code_container {
     padding: 0.5em 1em;
 }
 
+.pf-v5-c-card ul,
 .markdown_render ul {
-    margin-left: 2em;
+    margin: 1em 0em 1em 2em;
     list-style: unset;
 }
 
@@ -479,4 +480,23 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
 
 .manual_intervention button {
     margin-left: 2em;
+}
+
+.button_group {
+    display: flex;
+    gap: 10px;
+    margin: 1em;
+    font-weight: bold;
+}
+
+button.confirm {
+    background-color : #356448;
+    font-weight: bold;
+    outline: 1px solid #555;
+}
+
+button.deny {
+    background-color: #5e2521;
+    font-weight: bold;
+    outline: 1px solid #555;
 }
