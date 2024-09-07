@@ -31,6 +31,8 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     {
         let config_state = config_state.clone();
         let env_vars_state = env_vars_state.clone(); // Clone env_vars_state for use in async block
+        let root_dir_validation = root_dir_validation.clone();
+        let root_dir_validation2 = root_dir_validation.clone();
 
         let on_value_change = Callback::from(move |(name, value): (String, String)| {
             // Cancel previous timeout if it exists
@@ -44,17 +46,19 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             let root_dir_validation = root_dir_validation.clone();
 
             *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
+                let root_dir_validation = root_dir_validation.clone();
                 // Fire the callback after 1 second of inactivity
                 match name_clone.as_str() {
                     "ROOT_DIR" => {
                         root_dir_validation.set(None);
                         wasm_bindgen_futures::spawn_local(async move {
                             // Perform async HTTP request to check if ROOT_DIR is valid
-                            let url = format!(
+                            let response = Request::get(&format!(
                                 "/api/workstation/filesystem/validate_path/?path={}",
                                 value_clone
-                            );
-                            let response = Request::get(&url).send().await;
+                            ))
+                            .send()
+                            .await;
                             if let Ok(response) = response {
                                 if response.status() == 200 {
                                     // Deserialize the response
@@ -83,10 +87,14 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             }));
         });
 
-        use_effect_with((), move |_| {
+        let root_dir_validation = root_dir_validation2.clone();
+        use_effect_with(root_dir_validation.clone(), move |root_dir_validation| {
             let config = config_state.clone();
             let env_vars = env_vars_state.clone();
             let on_value_change = on_value_change.clone(); // Clone callback to use within async
+
+            // Clone or extract the value of root_dir_validation for use in the async block
+            let root_dir_validation_value = (*root_dir_validation).clone();
 
             wasm_bindgen_futures::spawn_local(async move {
                 // Fetch config state
@@ -104,19 +112,22 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                     Request::get(&format!("/api/workstation/command/{}/", script_name))
                         .send()
                         .await;
-
                 if let Ok(script_response) = script_response {
                     if let Ok(script_entry) = script_response.json::<ScriptEntry>().await {
                         let env_var_props: Vec<EnvVarProps> = script_entry
                             .env
                             .into_iter()
                             .map(|env_var| EnvVarProps {
-                                name: env_var.name,
-                                description: env_var.description,
-                                help: env_var.help.unwrap_or(Vec::<String>::new()),
-                                is_valid: false, //TODO compute this
-                                default_value: env_var.default_value,
+                                name: env_var.clone().name,
+                                description: env_var.clone().description,
+                                help: env_var.clone().help.unwrap_or(Vec::<String>::new()),
+                                default_value: env_var.clone().default_value,
                                 on_value_change: Some(on_value_change.clone()),
+                                // Validation:
+                                is_valid: match env_var.clone().name.as_str() {
+                                    "ROOT_DIR" => root_dir_validation_value.unwrap_or(false),
+                                    _ => false,
+                                },
                             })
                             .collect();
 

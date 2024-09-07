@@ -43,7 +43,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
 
 pub fn could_create_path(path: &Path) -> io::Result<()> {
     if path.exists() {
-        debug!("already exists");
+        //debug!("already exists");
         return Err(io::Error::new(
             io::ErrorKind::AlreadyExists,
             "The specified path already exists",
@@ -51,11 +51,10 @@ pub fn could_create_path(path: &Path) -> io::Result<()> {
     }
 
     if let Some(nearest_parent) = find_nearest_existing_parent(path) {
-        debug!("{:?}", nearest_parent);
         if directory_is_writable_by_user(&nearest_parent) {
             Ok(())
         } else {
-            debug!("no write permissions");
+            //debug!("no write permissions");
             Err(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 "No write permission on the nearest existing parent directory",

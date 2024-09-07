@@ -254,7 +254,7 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
         <div class="env_var_list">
             <h3>{"Configure script environment:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={false} help={env_var.help.clone()}/>
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()}/>
             }) }
         </div>
     }
@@ -341,7 +341,6 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     let on_focus_input = {
         let input_ref = input_ref.clone();
         Callback::from(move |_| {
-            debug!("here2");
             if let Some(input_element) = input_ref.cast::<HtmlInputElement>() {
                 input_element.focus().unwrap();
             }
@@ -357,7 +356,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     let validation_help = match (props.is_valid, env_var_value.is_empty()) {
         (true, _) => format!("{name} looks good! ✅"),
         (false, true) => format!("Please enter a value for {name}. ✍️"),
-        (false, false) => format!("{name} is invalid⁉️"),
+        (false, false) => format!("{name} is invalid ⁉️"),
     };
 
     let show_tooltip = *is_tooltip_visible;
