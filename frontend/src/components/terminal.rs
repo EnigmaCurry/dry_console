@@ -60,16 +60,17 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct WebSocketState {
+pub struct WebSocketState {
     websocket: Option<WebSocket>,
     script_entry: Option<ScriptEntry>,
     status: TerminalStatus,
     messages: Vec<(StreamType, String)>,
     error: String,
+    is_script_env_valid: bool,
 }
 // Reducer actions to manage WebSocketState
 #[derive(Debug)]
-enum WebSocketAction {
+pub enum WebSocketAction {
     Initialize(ScriptEntry),
     Connect(WebSocket),
     ReceivePingReport(PingReport),
@@ -80,6 +81,7 @@ enum WebSocketAction {
     CriticalError(String),
     Reset,
     SendPong,
+    Validated,
 }
 impl Reducible for WebSocketState {
     type Action = WebSocketAction;
@@ -97,6 +99,19 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Initialized,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
+                }
+                .into()
+            }
+            WebSocketAction::Validated => {
+                //debug!("Action: Validated");
+                WebSocketState {
+                    script_entry: self.script_entry.clone(),
+                    websocket: self.websocket.clone(),
+                    status: TerminalStatus::Validated,
+                    messages: self.messages.clone(),
+                    error: self.error.clone(),
+                    is_script_env_valid: true,
                 }
                 .into()
             }
@@ -108,6 +123,7 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Connecting,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -131,6 +147,7 @@ impl Reducible for WebSocketState {
                     },
                     messages: self.messages.clone(),
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -142,6 +159,7 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Processing,
                     messages: self.messages.clone(),
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -158,6 +176,7 @@ impl Reducible for WebSocketState {
                     status: self.status.clone(),
                     messages,
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -176,6 +195,7 @@ impl Reducible for WebSocketState {
                     },
                     messages: self.messages.clone(),
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -192,6 +212,7 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Failed,
                     messages,
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -207,6 +228,7 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Initialized,
                     messages: Vec::new(),
                     error: self.error.clone(),
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -230,6 +252,7 @@ impl Reducible for WebSocketState {
                     status: TerminalStatus::Critical,
                     messages: Vec::new(),
                     error: e,
+                    is_script_env_valid: self.is_script_env_valid.clone(),
                 }
                 .into()
             }
@@ -244,6 +267,7 @@ impl Reducible for WebSocketState {
 enum TerminalStatus {
     Uninitialized,
     Initialized,
+    Validated,
     Connecting,
     Ready,
     Processing,
@@ -260,7 +284,8 @@ pub struct EnvVarListProps {
 #[function_component(EnvVarList)]
 pub fn env_var_list(props: &EnvVarListProps) -> Html {
     let ws_state = use_context::<WebSocketStateContext>().expect("No WebSocketStateContext found");
-    let disabled = ws_state.0.status != TerminalStatus::Initialized;
+    let disabled = ws_state.0.status != TerminalStatus::Initialized
+        && ws_state.0.status != TerminalStatus::Validated;
     html! {
         <div class="env_var_list">
             <h3>{"Configure script inputs:"}</h3>
@@ -462,6 +487,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         status: TerminalStatus::Uninitialized,
         messages: Vec::new(),
         error: "".to_string(),
+        is_script_env_valid: props.is_valid,
     });
 
     // Cleanup websocket on tab change
@@ -833,42 +859,60 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let output_stdout_color = &style.text_color_stdout;
     let output_copy_button_text = use_state(|| "📋".to_string());
 
+    // Validation
+    {
+        let ws_state = ws_state.clone();
+        let is_valid = props.is_valid.clone();
+        use_effect_with(is_valid, move |is_valid| {
+            if !*is_valid && ws_state.status == TerminalStatus::Validated {
+                ws_state.dispatch(WebSocketAction::Reset);
+            } else if *is_valid && ws_state.status == TerminalStatus::Initialized {
+                ws_state.dispatch(WebSocketAction::Validated);
+            }
+        });
+    }
+
     // Initialize script entry
     {
         let ws_state = ws_state.clone();
         let script = props.script.clone();
         use_effect_with(ws_state.status.clone(), move |status| {
-            if *status == TerminalStatus::Uninitialized {
-                let ws_state = ws_state.clone();
-                spawn_local(async move {
-                    let response = Request::get(&format!("/api/workstation/command/{}/", script))
-                        .send()
-                        .await;
+            match *status {
+                TerminalStatus::Uninitialized => {
+                    let ws_state = ws_state.clone();
+                    spawn_local(async move {
+                        let response =
+                            Request::get(&format!("/api/workstation/command/{}/", script))
+                                .send()
+                                .await;
 
-                    match response {
-                        Ok(resp) => {
-                            if let Ok(data) = resp.json::<ScriptEntry>().await {
-                                ws_state.dispatch(WebSocketAction::Initialize(data));
-                            } else {
-                                match resp.status() {
-                                    404 => ws_state.dispatch(WebSocketAction::CriticalError(
-                                        "Could not find script entry.".to_string(),
-                                    )),
-                                    _ => ws_state.dispatch(WebSocketAction::CriticalError(
-                                        "Failed to fetch script entry.".to_string(),
-                                    )),
+                        match response {
+                            Ok(resp) => {
+                                if let Ok(data) = resp.json::<ScriptEntry>().await {
+                                    ws_state.dispatch(WebSocketAction::Initialize(data));
+                                } else {
+                                    match resp.status() {
+                                        404 => ws_state.dispatch(WebSocketAction::CriticalError(
+                                            "Could not find script entry.".to_string(),
+                                        )),
+                                        _ => ws_state.dispatch(WebSocketAction::CriticalError(
+                                            "Failed to fetch script entry.".to_string(),
+                                        )),
+                                    }
+                                    // ;
                                 }
-                                // ;
+                            }
+                            Err(e) => {
+                                ws_state.dispatch(WebSocketAction::Failed(format!(
+                                    "Fetch error: {:?}",
+                                    e
+                                )));
                             }
                         }
-                        Err(e) => {
-                            ws_state
-                                .dispatch(WebSocketAction::Failed(format!("Fetch error: {:?}", e)));
-                        }
-                    }
-                });
+                    });
+                }
+                _ => {}
             }
-
             || ()
         });
     }
@@ -896,7 +940,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     });
 
     let terminal_classes = match ws_state.status {
-        TerminalStatus::Initialized => "terminal_display hidden",
+        TerminalStatus::Initialized | TerminalStatus::Validated => "terminal_display hidden",
         _ => "terminal_display",
     };
 
@@ -939,20 +983,18 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                 </ExpandableSection>
                 <div class="toolbar pf-u-display-flex pf-u-justify-content-space-between">
                     <div class="pf-u-display-flex">
-                    if ws_state.status == TerminalStatus::Initialized {
-                        if !props.is_valid {
+                        if ws_state.status == TerminalStatus::Initialized {
                             <Tooltip text={"All script inputs must be valid before you can run this. ❌"}>
                                 <Button
                                 onclick={run_command.clone()}
                                 disabled=true
                                 >{"🚀 Run script"}</Button>
                                 </Tooltip>
-                        } else {
+                        } else if ws_state.status == TerminalStatus::Validated {
                             <Button
                                 onclick={run_command.clone()}
                                 disabled=false
                                 >{"🚀 Run script"}</Button>
-                        }
                         } else if ws_state.status == TerminalStatus::Processing {
                             <Button onclick={cancel_process.clone()}>{"🛑 Stop"}</Button>
                         } else if ws_state.status == TerminalStatus::Complete {

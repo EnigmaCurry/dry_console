@@ -44,6 +44,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             let name_clone = name.clone();
             let value_clone = value.clone();
             let root_dir_validation = root_dir_validation.clone();
+            root_dir_validation.set(Some(false));
 
             *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
                 let root_dir_validation = root_dir_validation.clone();
