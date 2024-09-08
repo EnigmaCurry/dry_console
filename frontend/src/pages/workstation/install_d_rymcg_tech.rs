@@ -22,12 +22,12 @@ pub struct InstallDRyMcGTechProps {
 
 #[derive(Properties, PartialEq)]
 pub struct ConfirmInstallProps {
-    pub candidate_dir: String,
+    pub root_dir: String,
 }
 
 #[function_component(ConfirmInstall)]
 pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
-    let candidate_dir = rc::Rc::new(props.candidate_dir.clone());
+    let candidate_dir = rc::Rc::new(props.root_dir.clone());
 
     let on_click = {
         let candidate_dir = candidate_dir.clone(); // Clone the Rc here, not the string itself
@@ -40,7 +40,7 @@ pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
                 .expect("Failed to serialize request.");
 
                 let request_result =
-                    Request::post("/api/workstation/d.rymcg.tech/confirm_installed")
+                    Request::post("/api/workstation/d.rymcg.tech/confirm_installed/")
                         .header("Content-Type", "application/json")
                         .body(body);
 
@@ -228,7 +228,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             }
         } else if let Some(candidate_dir) = config.candidate_root_dir {
             html! {
-                <ConfirmInstall {candidate_dir}/>
+                <ConfirmInstall root_dir={candidate_dir}/>
             }
         } else {
             if let Some(env_vars) = (*env_vars_state).clone() {

@@ -51,10 +51,10 @@ pub fn system(props: &SystemProps) -> Html {
                                 <DescriptionGroup term={os_term}>
                                 <code>{format!("{} {}", os_type, props.system_info.platform.version.to_string())}</code>
                                 </DescriptionGroup>
-                                <DescriptionGroup term="Distribution">
+                                <DescriptionGroup term="📦 Distribution">
                                 <code>{format!("{} {} {}", props.system_info.platform.release.name, props.system_info.platform.release.version, variant_text)}</code>
                                 </DescriptionGroup>
-                                <DescriptionGroup term="Root privilege (sudo)">
+                                <DescriptionGroup term="👑 Root privilege (sudo)">
                                 <code>{can_sudo_text}</code>
                                 </DescriptionGroup>
                                 </DescriptionList>

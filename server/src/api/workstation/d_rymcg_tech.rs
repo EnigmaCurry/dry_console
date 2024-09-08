@@ -2,6 +2,7 @@ use std::convert::Infallible;
 
 use crate::api::route as api_route;
 
+use crate::config::save_config;
 use crate::path::{could_create_path, path_is_git_repo_root};
 use crate::response::{AppError, AppJson, JsonResult};
 use crate::{app_state::SharedState, AppRouter};
@@ -9,8 +10,10 @@ use anyhow::anyhow;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::routing::{post, MethodRouter};
+use axum::Json;
 use axum::{extract::State, routing::get, Router};
 use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfigState};
+use dry_console_dto::workstation::ConfirmInstalledRequest;
 use tracing::debug;
 
 const DEFAULT_D_RYMCG_TECH_ROOT_DIR: &str = "~/git/vendor/enigmacurry/d.rymcg.tech";
@@ -109,19 +112,41 @@ pub fn config() -> AppRouter {
 }
 
 #[utoipa::path(
-    get,
+    post,
     path = "/api/workstation/d.rymcg.tech/confirm_installed",
+    request_body = ConfirmInstalledRequest,
     responses(
-        (status = OK, description = "Set the existing d.rymcg.tech ROOT_DIR", body = str)
+        (status = OK, description = "Set the existing d.rymcg.tech ROOT_DIR", body = bool)
     )
 )]
 pub fn confirm_installed() -> AppRouter {
-    async fn handler(State(state): State<SharedState>, req: Request<Body>) -> JsonResult<bool> {
-        let config = {
-            let state = state.read().await;
-            state.config.clone()
-        };
-        Ok(AppJson(true))
+    async fn handler(
+        State(state): State<SharedState>,
+        Json(request_body): Json<ConfirmInstalledRequest>,
+    ) -> JsonResult<bool> {
+        let root_dir = request_body.root_dir.clone();
+
+        let mut state = state.write().await;
+        let mut config = state.config.clone();
+
+        if let Some(ConfigData::DRymcgTech(ref mut d_rymcg_tech_config)) =
+            // Update ROOT_DIR config:
+            config.sections.get_mut(&ConfigSection::DRymcgTech)
+        {
+            d_rymcg_tech_config.root_dir = Some(root_dir.clone());
+        } else {
+            return Err(AppError::Internal(
+                anyhow!("Config section 'd.rymcg.tech' not found"),
+                None,
+            ));
+        }
+
+        // Persist the updated config back into shared state:
+        state.config = config.clone();
+        // Write config to disk:
+        _ = save_config(&config, &state.opt.config_path);
+        Ok(AppJson(true)) // Return success
     }
+
     route("/confirm_installed", post(handler))
 }

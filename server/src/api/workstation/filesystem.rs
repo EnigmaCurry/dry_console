@@ -39,7 +39,7 @@ struct PathParams {
 )]
 pub fn validate_path() -> Router<SharedState> {
     pub async fn handler(Query(params): Query<PathParams>) -> Json<PathValidationResult> {
-        let mut path = expand_tilde(&params.path.strip_suffix("/").unwrap_or(&params.path));
+        let path = expand_tilde(&params.path.strip_suffix("/").unwrap_or(&params.path));
 
         let mut result = PathValidationResult {
             path: path.clone(),
