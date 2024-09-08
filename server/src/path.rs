@@ -1,5 +1,4 @@
 use dirs::home_dir;
-use std::env;
 use std::fs;
 use std::io;
 use std::os::unix::fs::MetadataExt;
@@ -12,7 +11,7 @@ use uzers::{get_current_gid, get_current_uid, get_user_by_name};
 use tracing::debug;
 
 pub fn expand_tilde(path: &str) -> PathBuf {
-    if path.starts_with("~") {
+    if path.starts_with('~') {
         if path == "~" {
             // If the path is just "~", expand it to the current user's home directory
             home_dir().unwrap_or_else(|| PathBuf::from("/"))

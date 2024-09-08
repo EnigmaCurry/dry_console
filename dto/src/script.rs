@@ -156,7 +156,7 @@ fn extract_source_and_description(
         if let Some((var_name, help_description)) = parse_help_directive(line) {
             help_map
                 .entry(var_name)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(help_description);
         }
     }

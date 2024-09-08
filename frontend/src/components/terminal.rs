@@ -860,7 +860,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     // Validation
     {
         let ws_state = ws_state.clone();
-        let is_valid = props.is_valid.clone();
+        let is_valid = props.is_valid;
         use_effect_with(
             (is_valid, ws_state.clone()),
             move |(is_valid, ws_state)| match is_valid {
@@ -883,45 +883,41 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         let ws_state = ws_state.clone();
         let script = props.script.clone();
         use_effect_with(ws_state.status.clone(), move |status| {
-            match *status {
-                TerminalStatus::Uninitialized => {
-                    let ws_state = ws_state.clone();
-                    spawn_local(async move {
-                        let response =
-                            Request::get(&format!("/api/workstation/command/{}/", script))
-                                .send()
-                                .await;
+            if *status == TerminalStatus::Uninitialized {
+                let ws_state = ws_state.clone();
+                spawn_local(async move {
+                    let response = Request::get(&format!("/api/workstation/command/{}/", script))
+                        .send()
+                        .await;
 
-                        match response {
-                            Ok(resp) => {
-                                if let Ok(data) = resp.json::<ScriptEntry>().await {
-                                    ws_state.dispatch(WebSocketAction::Initialize(data));
-                                } else {
-                                    match resp.status() {
-                                        404 => ws_state.dispatch(WebSocketAction::CriticalError(
-                                            "Could not find script entry.".to_string(),
-                                        )),
-                                        _ => ws_state.dispatch(WebSocketAction::CriticalError(
-                                            "Failed to fetch script entry.".to_string(),
-                                        )),
-                                    }
-                                    // ;
+                    match response {
+                        Ok(resp) => {
+                            if let Ok(data) = resp.json::<ScriptEntry>().await {
+                                ws_state.dispatch(WebSocketAction::Initialize(data));
+                            } else {
+                                match resp.status() {
+                                    404 => ws_state.dispatch(WebSocketAction::CriticalError(
+                                        "Could not find script entry.".to_string(),
+                                    )),
+                                    _ => ws_state.dispatch(WebSocketAction::CriticalError(
+                                        "Failed to fetch script entry.".to_string(),
+                                    )),
                                 }
-                            }
-                            Err(e) => {
-                                ws_state.dispatch(WebSocketAction::Failed(format!(
-                                    "Fetch error: {:?}",
-                                    e
-                                )));
+                                // ;
                             }
                         }
-                    });
-                }
-                _ => {}
+                        Err(e) => {
+                            ws_state
+                                .dispatch(WebSocketAction::Failed(format!("Fetch error: {:?}", e)));
+                        }
+                    }
+                });
             }
+
             || ()
         });
     }
+
     let script_entry = ws_state
         .script_entry
         .clone()

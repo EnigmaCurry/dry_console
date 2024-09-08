@@ -1,26 +1,15 @@
 use crate::app_state::SharedState;
 use crate::path::{
-    could_create_path, directory_is_writable_by_user, expand_tilde, find_nearest_existing_parent,
+    could_create_path, directory_is_writable_by_user, expand_tilde,
 };
-use crate::response::{AppError, AppJson, JsonResult};
-use crate::{routing::route, AppRouter};
-use anyhow::anyhow;
-use axum::body::Body;
-use axum::extract::{Query, RawPathParams, Request, State};
-use axum::{extract::Path, routing::get};
+use crate::{routing::route};
+use axum::extract::{Query};
+use axum::{routing::get};
 use axum::{Json, Router};
-pub use dry_console_dto::script::ScriptEntry;
-use dry_console_dto::workstation::{Distribution, PathValidationResult, WorkstationPackageManager};
-use indoc::formatdoc;
-use itertools::Itertools;
+use dry_console_dto::workstation::{PathValidationResult};
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::str::FromStr;
-use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
-use ulid::Ulid;
 
-use super::WorkstationDependencyState;
 
 #[derive(Deserialize)]
 struct PathParams {
@@ -39,7 +28,7 @@ struct PathParams {
 )]
 pub fn validate_path() -> Router<SharedState> {
     pub async fn handler(Query(params): Query<PathParams>) -> Json<PathValidationResult> {
-        let path = expand_tilde(&params.path.strip_suffix("/").unwrap_or(&params.path));
+        let path = expand_tilde(params.path.strip_suffix('/').unwrap_or(&params.path));
 
         let mut result = PathValidationResult {
             path: path.clone(),

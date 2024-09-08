@@ -1,13 +1,13 @@
 use crate::components::loading_state::LoadingState;
 use crate::components::terminal::{
-    EnvVar, EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps,
+    EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps,
 };
 use crate::pages::workstation::WorkstationTab;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::workstation::ConfirmInstalledRequest;
 use dry_console_dto::workstation::PathValidationResult;
-use gloo::console::{debug, error};
+use gloo::console::{error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
@@ -192,7 +192,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                             .map(|env_var| EnvVarProps {
                                 name: env_var.clone().name,
                                 description: env_var.clone().description,
-                                help: env_var.clone().help.unwrap_or(Vec::<String>::new()),
+                                help: env_var.clone().help.unwrap_or_default(),
                                 default_value: env_var.clone().default_value,
                                 on_value_change: Some(on_value_change.clone()),
                                 // Validation:
@@ -230,20 +230,18 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             html! {
                 <ConfirmInstall root_dir={candidate_dir}/>
             }
-        } else {
-            if let Some(env_vars) = (*env_vars_state).clone() {
-                html! {
-                    <Card>
-                        <CardBody>
-                        <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                        <EnvVarList env_vars={env_vars}/>
-                            </TerminalOutput>
-                        </CardBody>
-                    </Card>
-                }
-            } else {
-                html! { <LoadingState/> }
+        } else if let Some(env_vars) = (*env_vars_state).clone() {
+            html! {
+                <Card>
+                    <CardBody>
+                    <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
+                    <EnvVarList env_vars={env_vars}/>
+                        </TerminalOutput>
+                    </CardBody>
+                </Card>
             }
+        } else {
+            html! { <LoadingState/> }
         }
     } else {
         html! { <LoadingState/> }

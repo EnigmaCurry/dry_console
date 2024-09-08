@@ -1,5 +1,5 @@
 use crate::app::{AppRoute, SessionState};
-use gloo::{console::debug, utils::window};
+use gloo::{utils::window};
 use gloo_net::http::Request;
 use patternfly_yew::prelude::*;
 use serde::Serialize;
