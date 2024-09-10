@@ -12,10 +12,8 @@ use axum::extract::Request;
 use axum::routing::{post, MethodRouter};
 use axum::Json;
 use axum::{extract::State, routing::get, Router};
-use dry_console_dto::config::{
-    ConfigData, ConfigSection, DRymcgTechConfig, DRymcgTechConfigState,
-};
-use dry_console_dto::workstation::{ConfirmInstalledRequest};
+use dry_console_dto::config::{ConfigData, ConfigSection, DRymcgTechConfig, DRymcgTechConfigState};
+use dry_console_dto::workstation::ConfirmInstalledRequest;
 use tracing::debug;
 
 const DEFAULT_D_RYMCG_TECH_ROOT_DIR: &str = "~/git/vendor/enigmacurry/d.rymcg.tech";
@@ -184,7 +182,9 @@ pub fn uninstall() -> AppRouter {
             // Update ROOT_DIR config:
             config.sections.get_mut(&ConfigSection::DRymcgTech)
         {
-            d_rymcg_tech_config.previous_root_dir = d_rymcg_tech_config.root_dir.clone();
+            d_rymcg_tech_config
+                .previous_root_dir
+                .clone_from(&d_rymcg_tech_config.root_dir);
             d_rymcg_tech_config.root_dir = None;
         } else {
             return Err(AppError::Internal(

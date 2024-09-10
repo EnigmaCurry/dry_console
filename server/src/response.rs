@@ -27,6 +27,7 @@ where
 /// Error response captures error and optionally the request URL
 // https://docs.rs/thiserror/latest/thiserror/
 #[derive(thiserror::Error, Debug)]
+#[allow(dead_code)]
 pub enum AppError {
     #[error("Internal error: {0}")]
     Internal(Error, Option<String>),
