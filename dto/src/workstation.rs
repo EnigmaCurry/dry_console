@@ -114,3 +114,8 @@ pub struct PathValidationResult {
 pub struct ConfirmInstalledRequest {
     pub root_dir: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UninstallRequest {
+    pub confirm: bool,
+}

@@ -40,6 +40,8 @@ pub enum AppError {
     StateMachineConflict(Error, Option<String>),
     #[error("Not found")]
     NotFound(Option<String>),
+    #[error("Bad request")]
+    BadRequest(Error, Option<String>),
     #[error("Config error: {0}")]
     Config(Error, Option<String>),
 }
@@ -74,6 +76,18 @@ impl IntoResponse for AppError {
             AppError::Io(error, url) => {
                 error!(
                     "Request URL: {:?} - IO error: {:?}",
+                    url.clone().unwrap_or("None".to_string()),
+                    error,
+                );
+                (
+                    StatusCode::BAD_REQUEST,
+                    "Bad request: IO error".to_string(),
+                    url.clone(),
+                )
+            }
+            AppError::BadRequest(error, url) => {
+                error!(
+                    "Request URL: {:?} - Bad request: {:?}",
                     url.clone().unwrap_or("None".to_string()),
                     error,
                 );

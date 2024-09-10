@@ -14,7 +14,6 @@ use gloo::console::error;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
-use std::collections::HashMap;
 use std::rc::Rc;
 use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
@@ -447,10 +446,6 @@ pub fn env_var(props: &EnvVarProps) -> Html {
     }
 }
 
-pub trait IsEnvVar {}
-
-impl IsEnvVar for EnvVar {}
-
 #[derive(Properties, PartialEq)]
 pub struct TerminalOutputProps {
     pub script: String,
@@ -471,7 +466,7 @@ impl TerminalOutputProps {
 #[function_component(TerminalOutput)]
 pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
-    let env_vars = use_state(HashMap::new);
+    //let env_vars = use_state(HashMap::new);
     let style_ctx = use_context::<TerminalStyleContext>().expect("No TerminalStyleContext found");
     let style = style_ctx.get_settings();
     let num_lines = use_state(|| 1);
@@ -513,15 +508,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
         //     }
         // });
     }
-
-    let default_on_env_var_change = {
-        let env_vars = env_vars.clone();
-        Callback::from(move |(name, value): (String, String)| {
-            let mut vars = (*env_vars).clone();
-            vars.insert(name, value);
-            env_vars.set(vars);
-        })
-    };
 
     // Update gutter height dynamically
     {

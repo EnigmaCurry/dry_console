@@ -18,7 +18,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
         } else if let Some(stripped) = path.strip_prefix("~/") {
             // Handle "~/" to the current user's home directory
             if let Some(home) = home_dir() {
-                home.join(&stripped)
+                home.join(stripped)
             } else {
                 PathBuf::from(path)
             }

@@ -1,13 +1,11 @@
 use crate::components::loading_state::LoadingState;
-use crate::components::terminal::{
-    EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps,
-};
+use crate::components::terminal::{EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps};
 use crate::pages::workstation::WorkstationTab;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::workstation::ConfirmInstalledRequest;
 use dry_console_dto::workstation::PathValidationResult;
-use gloo::console::{error};
+use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
@@ -23,19 +21,22 @@ pub struct InstallDRyMcGTechProps {
 #[derive(Properties, PartialEq)]
 pub struct ConfirmInstallProps {
     pub root_dir: String,
+    pub on_refresh: Callback<()>,
 }
 
 #[function_component(ConfirmInstall)]
 pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
     let candidate_dir = rc::Rc::new(props.root_dir.clone());
+    let on_refresh = props.on_refresh.clone();
 
     let on_click = {
-        let candidate_dir = candidate_dir.clone(); // Clone the Rc here, not the string itself
+        let candidate_dir = candidate_dir.clone();
         Callback::from(move |_| {
-            let candidate_dir = candidate_dir.clone(); // Clone the Rc again inside the closure
+            let candidate_dir = candidate_dir.clone();
+            let on_refresh = on_refresh.clone();
             wasm_bindgen_futures::spawn_local(async move {
                 let body = serde_json::to_string(&ConfirmInstalledRequest {
-                    root_dir: (*candidate_dir).clone(), // Dereference Rc to access the inner String
+                    root_dir: (*candidate_dir).clone(),
                 })
                 .expect("Failed to serialize request.");
 
@@ -49,15 +50,13 @@ pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
 
                     match response {
                         Ok(resp) if resp.ok() => {
-                            // Handle success (e.g., show a success message or redirect)
                             //log::debug!("API call successful!");
+                            on_refresh.emit(());
                         }
                         Ok(resp) => {
-                            // Handle API errors
                             log::error!("API error: {:?}", resp);
                         }
                         Err(err) => {
-                            // Handle network or other errors
                             log::error!("Request failed: {:?}", err);
                         }
                     }
@@ -86,12 +85,14 @@ pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
     }
 }
 
+#[allow(clippy::single_match)]
 #[function_component(InstallDRyMcGTech)]
 pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let script_name = "InstallDRymcgTech";
     let config_state = use_state(|| None::<DRymcgTechConfigState>);
     let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
     let root_dir_validation = use_state(|| Some(false)); // Track validation for ROOT_DIR
+    let refresh_state = use_state(|| 0); // Track when this component needs to refresh
 
     // Store the debounce timeout to allow resetting it
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
@@ -160,7 +161,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         });
 
         let root_dir_validation = root_dir_validation2.clone();
-        use_effect_with(root_dir_validation.clone(), move |root_dir_validation| {
+        use_effect_with((root_dir_validation.clone(), *refresh_state), move |_| {
             let config = config_state.clone();
             let env_vars = env_vars_state.clone();
             let on_value_change = on_value_change.clone(); // Clone callback to use within async
@@ -197,7 +198,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                                 on_value_change: Some(on_value_change.clone()),
                                 // Validation:
                                 is_valid: match env_var.clone().name.as_str() {
-                                    "ROOT_DIR" => *root_dir_validation_value,
+                                    "ROOT_DIR" => Some(root_dir_validation_value.unwrap_or(false)),
                                     _ => Some(false),
                                 },
                                 ..Default::default()
@@ -214,6 +215,15 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
 
     let is_valid = *root_dir_validation;
 
+    let refresh = {
+        let refresh_state = refresh_state.clone();
+        Callback::from(move |_| {
+            // Increment the refresh state, which will trigger a re-render and re-fetch
+            refresh_state.set(*refresh_state + 1);
+            debug!("gonna refresh.");
+        })
+    };
+
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
             html! {
@@ -228,7 +238,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             }
         } else if let Some(candidate_dir) = config.candidate_root_dir {
             html! {
-                <ConfirmInstall root_dir={candidate_dir}/>
+                <ConfirmInstall root_dir={candidate_dir} on_refresh={refresh.clone()}/>
             }
         } else if let Some(env_vars) = (*env_vars_state).clone() {
             html! {
