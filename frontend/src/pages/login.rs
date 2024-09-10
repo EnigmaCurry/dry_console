@@ -1,7 +1,8 @@
 use crate::app::{AppRoute, SessionState};
-use gloo::{utils::window};
+use crate::toast::get_toast;
+use gloo::utils::window;
 use gloo_net::http::Request;
-use patternfly_yew::prelude::*;
+use patternfly_yew::{components::toast, prelude::*};
 use serde::Serialize;
 use std::{rc::Rc, time::Duration};
 use web_sys::{HtmlInputElement, SubmitEvent};
@@ -20,26 +21,12 @@ pub struct LoginProps {
 
 #[function_component(Login)]
 pub fn login(props: &LoginProps) -> Html {
-    let toaster = use_toaster().expect("Must be nested inside a ToastViewer");
     let token_state = use_state(|| None::<String>);
     let loading_state = use_state(|| false);
 
     let session_state = props.session_state.clone();
     let router = use_router().unwrap();
-    let toast = Rc::new({
-        let toaster = toaster.clone();
-        move |t: AlertType, msg: &str| {
-            toaster.toast(Toast {
-                title: msg.into(),
-                timeout: Some(Duration::from_secs(match t {
-                    AlertType::Danger => 5,
-                    _ => 2,
-                })),
-                r#type: t,
-                ..Default::default()
-            });
-        }
-    });
+    let toast = get_toast(use_toaster().expect("Must be nested inside a ToastViewer"));
 
     {
         let session_state = session_state.clone();

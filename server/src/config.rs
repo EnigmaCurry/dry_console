@@ -8,6 +8,8 @@ use std::io::Write;
 use std::path::Path;
 use tracing::{debug, info};
 
+use crate::api::workstation::d_rymcg_tech;
+
 pub fn default_config_path() -> String {
     let mut path = config_dir().expect("Could not find platform specific config directory.");
     path.push("dry_console/config.ron");
@@ -27,7 +29,7 @@ pub fn load_config(config_path: &str) -> Result<Config, Box<dyn Error>> {
         // Add the d.rymcg.tech section:
         config.sections.insert(
             ConfigSection::DRymcgTech,
-            ConfigData::DRymcgTech(DRymcgTechConfig { root_dir: None }),
+            ConfigData::DRymcgTech(d_rymcg_tech::default_config()),
         );
         // Save the config:
         save_config(&config, config_path)?;

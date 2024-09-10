@@ -22,7 +22,9 @@ pub fn button_link(props: &ButtonLinkProps) -> Html {
         e.prevent_default();
         let _ = window()
             .open_with_url_and_target(&href, &target)
-            .unwrap_or_else(|_| panic!("failed to open url with target: href:{href} target:{target}"));
+            .unwrap_or_else(|_| {
+                panic!("failed to open url with target: href:{href} target:{target}")
+            });
     });
 
     html! {

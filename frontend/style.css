@@ -122,6 +122,9 @@ code {
     white-space: break-spaces;
     margin: 0;
     font-weight: bold;
+    background-color: #372530;
+    padding: 0.1em 0.5em;
+    border-radius: 0.5em;
 }
 
 /* Description list */
@@ -409,6 +412,7 @@ html:not(.pf-v5-theme-dark) .terminal .env_var_entry .validated_input .pf-v5-c-f
 .pf-v5-c-tooltip {
     background-color: #331414;
     outline: 1px solid white;
+    padding: 0 0.5em;
     border-radius: 4px;
     z-index: 10;
 }
@@ -482,6 +486,29 @@ html:not(.pf-v5-theme-dark) .manual_intervention {
     margin-left: 2em;
 }
 
+ul.button_list {
+    list-style: none !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+}
+
+.button_list li {
+    margin: 0.5em;
+}
+
+.button_list button {
+    width: 24em;
+    white-space: normal;
+    overflow: visible;
+    padding: 10px;
+    word-wrap: break-word;
+    box-sizing: border-box;
+}
+
 .button_group {
     display: flex;
     gap: 10px;
@@ -494,6 +521,13 @@ button.confirm {
     font-weight: bold;
     outline: 1px solid #555;
 }
+
+button.alt {
+    background-color: #2b5873;
+    font-weight: bold;
+    outline: 1px solid #555;
+}
+
 
 button.deny {
     background-color: #5e2521;

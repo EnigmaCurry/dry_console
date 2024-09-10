@@ -407,7 +407,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
                                  {validation_text}
                                  </Button>
                              } else {
-                               <Tooltip text={"This field is read-only once the script has executed. Reset the script to edit."}>
+                               <Tooltip text={"This field is read-only once the script has executed. Reset the terminal output to edit it."}>
                                      <Button tabindex={Some(-1)} onclick={on_focus_input} disabled={true}>
                                  {validation_text}
                                  </Button>

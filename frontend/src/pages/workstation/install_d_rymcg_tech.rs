@@ -1,10 +1,14 @@
 use crate::components::loading_state::LoadingState;
+use crate::components::manual_intervention::_ManualInterventionProps::reload_trigger;
 use crate::components::terminal::{EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps};
 use crate::pages::workstation::WorkstationTab;
+use crate::toast::get_toast;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
-use dry_console_dto::workstation::ConfirmInstalledRequest;
-use dry_console_dto::workstation::PathValidationResult;
+use dry_console_dto::workstation::{
+    ConfirmInstalledRequest, FreshInstallRequest, UninstallRequest, UseExistingInstallRequest,
+};
+use dry_console_dto::workstation::{PathValidationResult, PurgeRootDirRequest};
 use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
@@ -18,73 +22,6 @@ pub struct InstallDRyMcGTechProps {
     pub selected_tab: WorkstationTab,
 }
 
-#[derive(Properties, PartialEq)]
-pub struct ConfirmInstallProps {
-    pub root_dir: String,
-    pub on_refresh: Callback<()>,
-}
-
-#[function_component(ConfirmInstall)]
-pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
-    let candidate_dir = rc::Rc::new(props.root_dir.clone());
-    let on_refresh = props.on_refresh.clone();
-
-    let on_click = {
-        let candidate_dir = candidate_dir.clone();
-        Callback::from(move |_| {
-            let candidate_dir = candidate_dir.clone();
-            let on_refresh = on_refresh.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let body = serde_json::to_string(&ConfirmInstalledRequest {
-                    root_dir: (*candidate_dir).clone(),
-                })
-                .expect("Failed to serialize request.");
-
-                let request_result =
-                    Request::post("/api/workstation/d.rymcg.tech/confirm_installed/")
-                        .header("Content-Type", "application/json")
-                        .body(body);
-
-                if let Ok(request) = request_result {
-                    let response = request.send().await;
-
-                    match response {
-                        Ok(resp) if resp.ok() => {
-                            //log::debug!("API call successful!");
-                            on_refresh.emit(());
-                        }
-                        Ok(resp) => {
-                            log::error!("API error: {:?}", resp);
-                        }
-                        Err(err) => {
-                            log::error!("Request failed: {:?}", err);
-                        }
-                    }
-                } else {
-                    log::error!("Failed to create request.");
-                }
-            });
-        })
-    };
-
-    html! {
-        <Card>
-            <CardTitle>
-                <h3>{"It looks like d.rymcg.tech may already be installed"}</h3>
-            </CardTitle>
-            <CardBody>
-                <p>{format!("Please examine this directory:")}</p>
-                <ul><li><code>{&*candidate_dir}</code></li></ul>
-                <p>{"Does this directory contain an existing installation that you wish to import?"}</p>
-                <div class="button_group">
-                    <Button class="deny" onclick={on_click.clone()} >{"No, use a different directory"}</Button>
-                    <Button class="confirm" onclick={on_click} >{"Yes, use this directory"}</Button>
-                </div>
-            </CardBody>
-        </Card>
-    }
-}
-
 #[allow(clippy::single_match)]
 #[function_component(InstallDRyMcGTech)]
 pub fn install(props: &InstallDRyMcGTechProps) -> Html {
@@ -93,6 +30,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
     let root_dir_validation = use_state(|| Some(false)); // Track validation for ROOT_DIR
     let refresh_state = use_state(|| 0); // Track when this component needs to refresh
+    let is_fresh_install = use_state(|| false);
 
     // Store the debounce timeout to allow resetting it
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
@@ -164,7 +102,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         use_effect_with((root_dir_validation.clone(), *refresh_state), move |_| {
             let config = config_state.clone();
             let env_vars = env_vars_state.clone();
-            let on_value_change = on_value_change.clone(); // Clone callback to use within async
+            let on_value_change = on_value_change.clone();
 
             // Clone or extract the value of root_dir_validation for use in the async block
             let root_dir_validation_value = (*root_dir_validation).clone();
@@ -220,7 +158,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         Callback::from(move |_| {
             // Increment the refresh state, which will trigger a re-render and re-fetch
             refresh_state.set(*refresh_state + 1);
-            debug!("gonna refresh.");
+            //debug!("gonna refresh.");
         })
     };
 
@@ -229,10 +167,11 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             html! {
                 <Card>
                     <CardTitle>
-                    <h3>{"d.rymcg.tech is already installed"}</h3>
+                    <h3>{"d.rymcg.tech is now installed:"}</h3>
                     </CardTitle>
                     <CardBody>
-                    <p>{root_dir}</p>
+                    <ul><li><code>{format!("{root_dir}")}</code></li></ul>
+                    <Uninstall on_refresh={refresh.clone()}/>
                     </CardBody>
                 </Card>
             }
@@ -240,20 +179,268 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             html! {
                 <ConfirmInstall root_dir={candidate_dir} on_refresh={refresh.clone()}/>
             }
-        } else if let Some(env_vars) = (*env_vars_state).clone() {
-            html! {
-                <Card>
-                    <CardBody>
-                    <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                    <EnvVarList env_vars={env_vars}/>
+        } else if *is_fresh_install {
+            if let Some(env_vars) = (*env_vars_state).clone() {
+                html! {
+                    <Card>
+                        <CardBody>
+                        <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
+                        <EnvVarList env_vars={env_vars}/>
                         </TerminalOutput>
-                    </CardBody>
-                </Card>
+                        </CardBody>
+                        </Card>
+                }
+            } else {
+                html! { <LoadingState/> }
             }
         } else {
-            html! { <LoadingState/> }
+            html! { <ChooseInstall on_refresh={refresh.clone()} /> }
         }
     } else {
         html! { <LoadingState/> }
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct ChooseInstallProps {
+    pub on_refresh: Callback<()>,
+}
+
+#[function_component(ChooseInstall)]
+pub fn choose_install(props: &ChooseInstallProps) -> Html {
+    let on_refresh = props.on_refresh.clone();
+
+    let on_click_use_existing = {
+        let on_refresh = on_refresh.clone();
+        Callback::from(move |_| {
+            let on_refresh = on_refresh.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let body = serde_json::to_string(&UseExistingInstallRequest {})
+                    .expect("Failed to serialize request.");
+                let request_result =
+                    Request::post("/api/workstation/d.rymcg.tech/use_existing_install/")
+                        .header("Content-Type", "application/json")
+                        .body(body);
+                if let Ok(request) = request_result {
+                    let response = request.send().await;
+                    match response {
+                        Ok(resp) if resp.ok() => {
+                            //log::debug!("API call successful!");
+                            on_refresh.emit(());
+                        }
+                        Ok(resp) => {
+                            log::error!("API error: {:?}", resp);
+                        }
+                        Err(err) => {
+                            log::error!("Request failed: {:?}", err);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to create request.");
+                }
+            });
+        })
+    };
+
+    let on_click_fresh_install = {
+        let on_refresh = on_refresh.clone();
+        Callback::from(move |_| {
+            let on_refresh = on_refresh.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let body = serde_json::to_string(&FreshInstallRequest {})
+                    .expect("Failed to serialize request.");
+                let request_result = Request::post("/api/workstation/d.rymcg.tech/fresh_install/")
+                    .header("Content-Type", "application/json")
+                    .body(body);
+                if let Ok(request) = request_result {
+                    let response = request.send().await;
+                    match response {
+                        Ok(resp) if resp.ok() => {
+                            //log::debug!("API call successful!");
+                            on_refresh.emit(());
+                        }
+                        Ok(resp) => {
+                            log::error!("API error: {:?}", resp);
+                        }
+                        Err(err) => {
+                            log::error!("Request failed: {:?}", err);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to create request.");
+                }
+            });
+        })
+    };
+
+    html! {
+        <Card>
+            <CardTitle>
+            <h3>{"Install d.rymcg.tech"}</h3>
+            </CardTitle>
+            <CardBody>
+            <p><a href={"https://github.com/EnigmaCurry/d.rymcg.tech"}>{"d.rymcg.tech"}</a>{" is a configuration and deployment environment for Docker (docker-compose), and it is a prerequisite of dry_console."}</p>
+            <br/>
+            <p>{"Please choose the installation source:"}</p>
+            <br/>
+            <ul class="button_list">
+            <li><Button class="confirm" onclick={on_click_fresh_install} >{"Install d.rymcg.tech in a new directory"}</Button></li>
+            <li><Button class="alt" onclick={on_click_use_existing} >{"Import an existing installation directory"}</Button></li>
+            </ul>
+            </CardBody>
+        </Card>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct ConfirmInstallProps {
+    pub root_dir: String,
+    pub on_refresh: Callback<()>,
+}
+
+#[function_component(ConfirmInstall)]
+pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
+    let candidate_dir = rc::Rc::new(props.root_dir.clone());
+    let on_refresh = props.on_refresh.clone();
+
+    let on_click_deny = {
+        let on_refresh = on_refresh.clone();
+        Callback::from(move |_| {
+            let on_refresh = on_refresh.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let body = serde_json::to_string(&PurgeRootDirRequest {})
+                    .expect("Failed to serialize request.");
+                let request_result = Request::post("/api/workstation/d.rymcg.tech/purge_root_dir/")
+                    .header("Content-Type", "application/json")
+                    .body(body);
+                if let Ok(request) = request_result {
+                    let response = request.send().await;
+                    match response {
+                        Ok(resp) if resp.ok() => {
+                            //log::debug!("API call successful!");
+                            on_refresh.emit(());
+                        }
+                        Ok(resp) => {
+                            log::error!("API error: {:?}", resp);
+                        }
+                        Err(err) => {
+                            log::error!("Request failed: {:?}", err);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to create request.");
+                }
+            });
+        })
+    };
+
+    let on_click_confirm = {
+        let candidate_dir = candidate_dir.clone();
+        Callback::from(move |_| {
+            let candidate_dir = candidate_dir.clone();
+            let on_refresh = on_refresh.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let body = serde_json::to_string(&ConfirmInstalledRequest {
+                    root_dir: (*candidate_dir).clone(),
+                })
+                .expect("Failed to serialize request.");
+
+                let request_result =
+                    Request::post("/api/workstation/d.rymcg.tech/confirm_installed/")
+                        .header("Content-Type", "application/json")
+                        .body(body);
+
+                if let Ok(request) = request_result {
+                    let response = request.send().await;
+
+                    match response {
+                        Ok(resp) if resp.ok() => {
+                            //log::debug!("API call successful!");
+                            on_refresh.emit(());
+                        }
+                        Ok(resp) => {
+                            log::error!("API error: {:?}", resp);
+                        }
+                        Err(err) => {
+                            log::error!("Request failed: {:?}", err);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to create request.");
+                }
+            });
+        })
+    };
+
+    html! {
+        <Card>
+            <CardTitle>
+            <h3>{"Install d.rymcg.tech"}</h3>
+            </CardTitle>
+            <CardBody>
+                <p>{"It looks like d.rymcg.tech may already be installed."}</p>
+                <br/>
+                <p>{format!("Please examine this directory on your workstation:")}</p>
+                <ul><li><code>{&*candidate_dir}</code></li></ul>
+                <p>{"Do you you want to import this directory into your config?"}</p>
+                <div class="button_group">
+                    <Button class="deny" onclick={on_click_deny} >{"No, use a different directory"}</Button>
+                    <Button class="confirm" onclick={on_click_confirm} >{"Yes, use this directory"}</Button>
+                </div>
+            </CardBody>
+        </Card>
+    }
+}
+
+#[derive(Properties, PartialEq)]
+pub struct UninstallProps {
+    pub on_refresh: Callback<()>,
+}
+
+#[function_component(Uninstall)]
+pub fn uninstall(props: &UninstallProps) -> Html {
+    let on_refresh = props.on_refresh.clone();
+    let toast = get_toast(use_toaster().expect("Must be nested inside a ToastViewer"));
+    let on_click = {
+        let toast = toast.clone();
+        Callback::from(move |_| {
+            let on_refresh = on_refresh.clone();
+            let toast = toast.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let body = serde_json::to_string(&UninstallRequest {})
+                    .expect("Failed to serialize request.");
+                let request_result = Request::post("/api/workstation/d.rymcg.tech/uninstall/")
+                    .header("Content-Type", "application/json")
+                    .body(body);
+                if let Ok(request) = request_result {
+                    let response = request.send().await;
+                    match response {
+                        Ok(resp) if resp.ok() => {
+                            //log::debug!("API call successful!");
+                            on_refresh.emit(());
+                            toast(AlertType::Success, "d.rymcg.tech uninstalled!");
+                        }
+                        Ok(resp) => {
+                            log::error!("API error: {:?}", resp);
+                        }
+                        Err(err) => {
+                            log::error!("Request failed: {:?}", err);
+                        }
+                    }
+                } else {
+                    log::error!("Failed to create request.");
+                }
+            });
+        })
+    };
+
+    html! {
+        <ExpandableSection toggle_text_expanded={"🧹 Uninstall"} toggle_text_hidden={"🧹 Deactivate"}>
+        <div class="button_group">
+            <Tooltip text={"This will disassociate the active d.rymcg.tech directory from dry_console. No files will be removed. Once removed, you may re-run the wizard to re-install the existing directory, or to a new location."}>
+            <Button class="deny" onclick={on_click.clone()}>{"Deactivate d.rymcg.tech"}</Button>
+            </Tooltip>
+        </div>
+        </ExpandableSection>
     }
 }

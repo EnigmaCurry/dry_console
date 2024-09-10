@@ -116,6 +116,13 @@ pub struct ConfirmInstalledRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct UninstallRequest {
-    pub confirm: bool,
-}
+pub struct FreshInstallRequest {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UseExistingInstallRequest {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct UninstallRequest {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
+pub struct PurgeRootDirRequest {}

@@ -20,7 +20,10 @@ pub enum ConfigData {
 #[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct DRymcgTechConfig {
     #[serde(default)]
+    /// The active workstation directory containing the d.rymcg.tech git repo.
     pub root_dir: Option<String>,
+    /// The previous uninstalled directory, which may or may not exist anymore.
+    pub previous_root_dir: Option<String>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq)]

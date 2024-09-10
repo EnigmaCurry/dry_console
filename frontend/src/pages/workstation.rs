@@ -1,5 +1,5 @@
 use dry_console_dto::workstation::{Platform, WorkstationState, WorkstationUser};
-use gloo::console::{debug};
+use gloo::console::debug;
 use gloo::net::http::Request;
 use gloo_events::EventListener;
 use gloo_utils::window;
