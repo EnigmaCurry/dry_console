@@ -13,9 +13,9 @@ use axum::routing::{post, MethodRouter};
 use axum::Json;
 use axum::{extract::State, routing::get, Router};
 use dry_console_dto::config::{
-    Config, ConfigData, ConfigSection, DRymcgTechConfig, DRymcgTechConfigState,
+    ConfigData, ConfigSection, DRymcgTechConfig, DRymcgTechConfigState,
 };
-use dry_console_dto::workstation::{ConfirmInstalledRequest, UninstallRequest};
+use dry_console_dto::workstation::{ConfirmInstalledRequest};
 use tracing::debug;
 
 const DEFAULT_D_RYMCG_TECH_ROOT_DIR: &str = "~/git/vendor/enigmacurry/d.rymcg.tech";

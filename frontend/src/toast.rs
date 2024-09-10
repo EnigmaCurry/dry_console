@@ -4,7 +4,7 @@ use std::{rc::Rc, time::Duration};
 /// Use this to get toaster inside a component, nested in a ToastViewer:
 ///     let toast = get_toast(use_toaster().expect("Must be nested inside a ToastViewer"));
 pub fn get_toast(toaster: Toaster) -> Rc<impl Fn(AlertType, &str)> {
-    return Rc::new({
+    Rc::new({
         let toaster = toaster.clone();
         move |t: AlertType, msg: &str| {
             toaster.toast(Toast {
@@ -17,5 +17,5 @@ pub fn get_toast(toaster: Toaster) -> Rc<impl Fn(AlertType, &str)> {
                 ..Default::default()
             });
         }
-    });
+    })
 }

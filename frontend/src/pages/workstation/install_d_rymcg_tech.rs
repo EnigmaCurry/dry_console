@@ -1,5 +1,4 @@
 use crate::components::loading_state::LoadingState;
-use crate::components::manual_intervention::_ManualInterventionProps::reload_trigger;
 use crate::components::terminal::{EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps};
 use crate::pages::workstation::WorkstationTab;
 use crate::toast::get_toast;
@@ -9,7 +8,7 @@ use dry_console_dto::workstation::{
     ConfirmInstalledRequest, FreshInstallRequest, UninstallRequest, UseExistingInstallRequest,
 };
 use dry_console_dto::workstation::{PathValidationResult, PurgeRootDirRequest};
-use gloo::console::{debug, error};
+use gloo::console::{error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
@@ -105,7 +104,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             let on_value_change = on_value_change.clone();
 
             // Clone or extract the value of root_dir_validation for use in the async block
-            let root_dir_validation_value = (*root_dir_validation).clone();
+            let root_dir_validation_value = *root_dir_validation;
 
             wasm_bindgen_futures::spawn_local(async move {
                 // Fetch config state
