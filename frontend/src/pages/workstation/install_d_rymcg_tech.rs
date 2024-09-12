@@ -8,7 +8,7 @@ use dry_console_dto::workstation::{
     ConfirmInstalledRequest, FreshInstallRequest, UninstallRequest, UseExistingInstallRequest,
 };
 use dry_console_dto::workstation::{PathValidationResult, PurgeRootDirRequest};
-use gloo::console::{error};
+use gloo::console::error;
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
@@ -36,7 +36,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
 
     {
         let config_state = config_state.clone();
-        let env_vars_state = env_vars_state.clone(); // Clone env_vars_state for use in async block
+        let env_vars_state = env_vars_state.clone();
         let root_dir_validation = root_dir_validation.clone();
         let root_dir_validation2 = root_dir_validation.clone();
 
