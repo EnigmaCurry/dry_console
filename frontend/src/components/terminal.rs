@@ -278,7 +278,7 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
         <div class="env_var_list">
             <h3>{"Configure script inputs:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()} disabled={Some(disabled)}/>
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()} disabled={Some(disabled)} default_value={env_var.default_value.clone()}/>
             }) }
         </div>
     }
@@ -299,7 +299,7 @@ pub struct EnvVarProps {
 
 #[function_component(EnvVar)]
 pub fn env_var(props: &EnvVarProps) -> Html {
-    let env_var_value = use_state(|| "".to_string());
+    let env_var_value = use_state(|| props.default_value.clone());
     let is_input_focused = use_state(|| false);
     let is_tooltip_visible = use_state(|| false);
     let name = props.name.clone();
