@@ -68,6 +68,7 @@ pub fn config() -> AppRouter {
                         match section.previous_root_dir.clone() {
                             // There might exist a previous install dir we'll try:
                             Some(d) => {
+                                debug!("d: {d}");
                                 if path_is_git_repo_root(Some(d.clone())) {
                                     candidate_root_dir = Some(d.clone());
                                 } else {

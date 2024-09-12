@@ -558,3 +558,7 @@ button.deny {
 .terminal .footer {
     margin: 0.5em;
 }
+
+.validation {
+    min-height: 1.5em;
+}

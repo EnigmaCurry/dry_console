@@ -75,6 +75,7 @@ pub fn path_is_git_repo_root(path: Option<String>) -> bool {
     match path {
         None => false,
         Some(path) => {
+            let path = expand_tilde(&path);
             let path = Path::new(&path);
             if path.exists() && path.is_dir() {
                 let git_dir = path.join(".git");

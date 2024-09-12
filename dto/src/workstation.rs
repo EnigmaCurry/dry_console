@@ -108,6 +108,7 @@ pub struct PathValidationResult {
     pub writable: bool,
     pub is_directory: bool,
     pub can_be_created: bool,
+    pub is_git_repo_root: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]

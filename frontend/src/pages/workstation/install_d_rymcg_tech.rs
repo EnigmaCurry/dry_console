@@ -4,14 +4,15 @@ use crate::pages::workstation::WorkstationTab;
 use crate::toast::get_toast;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
-use dry_console_dto::workstation::{
-    ConfirmInstalledRequest, UninstallRequest,
-};
+use dry_console_dto::workstation::{ConfirmInstalledRequest, UninstallRequest};
 use dry_console_dto::workstation::{PathValidationResult, PurgeRootDirRequest};
+use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
 use std::rc;
+use wasm_bindgen::JsValue;
+use web_sys::RequestInit;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -35,6 +36,8 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let refresh_state = use_state(|| 0);
     let is_fresh_install = use_state(|| None::<bool>);
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
+    let existing_path = use_state(|| "".to_string());
+    let existing_path_validation_help = use_state(|| None::<String>);
 
     // Helper function to validate root directory
     let validate_root_dir =
@@ -203,6 +206,96 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         })
     };
 
+    let on_existing_path_change = {
+        let existing_path = existing_path.clone();
+        let existing_path_validation_help = existing_path_validation_help.clone();
+        Callback::from(move |e: InputEvent| {
+            if let Some(input) = e.target_dyn_into::<web_sys::HtmlInputElement>() {
+                let value = input.value();
+                existing_path.set(value.to_string());
+                existing_path_validation_help.set(None);
+            }
+        })
+    };
+
+    let on_import_existing = {
+        let existing_path = existing_path.trim().to_string();
+        let existing_path_validation_help = existing_path_validation_help.clone();
+
+        Callback::from(move |_| {
+            let path = existing_path.clone();
+            let existing_path_validation_help = existing_path_validation_help.clone(); // Clone inside closure
+            let refresh_state = refresh_state.clone();
+
+            if !path.is_empty() {
+                existing_path_validation_help.set(None);
+
+                // Make a request to validate the path
+                let url = format!("/api/workstation/filesystem/validate_path/?path={}", path);
+                wasm_bindgen_futures::spawn_local(async move {
+                    match Request::get(&url).send().await {
+                        Ok(response) => {
+                            if let Ok(result) = response.json::<PathValidationResult>().await {
+                                if result.is_git_repo_root {
+                                    // If the path is a git repo root, make the POST request
+                                    let confirm_url =
+                                        "/api/workstation/d.rymcg.tech/confirm_installed";
+                                    let confirm_body = ConfirmInstalledRequest {
+                                        root_dir: path.clone(),
+                                    };
+
+                                    // Create the POST request
+                                    let confirm_body_str =
+                                        serde_json::to_string(&confirm_body).unwrap();
+                                    match Request::post(&confirm_url)
+                                        .header("Content-Type", "application/json")
+                                        .body(confirm_body_str)
+                                        .expect("Failed to set body")
+                                        .send()
+                                        .await
+                                    {
+                                        Ok(_) => {
+                                            debug!("success TODO");
+                                            refresh_state.set(*refresh_state + 1);
+                                        }
+                                        Err(_) => {
+                                            existing_path_validation_help.set(Some(
+                                                "⁉️ Failed to confirm install with the server."
+                                                    .to_string(),
+                                            ));
+                                        }
+                                    };
+                                } else {
+                                    if !result.exists {
+                                        existing_path_validation_help
+                                            .set(Some("⁉️ Path does not exist".to_string()));
+                                    } else if !result.is_directory {
+                                        existing_path_validation_help
+                                            .set(Some("⁉️ Path is not a directory".to_string()));
+                                    } else if !result.is_git_repo_root {
+                                        existing_path_validation_help.set(Some(
+                                            "⁉️ Path is not a git repository".to_string(),
+                                        ));
+                                    } else {
+                                        existing_path_validation_help
+                                            .set(Some("⁉️ Path is invalid".to_string()));
+                                    }
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // Handle error with path validation request
+                            existing_path_validation_help
+                                .set(Some("Failed to validate path".to_string()));
+                        }
+                    }
+                });
+            } else {
+                existing_path_validation_help.set(Some("No directory path provided".to_string()));
+            }
+        })
+    };
+
     let footer_section = html! {
         <ResetInstallChoice on_reset={on_choose_install.clone()}/>
     };
@@ -221,6 +314,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         } else if let Some(candidate_dir) = config.candidate_root_dir {
             html! { <ConfirmInstall root_dir={candidate_dir} on_refresh={refresh.clone()}/> }
         } else {
+            let existing_path_validation_help = existing_path_validation_help.clone();
             match *is_fresh_install {
                 None => html! { <ChooseInstall on_choose={on_choose_install}/> },
                 Some(true) => {
@@ -238,7 +332,38 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                         html! { <LoadingState/> }
                     }
                 }
-                Some(false) => html! { <ResetInstallChoice on_reset={on_choose_install}/> },
+                Some(false) => html! {
+                    <Card>
+                        <CardTitle>
+                        <h3>{"Import an existing d.rymcg.tech installation"}</h3>
+                        </CardTitle>
+                        <CardBody>
+                        <p>
+                    {"If you have already cloned the "}<a href={"https://github.com/EnigmaCurry/d.rymcg.tech"} target="_new">{"d.rymcg.tech git repository"}</a>{" to your workstation, enter the full directory path below, otherwise go back to the previous menu and choose to install to a new directory."}
+                        </p>
+                        <br/>
+                        <Form>
+                        <FormGroup required=true label={"Existing workstation path for d.rymcg.tech"}>
+                        <TextInput value={(*existing_path).clone()} oninput={on_existing_path_change} placeholder={"~/git/vendor/enigmacurry/d.rymcg.tech"}/>
+                        <div class="validation">
+                        {
+                            existing_path_validation_help.as_ref().map(|help_text| html! {
+                                { help_text }
+                            })
+                        }
+                        </div>
+                        </FormGroup>
+                        </Form>
+                        <br/>
+                        <ul class="button_list">
+                        <li><Button class="confirm" onclick={on_import_existing}>
+                        {"Import existing directory"}
+                        </Button></li>
+                        <li><ResetInstallChoice on_reset={on_choose_install}/></li>
+                        </ul>
+                        </CardBody>
+                        </Card>
+                },
             }
         }
     } else {
@@ -452,7 +577,7 @@ pub fn uninstall(props: &UninstallProps) -> Html {
     html! {
         <ExpandableSection toggle_text_expanded={deactivate_text} toggle_text_hidden={deactivate_text}>
         <div class="button_group">
-            <Tooltip text={"This will disassociate the active d.rymcg.tech directory from dry_console. No files will be removed. Once removed, you may re-run the wizard to re-install the existing directory, or to a new location."}>
+            <Tooltip text={"This will disassociate the active d.rymcg.tech directory from dry_console. No files will be removed."}>
             <Button class="deny" onclick={on_click.clone()}>{"Deactivate d.rymcg.tech"}</Button>
             </Tooltip>
         </div>

@@ -1,15 +1,14 @@
 use crate::app_state::SharedState;
 use crate::path::{
-    could_create_path, directory_is_writable_by_user, expand_tilde,
+    could_create_path, directory_is_writable_by_user, expand_tilde, path_is_git_repo_root,
 };
-use crate::{routing::route};
-use axum::extract::{Query};
-use axum::{routing::get};
+use crate::routing::route;
+use axum::extract::Query;
+use axum::routing::get;
 use axum::{Json, Router};
-use dry_console_dto::workstation::{PathValidationResult};
+use dry_console_dto::workstation::PathValidationResult;
 use serde::Deserialize;
 use std::path::PathBuf;
-
 
 #[derive(Deserialize)]
 struct PathParams {
@@ -36,6 +35,9 @@ pub fn validate_path() -> Router<SharedState> {
             writable: false,
             is_directory: path.is_dir(),
             can_be_created: could_create_path(path.as_path()).is_ok(),
+            is_git_repo_root: path_is_git_repo_root(Some(
+                path.as_os_str().to_string_lossy().to_string(),
+            )),
         };
 
         // Check if the path exists and is writable
