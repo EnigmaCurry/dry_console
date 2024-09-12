@@ -294,13 +294,13 @@ pub fn choose_install(props: &ChooseInstallProps) -> Html {
             <h3>{"Install d.rymcg.tech"}</h3>
             </CardTitle>
             <CardBody>
-            <p><a href={"https://github.com/EnigmaCurry/d.rymcg.tech"} target="_new">{"d.rymcg.tech"}</a>{" is a configuration and deployment environment for Docker (docker-compose), and it is a prerequisite of dry_console."}</p>
+            <p><a href={"https://github.com/EnigmaCurry/d.rymcg.tech"} target="_new">{"d.rymcg.tech"}</a>{" is a configuration and deployment environment for Docker (docker-compose), and it is an external dependency of dry_console."}</p>
             <br/>
-            <p>{"Please choose the installation source:"}</p>
+            <p>{"Please choose how you wish to install d.rymcg.tech:"}</p>
             <br/>
             <ul class="button_list">
-            <li><Button class="confirm" onclick={on_click_fresh_install} >{"Install d.rymcg.tech in a new directory"}</Button></li>
-            <li><Button class="alt" onclick={on_click_use_existing} >{"Import an existing installation directory"}</Button></li>
+            <li><Button class="confirm" onclick={on_click_fresh_install} >{"Install in a new directory"}</Button></li>
+            <li><Button class="alt" onclick={on_click_use_existing} >{"Import an existing directory"}</Button></li>
             </ul>
             </CardBody>
         </Card>
