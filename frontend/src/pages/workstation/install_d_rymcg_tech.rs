@@ -5,10 +5,9 @@ use crate::toast::get_toast;
 use dry_console_dto::config::DRymcgTechConfigState;
 use dry_console_dto::script::ScriptEntry;
 use dry_console_dto::workstation::{
-    ConfirmInstalledRequest, FreshInstallRequest, UninstallRequest, UseExistingInstallRequest,
+    ConfirmInstalledRequest, UninstallRequest,
 };
 use dry_console_dto::workstation::{PathValidationResult, PurgeRootDirRequest};
-use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;

@@ -386,7 +386,7 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         (Some(false), true) => format!("Please enter a value for {name}. ✍️"),
         (Some(false), false) => match &props.validation_help {
             Some(s) => {
-                format!("{s}")
+                s.to_string()
             }
             None => {
                 format!("{name} is invalid ⁉️")
@@ -1066,7 +1066,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             }
         if ws_state.status == TerminalStatus::Initialized || ws_state.status == TerminalStatus::Validated {
             <section class="footer">
-             { props.footer_section.clone().unwrap_or(Html::default()) }
+             { props.footer_section.clone().unwrap_or_default() }
             </section>
         }
         </div>
