@@ -21,152 +21,185 @@ pub struct InstallDRyMcGTechProps {
     pub selected_tab: WorkstationTab,
 }
 
+use wasm_bindgen_futures::spawn_local;
+
 #[allow(clippy::single_match)]
 #[function_component(InstallDRyMcGTech)]
 pub fn install(props: &InstallDRyMcGTechProps) -> Html {
+    // State hooks
+    let is_first_render = use_state(|| true);
     let script_name = "InstallDRymcgTech";
     let config_state = use_state(|| None::<DRymcgTechConfigState>);
-    let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
-    let root_dir_validation = use_state(|| Some(false)); // Track validation for ROOT_DIR
-    let refresh_state = use_state(|| 0); // Track when this component needs to refresh
+    let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>);
+    let root_dir_validation = use_state(|| Some(false));
+    let root_dir_validation_help = use_state(|| None::<String>);
+    let refresh_state = use_state(|| 0);
     let is_fresh_install = use_state(|| None::<bool>);
-
-    // Store the debounce timeout to allow resetting it
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
 
-    {
-        let config_state = config_state.clone();
-        let env_vars_state = env_vars_state.clone();
+    // Helper function to validate root directory
+    let validate_root_dir =
+        |path: String,
+         root_dir_validation: UseStateHandle<Option<bool>>,
+         root_dir_validation_help: UseStateHandle<Option<String>>| {
+            spawn_local(async move {
+                let response = Request::get(&format!(
+                    "/api/workstation/filesystem/validate_path/?path={}",
+                    path
+                ))
+                .send()
+                .await;
+                if let Ok(response) = response {
+                    if response.status() == 200 {
+                        if let Ok(result) = response.json::<PathValidationResult>().await {
+                            if result.can_be_created {
+                                root_dir_validation.set(Some(true));
+                                root_dir_validation_help.set(None);
+                            } else if result.exists {
+                                root_dir_validation.set(Some(false));
+                                root_dir_validation_help.set(Some("Error: this directory already exists, please choose a new location".to_string()));
+                            } else {
+                                root_dir_validation.set(Some(false));
+                                root_dir_validation_help.set(None);
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+    // Helper function for debounced value change handling
+    let handle_value_change = {
         let root_dir_validation = root_dir_validation.clone();
-        let root_dir_validation2 = root_dir_validation.clone();
+        let root_dir_validation_help = root_dir_validation_help.clone();
+        let debounce_timeout = debounce_timeout.clone();
+        let is_first_render = is_first_render.clone();
 
-        let on_value_change = Callback::from(move |(name, value): (String, String)| {
-            // Reset validation:
+        Callback::from(move |(name, value): (String, String)| {
             root_dir_validation.set(None);
-            let root_dir_validation = root_dir_validation.clone();
 
-            // Cancel previous timeout if it exists
+            if *is_first_render {
+                is_first_render.set(false);
+                if !value.is_empty() {
+                    validate_root_dir(
+                        value.clone(),
+                        root_dir_validation.clone(),
+                        root_dir_validation_help.clone(),
+                    );
+                }
+                return;
+            }
+
             if let Some(timeout) = debounce_timeout.borrow_mut().take() {
                 timeout.cancel();
             }
 
-            // Set a new timeout for debouncing (1 second)
-            let name_clone = name.clone();
-            let value_clone = value.clone();
-
-            *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
+            if name == "ROOT_DIR" {
+                let value_clone = value.clone();
                 let root_dir_validation = root_dir_validation.clone();
-                // Fire the callback after 1 second of inactivity
-                match name_clone.as_str() {
-                    "ROOT_DIR" => {
-                        wasm_bindgen_futures::spawn_local(async move {
-                            // Perform async HTTP request to check if ROOT_DIR is valid
-                            let response = Request::get(&format!(
-                                "/api/workstation/filesystem/validate_path/?path={}",
-                                value_clone
-                            ))
-                            .send()
-                            .await;
-                            if let Ok(response) = response {
-                                if response.status() == 200 {
-                                    // Deserialize the response
-                                    if let Ok(result) =
-                                        response.json::<PathValidationResult>().await
-                                    {
-                                        if result.can_be_created {
-                                            root_dir_validation.set(Some(true));
-                                        } else {
-                                            root_dir_validation.set(Some(false));
-                                        }
-                                    } else {
-                                        root_dir_validation.set(Some(false));
-                                        error!("Failed to deserialize PathValidationResult");
-                                    }
-                                } else {
-                                    root_dir_validation.set(Some(false));
-                                    error!("Error: Received non-200 status code");
-                                }
+                let root_dir_validation_help = root_dir_validation_help.clone();
+
+                *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
+                    validate_root_dir(value_clone, root_dir_validation, root_dir_validation_help);
+                }));
+            }
+        })
+    };
+
+    let fetch_config_and_env_vars = {
+        let config_state = config_state.clone();
+        let env_vars_state = env_vars_state.clone();
+        let root_dir_validation = root_dir_validation.clone();
+        let root_dir_validation_help = root_dir_validation_help.clone();
+        let handle_value_change = handle_value_change.clone();
+
+        async move {
+            let config_response = Request::get("/api/workstation/d.rymcg.tech/").send().await;
+            if let Ok(config_response) = config_response {
+                if let Ok(fetched_config) = config_response.json::<DRymcgTechConfigState>().await {
+                    config_state.set(Some(fetched_config));
+                }
+            }
+
+            let script_response =
+                Request::get(&format!("/api/workstation/command/{}/", script_name))
+                    .send()
+                    .await;
+            if let Ok(script_response) = script_response {
+                if let Ok(script_entry) = script_response.json::<ScriptEntry>().await {
+                    let env_var_props: Vec<EnvVarProps> = script_entry
+                        .env
+                        .into_iter()
+                        .map(|env_var| EnvVarProps {
+                            name: env_var.name.clone(),
+                            description: env_var.description.clone(),
+                            help: env_var.help.unwrap_or_default(),
+                            default_value: env_var.default_value.clone(),
+                            on_value_change: Some(handle_value_change.clone()),
+                            validation_help: if env_var.name == "ROOT_DIR" {
+                                root_dir_validation_help.as_deref().map(|s| s.to_string())
                             } else {
-                                root_dir_validation.set(Some(false));
-                                error!("Error: Failed to send request");
-                            }
-                        });
-                    }
-                    _ => {}
+                                None
+                            },
+                            is_valid: if env_var.name == "ROOT_DIR" {
+                                Some(root_dir_validation.unwrap_or(false))
+                            } else {
+                                Some(false)
+                            },
+                            ..Default::default()
+                        })
+                        .collect();
+                    env_vars_state.set(Some(env_var_props));
                 }
-            }));
-        });
+            }
+        }
+    };
 
-        let root_dir_validation = root_dir_validation2.clone();
-        use_effect_with((root_dir_validation.clone(), *refresh_state), move |_| {
-            let config = config_state.clone();
-            let env_vars = env_vars_state.clone();
-            let on_value_change = on_value_change.clone();
-
-            // Clone or extract the value of root_dir_validation for use in the async block
-            let root_dir_validation_value = *root_dir_validation;
-
-            wasm_bindgen_futures::spawn_local(async move {
-                // Fetch config state
-                let config_response = Request::get("/api/workstation/d.rymcg.tech/").send().await;
-                if let Ok(config_response) = config_response {
-                    if let Ok(fetched_config) =
-                        config_response.json::<DRymcgTechConfigState>().await
-                    {
-                        config.set(Some(fetched_config));
-                    }
-                }
-
-                // Fetch ScriptEntry for environment variables
-                let script_response =
-                    Request::get(&format!("/api/workstation/command/{}/", script_name))
-                        .send()
-                        .await;
-                if let Ok(script_response) = script_response {
-                    if let Ok(script_entry) = script_response.json::<ScriptEntry>().await {
-                        let env_var_props: Vec<EnvVarProps> = script_entry
-                            .env
-                            .into_iter()
-                            .map(|env_var| EnvVarProps {
-                                name: env_var.clone().name,
-                                description: env_var.clone().description,
-                                help: env_var.clone().help.unwrap_or_default(),
-                                default_value: env_var.clone().default_value,
-                                on_value_change: Some(on_value_change.clone()),
-                                // Validation:
-                                is_valid: match env_var.clone().name.as_str() {
-                                    "ROOT_DIR" => Some(root_dir_validation_value.unwrap_or(false)),
-                                    _ => Some(false),
-                                },
-                                ..Default::default()
-                            })
-                            .collect();
-
-                        env_vars.set(Some(env_var_props));
+    // Use effect to trigger on mount and check if the default value is non-blank
+    {
+        let handle_value_change = handle_value_change.clone();
+        let env_vars_state = env_vars_state.clone();
+        let is_first_render = is_first_render.clone();
+        use_effect_with(env_vars_state.clone(), move |_| {
+            if let Some(env_vars) = (*env_vars_state).clone() {
+                if *is_first_render {
+                    for env_var in env_vars.iter() {
+                        if !env_var.default_value.is_empty() {
+                            handle_value_change
+                                .emit((env_var.name.clone(), env_var.default_value.clone()));
+                        }
                     }
                 }
-            });
+            }
             || ()
         });
     }
 
-    let is_valid = *root_dir_validation;
+    use_effect_with(
+        (
+            root_dir_validation.clone(),
+            root_dir_validation_help.clone(),
+            *refresh_state,
+        ),
+        move |_| {
+            spawn_local(fetch_config_and_env_vars);
+            || ()
+        },
+    );
 
     let refresh = {
         let refresh_state = refresh_state.clone();
         Callback::from(move |_| {
-            // Increment the refresh state, which will trigger a re-render and re-fetch
             refresh_state.set(*refresh_state + 1);
-            //debug!("gonna refresh.");
         })
     };
 
     let on_choose_install = {
         let is_fresh_install = is_fresh_install.clone();
+        let root_dir_validation = root_dir_validation.clone();
+
         Callback::from(move |new_state: Option<bool>| {
-            // Reset state:
             is_fresh_install.set(new_state);
-            // Reset validation:
             root_dir_validation.set(Some(false));
         })
     };
@@ -175,46 +208,36 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         if let Some(root_dir) = &config.config.root_dir {
             html! {
                 <Card>
-                    <CardTitle>
-                    <h3>{"d.rymcg.tech is now installed:"}</h3>
-                    </CardTitle>
+                    <CardTitle><h3>{"d.rymcg.tech is now installed:"}</h3></CardTitle>
                     <CardBody>
-                    <ul><li><code>{format!("{root_dir}")}</code></li></ul>
-                    <Uninstall on_refresh={refresh.clone()}/>
+                        <ul><li><code>{format!("{root_dir}")}</code></li></ul>
+                        <Uninstall on_refresh={refresh.clone()}/>
                     </CardBody>
                 </Card>
             }
         } else if let Some(candidate_dir) = config.candidate_root_dir {
-            html! {
-                <ConfirmInstall root_dir={candidate_dir} on_refresh={refresh.clone()}/>
-            }
+            html! { <ConfirmInstall root_dir={candidate_dir} on_refresh={refresh.clone()}/> }
         } else {
             match *is_fresh_install {
-                None => {
-                    html! { <ChooseInstall on_choose={on_choose_install}/> }
-                }
+                None => html! { <ChooseInstall on_choose={on_choose_install}/> },
                 Some(true) => {
                     if let Some(env_vars) = (*env_vars_state).clone() {
                         html! {
                             <Card>
                                 <CardBody>
-                                <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                                <ResetInstallChoice on_reset={on_choose_install}/>
-                                <br/>
-                                <EnvVarList env_vars={env_vars}/>
-                                </TerminalOutput>
+                                    <TerminalOutput script="InstallDRymcgTech" is_valid={*root_dir_validation} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
+                                        <ResetInstallChoice on_reset={on_choose_install}/>
+                                        <br/>
+                                        <EnvVarList env_vars={env_vars}/>
+                                    </TerminalOutput>
                                 </CardBody>
-                                </Card>
+                            </Card>
                         }
                     } else {
                         html! { <LoadingState/> }
                     }
                 }
-                Some(false) => {
-                    html! {
-                        <ResetInstallChoice on_reset={on_choose_install}/>
-                    }
-                }
+                Some(false) => html! { <ResetInstallChoice on_reset={on_choose_install}/> },
             }
         }
     } else {

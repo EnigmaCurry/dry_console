@@ -8,7 +8,7 @@
 
 # var: ROOT_DIR="~/git/vendor/enigmacurry/d.rymcg.tech" the directory path where to clone d.rymcg.tech
 # help: ROOT_DIR Example: ~/git/vendor/enigmacurry/d.rymcg.tech
-# help: ROOT_DIR This directory (and its parents) will be created automatically.
+# help: ROOT_DIR The chosen directory (and its parents) will be created automatically.
 
 echo ROOT_DIR ${ROOT_DIR}
 echo ${VERBOSE}

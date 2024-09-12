@@ -278,7 +278,7 @@ pub fn env_var_list(props: &EnvVarListProps) -> Html {
         <div class="env_var_list">
             <h3>{"Configure script inputs:"}</h3>
             { for props.env_vars.iter().map(|env_var| html! {
-                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()} disabled={Some(disabled)} default_value={env_var.default_value.clone()}/>
+                <EnvVar name={env_var.name.clone()} description={env_var.description.clone()} on_value_change={env_var.on_value_change.clone()} is_valid={env_var.is_valid} help={env_var.help.clone()} disabled={Some(disabled)} default_value={env_var.default_value.clone()} validation_help={env_var.validation_help.clone()}/>
             }) }
         </div>
     }
@@ -289,6 +289,8 @@ pub struct EnvVarProps {
     pub name: String,
     pub description: String,
     pub is_valid: Option<bool>,
+    #[prop_or_default]
+    pub validation_help: Option<String>,
     pub help: Vec<String>,
     #[prop_or_default]
     pub on_value_change: Option<Callback<(String, String)>>,
@@ -378,11 +380,18 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         (Some(false), false) => "⁉️",
         (_, _) => "⌛️",
     };
-
+    debug!(format!("validation_help: {:?}", props.validation_help));
     let validation_help = match (props.is_valid, env_var_value.is_empty()) {
         (Some(true), _) => format!("{name} looks good! ✅"),
         (Some(false), true) => format!("Please enter a value for {name}. ✍️"),
-        (Some(false), false) => format!("{name} is invalid ⁉️"),
+        (Some(false), false) => match &props.validation_help {
+            Some(s) => {
+                format!("{s}")
+            }
+            None => {
+                format!("{name} is invalid ⁉️")
+            }
+        },
         (_, _) => "Validating input ...".to_string(),
     };
 
