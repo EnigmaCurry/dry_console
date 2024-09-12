@@ -464,6 +464,8 @@ pub struct TerminalOutputProps {
     #[prop_or_default]
     pub children: Children,
     pub is_valid: Option<bool>,
+    #[prop_or_default]
+    pub footer_section: Option<Html>,
 }
 
 impl TerminalOutputProps {
@@ -1062,6 +1064,11 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     </div>
                 </div>
             }
+        if ws_state.status == TerminalStatus::Initialized || ws_state.status == TerminalStatus::Validated {
+            <section class="footer">
+             { props.footer_section.clone().unwrap_or(Html::default()) }
+            </section>
+        }
         </div>
     }
 }

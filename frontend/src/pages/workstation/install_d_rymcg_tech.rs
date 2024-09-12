@@ -204,6 +204,10 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         })
     };
 
+    let footer_section = html! {
+        <ResetInstallChoice on_reset={on_choose_install.clone()}/>
+    };
+
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
             html! {
@@ -225,11 +229,9 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                         html! {
                             <Card>
                                 <CardBody>
-                                    <TerminalOutput script="InstallDRymcgTech" is_valid={*root_dir_validation} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                                        <ResetInstallChoice on_reset={on_choose_install}/>
-                                        <br/>
+                                <TerminalOutput script="InstallDRymcgTech" is_valid={*root_dir_validation} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()} footer_section={footer_section}>
                                         <EnvVarList env_vars={env_vars}/>
-                                    </TerminalOutput>
+                                </TerminalOutput>
                                 </CardBody>
                             </Card>
                         }
@@ -292,7 +294,7 @@ pub fn choose_install(props: &ChooseInstallProps) -> Html {
             <h3>{"Install d.rymcg.tech"}</h3>
             </CardTitle>
             <CardBody>
-            <p><a href={"https://github.com/EnigmaCurry/d.rymcg.tech"}>{"d.rymcg.tech"}</a>{" is a configuration and deployment environment for Docker (docker-compose), and it is a prerequisite of dry_console."}</p>
+            <p><a href={"https://github.com/EnigmaCurry/d.rymcg.tech"} target="_new">{"d.rymcg.tech"}</a>{" is a configuration and deployment environment for Docker (docker-compose), and it is a prerequisite of dry_console."}</p>
             <br/>
             <p>{"Please choose the installation source:"}</p>
             <br/>

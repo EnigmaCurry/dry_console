@@ -554,3 +554,7 @@ button.deny {
     font-weight: bold;
     outline: 1px solid #555;
 }
+
+.terminal .footer {
+    margin: 0.5em;
+}
