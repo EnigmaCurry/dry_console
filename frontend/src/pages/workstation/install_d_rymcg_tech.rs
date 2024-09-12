@@ -8,7 +8,7 @@ use dry_console_dto::workstation::{
     ConfirmInstalledRequest, FreshInstallRequest, UninstallRequest, UseExistingInstallRequest,
 };
 use dry_console_dto::workstation::{PathValidationResult, PurgeRootDirRequest};
-use gloo::console::error;
+use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
@@ -164,7 +164,10 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let on_choose_install = {
         let is_fresh_install = is_fresh_install.clone();
         Callback::from(move |new_state: Option<bool>| {
+            // Reset state:
             is_fresh_install.set(new_state);
+            // Reset validation:
+            root_dir_validation.set(Some(false));
         })
     };
 
