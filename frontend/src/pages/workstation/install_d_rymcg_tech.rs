@@ -29,7 +29,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>); // New state for env vars
     let root_dir_validation = use_state(|| Some(false)); // Track validation for ROOT_DIR
     let refresh_state = use_state(|| 0); // Track when this component needs to refresh
-    let is_fresh_install = use_state(|| false);
+    let is_fresh_install = use_state(|| None::<bool>);
 
     // Store the debounce timeout to allow resetting it
     let debounce_timeout = use_mut_ref(|| None::<Timeout>);
@@ -161,6 +161,13 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         })
     };
 
+    let on_choose_install = {
+        let is_fresh_install = is_fresh_install.clone();
+        Callback::from(move |new_state: Option<bool>| {
+            is_fresh_install.set(new_state);
+        })
+    };
+
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
             html! {
@@ -178,22 +185,34 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             html! {
                 <ConfirmInstall root_dir={candidate_dir} on_refresh={refresh.clone()}/>
             }
-        } else if *is_fresh_install {
-            if let Some(env_vars) = (*env_vars_state).clone() {
-                html! {
-                    <Card>
-                        <CardBody>
-                        <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
-                        <EnvVarList env_vars={env_vars}/>
-                        </TerminalOutput>
-                        </CardBody>
-                        </Card>
-                }
-            } else {
-                html! { <LoadingState/> }
-            }
         } else {
-            html! { <ChooseInstall on_refresh={refresh.clone()} /> }
+            match *is_fresh_install {
+                None => {
+                    html! { <ChooseInstall on_choose={on_choose_install}/> }
+                }
+                Some(true) => {
+                    if let Some(env_vars) = (*env_vars_state).clone() {
+                        html! {
+                            <Card>
+                                <CardBody>
+                                <TerminalOutput script="InstallDRymcgTech" {is_valid} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()}>
+                                <ResetInstallChoice on_reset={on_choose_install}/>
+                                <br/>
+                                <EnvVarList env_vars={env_vars}/>
+                                </TerminalOutput>
+                                </CardBody>
+                                </Card>
+                        }
+                    } else {
+                        html! { <LoadingState/> }
+                    }
+                }
+                Some(false) => {
+                    html! {
+                        <ResetInstallChoice on_reset={on_choose_install}/>
+                    }
+                }
+            }
         }
     } else {
         html! { <LoadingState/> }
@@ -201,74 +220,43 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
 }
 
 #[derive(Properties, PartialEq)]
+pub struct ResetInstallChoiceProps {
+    pub on_reset: Callback<Option<bool>>,
+}
+
+#[function_component(ResetInstallChoice)]
+pub fn reset_install_choice(props: &ResetInstallChoiceProps) -> Html {
+    let on_reset = {
+        let on_choose = props.on_reset.clone();
+        Callback::from(move |_| {
+            on_choose.emit(None);
+        })
+    };
+    html! {
+        <div class="button_list">
+            <Button onclick={on_reset} class="deny">{"Go back to choose a different installation method"}</Button>
+        </div>
+    }
+}
+
+#[derive(Properties, PartialEq)]
 pub struct ChooseInstallProps {
-    pub on_refresh: Callback<()>,
+    pub on_choose: Callback<Option<bool>>,
 }
 
 #[function_component(ChooseInstall)]
 pub fn choose_install(props: &ChooseInstallProps) -> Html {
-    let on_refresh = props.on_refresh.clone();
-
-    let on_click_use_existing = {
-        let on_refresh = on_refresh.clone();
+    let on_click_fresh_install = {
+        let on_choose = props.on_choose.clone();
         Callback::from(move |_| {
-            let on_refresh = on_refresh.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let body = serde_json::to_string(&UseExistingInstallRequest {})
-                    .expect("Failed to serialize request.");
-                let request_result =
-                    Request::post("/api/workstation/d.rymcg.tech/use_existing_install/")
-                        .header("Content-Type", "application/json")
-                        .body(body);
-                if let Ok(request) = request_result {
-                    let response = request.send().await;
-                    match response {
-                        Ok(resp) if resp.ok() => {
-                            //log::debug!("API call successful!");
-                            on_refresh.emit(());
-                        }
-                        Ok(resp) => {
-                            log::error!("API error: {:?}", resp);
-                        }
-                        Err(err) => {
-                            log::error!("Request failed: {:?}", err);
-                        }
-                    }
-                } else {
-                    log::error!("Failed to create request.");
-                }
-            });
+            on_choose.emit(Some(true));
         })
     };
 
-    let on_click_fresh_install = {
-        let on_refresh = on_refresh.clone();
+    let on_click_use_existing = {
+        let on_choose = props.on_choose.clone();
         Callback::from(move |_| {
-            let on_refresh = on_refresh.clone();
-            wasm_bindgen_futures::spawn_local(async move {
-                let body = serde_json::to_string(&FreshInstallRequest {})
-                    .expect("Failed to serialize request.");
-                let request_result = Request::post("/api/workstation/d.rymcg.tech/fresh_install/")
-                    .header("Content-Type", "application/json")
-                    .body(body);
-                if let Ok(request) = request_result {
-                    let response = request.send().await;
-                    match response {
-                        Ok(resp) if resp.ok() => {
-                            //log::debug!("API call successful!");
-                            on_refresh.emit(());
-                        }
-                        Ok(resp) => {
-                            log::error!("API error: {:?}", resp);
-                        }
-                        Err(err) => {
-                            log::error!("Request failed: {:?}", err);
-                        }
-                    }
-                } else {
-                    log::error!("Failed to create request.");
-                }
-            });
+            on_choose.emit(Some(false));
         })
     };
 
@@ -381,7 +369,7 @@ pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
                 <br/>
                 <p>{format!("Please examine this directory on your workstation:")}</p>
                 <ul><li><code>{&*candidate_dir}</code></li></ul>
-                <p>{"Do you you want to import this directory into your config?"}</p>
+                <p>{"Do you want to import this directory into your config?"}</p>
                 <div class="button_group">
                     <Button class="deny" onclick={on_click_deny} >{"No, use a different directory"}</Button>
                     <Button class="confirm" onclick={on_click_confirm} >{"Yes, use this directory"}</Button>
@@ -433,8 +421,9 @@ pub fn uninstall(props: &UninstallProps) -> Html {
         })
     };
 
+    let deactivate_text = "🧹 Deactivate";
     html! {
-        <ExpandableSection toggle_text_expanded={"🧹 Uninstall"} toggle_text_hidden={"🧹 Deactivate"}>
+        <ExpandableSection toggle_text_expanded={deactivate_text} toggle_text_hidden={deactivate_text}>
         <div class="button_group">
             <Tooltip text={"This will disassociate the active d.rymcg.tech directory from dry_console. No files will be removed. Once removed, you may re-run the wizard to re-install the existing directory, or to a new location."}>
             <Button class="deny" onclick={on_click.clone()}>{"Deactivate d.rymcg.tech"}</Button>
