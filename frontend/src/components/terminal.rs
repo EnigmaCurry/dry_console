@@ -14,6 +14,7 @@ use gloo::console::error;
 use gloo::net::http::Request;
 use patternfly_yew::prelude::*;
 use serde_json::from_str;
+use std::collections::HashMap;
 use std::rc::Rc;
 use ulid::Ulid;
 use wasm_bindgen::closure::Closure;
@@ -58,6 +59,15 @@ pub fn scroll_to_line(node_ref: &NodeRef, line_number: i32) {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnvVarsContext(pub Rc<Option<Vec<EnvVarProps>>>);
+
+impl EnvVarsContext {
+    pub fn new(state: Option<Vec<EnvVarProps>>) -> Self {
+        EnvVarsContext(Rc::new(state))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct WebSocketState {
     websocket: Option<WebSocket>,
@@ -71,7 +81,7 @@ pub struct WebSocketState {
 pub enum WebSocketAction {
     Initialize(ScriptEntry),
     Connect(WebSocket),
-    ReceivePingReport(PingReport),
+    ReceivePingReport(PingReport, EnvVarsContext),
     ReceiveProcessOutput(StreamType, String),
     ReceiveProcessComplete(String, usize),
     ReceiveProcess(Ulid),
@@ -87,7 +97,6 @@ impl Reducible for WebSocketState {
     fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
         //debug!(format!("Reducer called with action: {:?}", action));
         //debug!(format!("Current state before action: {:?}", *self));
-
         let new_state: Rc<WebSocketState> = match action {
             WebSocketAction::Initialize(script_entry) => {
                 //debug!("Action: Initialize");
@@ -122,8 +131,16 @@ impl Reducible for WebSocketState {
                 }
                 .into()
             }
-            WebSocketAction::ReceivePingReport(_r) => {
-                //debug!(format!("Action: ReceivePingReport {:?}", r));
+            WebSocketAction::ReceivePingReport(_r, env_vars_state) => {
+                let mut env: HashMap<String, String> = HashMap::new();
+
+                // Access the inner Vec<EnvVarProps> if it exists
+                if let Some(env_vars) = &*env_vars_state.0 {
+                    for env_var in env_vars.iter() {
+                        env.insert(env_var.name.clone(), env_var.default_value.clone());
+                    }
+                }
+
                 WebSocketState {
                     script_entry: self.script_entry.clone(),
                     websocket: self.websocket.clone(),
@@ -131,8 +148,10 @@ impl Reducible for WebSocketState {
                         if let Some(ws) = &self.websocket {
                             if let Ok(serialized_msg) = serde_json::to_string(&Command {
                                 id: self.script_entry.clone().unwrap().id,
+                                env,
                             }) {
-                                //debug!(format!("sending command serialized: {}", serialized_msg));
+                                // Send serialized command to the WebSocket
+                                debug!("msg: ", &serialized_msg);
                                 ws.send_with_str(&serialized_msg).ok();
                             }
                         }
@@ -295,6 +314,8 @@ pub struct EnvVarProps {
     #[prop_or_default]
     pub on_value_change: Option<Callback<(String, String)>>,
     #[prop_or_default]
+    pub value: String,
+    #[prop_or_default]
     pub default_value: String,
     pub disabled: Option<bool>,
 }
@@ -380,14 +401,13 @@ pub fn env_var(props: &EnvVarProps) -> Html {
         (Some(false), false) => "⁉️",
         (_, _) => "⌛️",
     };
-    debug!(format!("validation_help: {:?}", props.validation_help));
+
+    //debug!(format!("validation_help: {:?}", props.validation_help));
     let validation_help = match (props.is_valid, env_var_value.is_empty()) {
         (Some(true), _) => format!("{name} looks good! ✅"),
         (Some(false), true) => format!("Please enter a value for {name}. ✍️"),
         (Some(false), false) => match &props.validation_help {
-            Some(s) => {
-                s.to_string()
-            }
+            Some(s) => s.to_string(),
             None => {
                 format!("{name} is invalid ⁉️")
             }
@@ -479,6 +499,7 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
     let screen_dimensions = use_context::<WindowDimensions>().expect("no ctx found");
     //let env_vars = use_state(HashMap::new);
     let style_ctx = use_context::<TerminalStyleContext>().expect("No TerminalStyleContext found");
+    let env_vars_ctx = use_context::<EnvVarsContext>();
     let style = style_ctx.get_settings();
     let num_lines = use_state(|| 1);
     let user_attempted_scroll = use_state(|| false);
@@ -622,6 +643,64 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
             ws_clone.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
             onerror_callback.forget();
 
+            let handle_message = {
+                let env_vars_ctx = env_vars_ctx.clone();
+
+                // Create a closure that accepts both `ws_state` and `msg` and processes it
+                Callback::from(
+                    move |(ws_state, msg): (UseReducerHandle<WebSocketState>, String)| {
+                        if let Some(env_vars_ctx) = env_vars_ctx.clone().as_ref() {
+                            debug!(format!("env_vars_ctx found: {:?}", env_vars_ctx));
+                            // Your existing message handling logic
+                            match from_str::<ServerMsg>(&msg) {
+                                Ok(server_msg) => match server_msg {
+                                    ServerMsg::Ping => {
+                                        ws_state.dispatch(WebSocketAction::SendPong);
+                                    }
+                                    ServerMsg::PingReport(r) => {
+                                        // debug!(format!(
+                                        //     "PingReport env_vars_ctx: {:?}",
+                                        //     (*env_vars_ctx).clone()
+                                        // ));
+                                        let cloned_inner = env_vars_ctx.0.clone();
+                                        // Send the env vars context to the PingReport,
+                                        // because this will kick off the execution of the Command:
+                                        ws_state.dispatch(WebSocketAction::ReceivePingReport(
+                                            r,
+                                            EnvVarsContext(cloned_inner),
+                                        ));
+                                    }
+                                    ServerMsg::Process(p) => {
+                                        ws_state.dispatch(WebSocketAction::ReceiveProcess(p.id));
+                                    }
+                                    ServerMsg::ProcessOutput(o) => {
+                                        ws_state.dispatch(WebSocketAction::ReceiveProcessOutput(
+                                            o.stream, o.line,
+                                        ));
+                                    }
+                                    ServerMsg::ProcessComplete(c) => {
+                                        ws_state.dispatch(WebSocketAction::ReceiveProcessComplete(
+                                            c.id.to_string(),
+                                            c.code.try_into().unwrap_or(128),
+                                        ));
+                                    }
+                                    _ => {}
+                                },
+                                Err(e) => {
+                                    error!(format!(
+                                        "Failed to parse message: {}, error: {}",
+                                        msg, e
+                                    ));
+                                    ws_state.dispatch(WebSocketAction::Failed(msg));
+                                }
+                            }
+                        } else {
+                            error!("env_vars_state not found");
+                        }
+                    },
+                )
+            };
+
             // Set up the onmessage callback
             let onmessage_callback = {
                 let ws_state = ws_state.clone();
@@ -631,12 +710,13 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
 
                         let reader = FileReader::new().unwrap();
                         let reader_clone = reader.clone();
+                        let handle_message = handle_message.clone();
                         let onloadend_callback =
                             Closure::wrap(Box::new(move |_: web_sys::ProgressEvent| {
                                 let result = reader_clone.result().unwrap();
 
                                 if let Ok(text) = result.dyn_into::<js_sys::JsString>() {
-                                    handle_message(ws_state.clone(), text.into());
+                                    handle_message.emit((ws_state.clone(), text.into()));
                                 } else {
                                     error!("Failed to convert result to text");
                                 }
@@ -650,37 +730,6 @@ pub fn terminal_output(props: &TerminalOutputProps) -> Html {
                     }
                 }) as Box<dyn FnMut(MessageEvent)>)
             };
-
-            fn handle_message(ws_state: UseReducerHandle<WebSocketState>, msg: String) {
-                match from_str::<ServerMsg>(&msg) {
-                    Ok(server_msg) => match server_msg {
-                        ServerMsg::Ping => {
-                            ws_state.dispatch(WebSocketAction::SendPong);
-                        }
-                        ServerMsg::PingReport(r) => {
-                            ws_state.dispatch(WebSocketAction::ReceivePingReport(r));
-                        }
-                        ServerMsg::Process(p) => {
-                            ws_state.dispatch(WebSocketAction::ReceiveProcess(p.id));
-                        }
-                        ServerMsg::ProcessOutput(o) => {
-                            ws_state
-                                .dispatch(WebSocketAction::ReceiveProcessOutput(o.stream, o.line));
-                        }
-                        ServerMsg::ProcessComplete(c) => {
-                            ws_state.dispatch(WebSocketAction::ReceiveProcessComplete(
-                                c.id.to_string(),
-                                c.code.try_into().unwrap_or(128),
-                            ));
-                        }
-                        _ => {}
-                    },
-                    Err(e) => {
-                        error!(format!("Failed to parse message: {}, error: {}", msg, e));
-                        ws_state.dispatch(WebSocketAction::Failed(msg));
-                    }
-                }
-            }
 
             ws_clone.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
             onmessage_callback.forget();

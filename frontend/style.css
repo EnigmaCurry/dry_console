@@ -200,9 +200,11 @@ html:not(.pf-v5-theme-dark) .terminal {
     line-height: 1.3em;
     font-family: monospace;
     padding-block: 0em;
+    white-space: nowrap;
 }
 
 .terminal .gutter {
+    overflow: hidden;
     user-select: none;
     background-color: #262424;
     text-align: right;

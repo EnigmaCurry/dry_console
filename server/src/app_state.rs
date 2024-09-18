@@ -1,6 +1,6 @@
 use crate::api::auth::TOKEN_CACHE_NAME;
 use crate::api::token::generate_token;
-use crate::api::workstation::command::CommandLibrary;
+use crate::api::workstation::command::CommandLibraryItem;
 use crate::api::workstation::platform::detect_platform;
 use crate::api::workstation::WorkstationDependencyState;
 use crate::response::AppError;
@@ -27,8 +27,8 @@ pub struct AppState {
     pub sudo_enabled: bool,
     pub missing_dependencies: Vec<WorkstationDependencyState>,
     pub platform: Platform,
-    pub command_id: HashMap<CommandLibrary, String>,
-    pub command_library: HashMap<String, CommandLibrary>,
+    pub command_id: HashMap<CommandLibraryItem, String>,
+    pub command_library: HashMap<String, CommandLibraryItem>,
     pub command_script: HashMap<String, String>,
 }
 impl AppState {
@@ -62,8 +62,8 @@ pub fn create_shared_state(opt: &Opt) -> Result<SharedState, AppError> {
     let token = generate_token();
     let url = format!("http://{0}:{1}/login#token:{token}", opt.addr, opt.port);
 
-    let mut command_id = HashMap::<CommandLibrary, String>::new();
-    let mut command_library = HashMap::<String, CommandLibrary>::new();
+    let mut command_id = HashMap::<CommandLibraryItem, String>::new();
+    let mut command_library = HashMap::<String, CommandLibraryItem>::new();
     let mut command_script = HashMap::<String, String>::new();
     for (ulid, command_variant) in crate::STATIC_COMMAND_LIBRARY_MAP.iter() {
         command_id.insert(command_variant.clone(), ulid.clone());

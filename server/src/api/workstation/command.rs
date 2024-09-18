@@ -12,6 +12,7 @@ use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use strum::{AsRefStr, Display, EnumIter, EnumString, VariantNames};
+use tracing::debug;
 use ulid::Ulid;
 
 use super::WorkstationDependencyState;
@@ -19,15 +20,16 @@ use super::WorkstationDependencyState;
 #[derive(
     EnumString, VariantNames, Display, AsRefStr, EnumIter, PartialEq, Debug, Clone, Hash, Eq,
 )]
-pub enum CommandLibrary {
+pub enum CommandLibraryItem {
+    Common,
     TestExampleOne,
     InstallDependencies,
     InstallDRymcgTech,
 }
-impl CommandLibrary {
+impl CommandLibraryItem {
     pub async fn from_id(
         id: Ulid,
-        command_library: HashMap<String, CommandLibrary>,
+        command_library: HashMap<String, CommandLibraryItem>,
     ) -> Option<Self> {
         command_library.get(&id.to_string()).cloned()
     }
@@ -152,7 +154,7 @@ pub fn command() -> AppRouter {
                     //     script_entry.id.to_string()
                     // );
                     state.command_id.insert(
-                        CommandLibrary::InstallDependencies,
+                        CommandLibraryItem::InstallDependencies,
                         script_entry.id.to_string(),
                     );
                     state
@@ -160,18 +162,18 @@ pub fn command() -> AppRouter {
                         .insert(script_entry.id.to_string(), script_entry.clone().script);
                     state.command_library.insert(
                         script_entry.id.to_string(),
-                        CommandLibrary::InstallDependencies,
+                        CommandLibraryItem::InstallDependencies,
                     );
                 }
                 Ok(AppJson(script_entry))
             }
-            _ => match CommandLibrary::from_str(&command) {
+            _ => match CommandLibraryItem::from_str(&command) {
                 // No special handling, return the static script:
                 Ok(command) => {
                     let state = state.read().await;
-                    let script_entry = ScriptEntry::from_source(
-                        command.get_script(&state.command_id, &state.command_script),
-                    );
+                    let script = command.get_script(&state.command_id, &state.command_script);
+                    let script_entry = ScriptEntry::from_source(script);
+                    //debug!("ScriptEntry: {:?}", script_entry);
                     Ok(AppJson(script_entry))
                 }
                 Err(_) => Err(AppError::NotFound(Some(req.uri().to_string()))),

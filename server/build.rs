@@ -157,13 +157,13 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
     // Add necessary imports
     output.push_str("use std::collections::HashMap;\n");
-    output.push_str("use crate::api::workstation::command::CommandLibrary;\n");
+    output.push_str("use crate::api::workstation::command::CommandLibraryItem;\n");
     output.push_str("use lazy_static::lazy_static;\n\n");
 
     // Start of the static HashMap declaration
     output.push_str("lazy_static! {\n");
     output.push_str(
-        "    pub static ref STATIC_COMMAND_LIBRARY_MAP: HashMap<String, CommandLibrary> = {\n",
+        "    pub static ref STATIC_COMMAND_LIBRARY_MAP: HashMap<String, CommandLibraryItem> = {\n",
     );
     output.push_str("        let mut m = HashMap::new();\n");
 
@@ -185,7 +185,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
 
                 // Add the entry to the static HashMap using the string representation of the ULID
                 output.push_str(&format!(
-                    "        m.insert(\"{}\".to_string(), CommandLibrary::{});\n",
+                    "        m.insert(\"{}\".to_string(), CommandLibraryItem::{});\n",
                     ulid.to_string(),
                     variant_name
                 ));
@@ -198,12 +198,12 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
     output.push_str("    };\n");
     output.push_str("}\n\n");
 
-    // Now, generate the CommandLibrary implementation with get_script method
-    output.push_str("impl CommandLibrary {\n");
+    // Now, generate the CommandLibraryItem implementation with get_script method
+    output.push_str("impl CommandLibraryItem {\n");
 
     // Modified get_script method with the command_id and command_script arguments
     output.push_str(
-        "    fn get_script(&self, command_id: &HashMap<CommandLibrary, String>, command_script: &HashMap<String, String>) -> String {\n",
+        "    fn get_script(&self, command_id: &HashMap<CommandLibraryItem, String>, command_script: &HashMap<String, String>) -> String {\n",
     );
     output.push_str("        if let Some(ulid) = command_id.get(self) {\n");
     output.push_str("            if let Some(script) = command_script.get(ulid) {\n");
@@ -220,7 +220,7 @@ fn include_shell_scripts(out_dir: String, project_root: String) {
             variant_name.to_case(convert_case::Case::Snake)
         ));
         output.push_str(&format!(
-            "            CommandLibrary::{variant_name} => include_str!(\"{}\").to_string(),\n",
+            "            CommandLibraryItem::{variant_name} => include_str!(\"{}\").to_string(),\n",
             file_path.to_str().unwrap(),
         ));
     }

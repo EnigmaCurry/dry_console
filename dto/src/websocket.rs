@@ -1,6 +1,7 @@
 use num_enum::IntoPrimitive;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::collections::HashMap;
 use std::time::Duration;
 use ulid::Ulid;
 
@@ -17,6 +18,7 @@ pub struct PingReport {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct Command {
     pub id: Ulid,
+    pub env: HashMap<String, String>,
 }
 impl Serialize for Command {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -24,7 +26,13 @@ impl Serialize for Command {
         S: Serializer,
     {
         let mut state = serializer.serialize_struct("root", 1)?;
-        state.serialize_field("Command", &serde_json::json!({ "id": self.id.to_string() }))?;
+        state.serialize_field(
+            "Command",
+            &serde_json::json!({
+                "id": self.id.to_string(),
+                "env": self.env
+            }),
+        )?;
         state.end()
     }
 }

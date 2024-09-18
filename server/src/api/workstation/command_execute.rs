@@ -1,5 +1,5 @@
 use crate::api::websocket::{handle_websocket, WebSocketResponse};
-use crate::api::workstation::command::CommandLibrary;
+use crate::api::workstation::command::CommandLibraryItem;
 use crate::app_state::SharedState;
 use crate::broadcast;
 use crate::{api::route, AppRouter};
@@ -9,6 +9,7 @@ use axum_typed_websockets::{Message, WebSocket, WebSocketUpgrade};
 use dry_console_dto::websocket::{
     ClientMsg, CloseCode, Process, ProcessComplete, ProcessOutput, ServerMsg, StreamType,
 };
+use indoc::formatdoc;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
@@ -68,22 +69,29 @@ fn command_execute(shutdown: broadcast::Sender<()>, state: State<SharedState>) -
                             drop(state_ref); // Drop the lock on state to run the command
                             let process_id = Ulid::new();
                             let command_library = &shared_state.read().await.command_library.clone();
-                            let command = match CommandLibrary::from_id(command.id, command_library.clone()).await {
+                            let c_record = match CommandLibraryItem::from_id(command.id, command_library.clone()).await {
                                 Some(c) => c,
                                 None => {
                                     error!("Failed to get script entry: {}", command.id);
                                     return None;
                                 },
                             };
-                            let script;
+                            let mut script;
                             {
                                 let shared_state = shared_state.read().await;
                                 //debug!("command_script: {:?}", shared_state.command_script.clone());
-                                script = command.get_script(&shared_state.command_id, &shared_state.command_script);
+                                let common = CommandLibraryItem::Common.get_script(&shared_state.command_id, &shared_state.command_script);
+                                script = c_record.get_script(&shared_state.command_id, &shared_state.command_script);
+                                // Inject common header into script:
+                                script = formatdoc! {"
+                                    {common}
+                                    {script}
+                                "};
                             }
                             let mut process = Command::new("/bin/bash")
                                 .arg("-c")
                                 .arg(script)
+                                .envs(&command.env)
                                 .stdout(Stdio::piped())
                                 .stderr(Stdio::piped())
                                 .spawn()

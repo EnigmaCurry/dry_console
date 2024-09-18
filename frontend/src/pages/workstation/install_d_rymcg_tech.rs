@@ -1,5 +1,7 @@
 use crate::components::loading_state::LoadingState;
-use crate::components::terminal::{EnvVarList, EnvVarProps, TerminalOutput, TerminalOutputProps};
+use crate::components::terminal::{
+    EnvVarList, EnvVarProps, EnvVarsContext, TerminalOutput, TerminalOutputProps,
+};
 use crate::pages::workstation::WorkstationTab;
 use crate::toast::get_toast;
 use dry_console_dto::config::DRymcgTechConfigState;
@@ -10,9 +12,7 @@ use gloo::console::{debug, error};
 use gloo::net::http::Request;
 use gloo::timers::callback::Timeout;
 use patternfly_yew::prelude::*;
-use std::rc;
-use wasm_bindgen::JsValue;
-use web_sys::RequestInit;
+use std::rc::Rc;
 use yew::prelude::*;
 
 #[derive(Properties, PartialEq)]
@@ -30,7 +30,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
     let is_first_render = use_state(|| true);
     let script_name = "InstallDRymcgTech";
     let config_state = use_state(|| None::<DRymcgTechConfigState>);
-    let env_vars_state = use_state(|| None::<Vec<EnvVarProps>>);
+    let env_vars_context = use_state(|| EnvVarsContext::new(None::<Vec<EnvVarProps>>));
     let root_dir_validation = use_state(|| Some(false));
     let root_dir_validation_help = use_state(|| None::<String>);
     let refresh_state = use_state(|| 0);
@@ -75,23 +75,10 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         let root_dir_validation = root_dir_validation.clone();
         let root_dir_validation_help = root_dir_validation_help.clone();
         let debounce_timeout = debounce_timeout.clone();
-        let is_first_render = is_first_render.clone();
+        let env_vars_context = env_vars_context.clone();
 
         Callback::from(move |(name, value): (String, String)| {
             root_dir_validation.set(None);
-
-            if *is_first_render {
-                is_first_render.set(false);
-                if !value.is_empty() {
-                    validate_root_dir(
-                        value.clone(),
-                        root_dir_validation.clone(),
-                        root_dir_validation_help.clone(),
-                    );
-                }
-                return;
-            }
-
             if let Some(timeout) = debounce_timeout.borrow_mut().take() {
                 timeout.cancel();
             }
@@ -100,8 +87,29 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                 let value_clone = value.clone();
                 let root_dir_validation = root_dir_validation.clone();
                 let root_dir_validation_help = root_dir_validation_help.clone();
+                let env_vars_context = env_vars_context.clone();
 
                 *debounce_timeout.borrow_mut() = Some(Timeout::new(1000, move || {
+                    debug!("debounce");
+                    // Update the env var value in EnvVarProps:
+                    if let Some(env_vars) = (*env_vars_context).0.as_ref() {
+                        let mut env_vars = env_vars.clone();
+                        for env_var in env_vars.iter_mut() {
+                            if env_var.name == name {
+                                env_var.value = value.clone();
+                            }
+                        }
+                        // Set the modified state back
+                        env_vars_context.set(EnvVarsContext::new(Some(env_vars.clone())));
+                        debug!(format!(
+                            "SET env_vars_context: {:?}",
+                            Some(env_vars.clone())
+                        ));
+                    } else {
+                        error!(format!("env_vars_context: {:?}", *env_vars_context));
+                        //panic!("failed to retreive env_vars from env_vars_context");
+                    }
+
                     validate_root_dir(value_clone, root_dir_validation, root_dir_validation_help);
                 }));
             }
@@ -110,7 +118,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
 
     let fetch_config_and_env_vars = {
         let config_state = config_state.clone();
-        let env_vars_state = env_vars_state.clone();
+        let env_vars_context = env_vars_context.clone();
         let root_dir_validation = root_dir_validation.clone();
         let root_dir_validation_help = root_dir_validation_help.clone();
         let handle_value_change = handle_value_change.clone();
@@ -136,6 +144,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                             name: env_var.name.clone(),
                             description: env_var.description.clone(),
                             help: env_var.help.unwrap_or_default(),
+                            value: env_var.default_value.clone(),
                             default_value: env_var.default_value.clone(),
                             on_value_change: Some(handle_value_change.clone()),
                             validation_help: if env_var.name == "ROOT_DIR" {
@@ -151,20 +160,23 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
                             ..Default::default()
                         })
                         .collect();
-                    env_vars_state.set(Some(env_var_props));
+                    let c = EnvVarsContext::new(Some(env_var_props));
+                    debug!(format!("Setting initial EnvVarsContext: {c:?}"));
+                    env_vars_context.set(c);
                 }
             }
         }
     };
 
-    // Use effect to trigger on mount and check if the default value is non-blank
+    //Use effect to trigger on mount and check if the default value is non-blank
     {
         let handle_value_change = handle_value_change.clone();
-        let env_vars_state = env_vars_state.clone();
+        let env_vars_context = env_vars_context.clone();
         let is_first_render = is_first_render.clone();
-        use_effect_with(env_vars_state.clone(), move |_| {
-            if let Some(env_vars) = (*env_vars_state).clone() {
+        use_effect_with(env_vars_context.clone(), move |_| {
+            if let Some(env_vars) = (*env_vars_context).0.as_ref() {
                 if *is_first_render {
+                    is_first_render.set(false);
                     for env_var in env_vars.iter() {
                         if !env_var.default_value.is_empty() {
                             handle_value_change
@@ -184,10 +196,22 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             *refresh_state,
         ),
         move |_| {
-            spawn_local(fetch_config_and_env_vars);
+            debug!("refreshing installer!");
             || ()
         },
     );
+
+    if *is_first_render {
+        is_first_render.set(false);
+        spawn_local(fetch_config_and_env_vars);
+        if let Some(env_vars) = (*env_vars_context).0.as_ref() {
+            for env_var in env_vars.iter() {
+                if !env_var.default_value.is_empty() {
+                    handle_value_change.emit((env_var.name.clone(), env_var.default_value.clone()));
+                }
+            }
+        }
+    }
 
     let refresh = {
         let refresh_state = refresh_state.clone();
@@ -300,6 +324,7 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
         <ResetInstallChoice on_reset={on_choose_install.clone()}/>
     };
 
+    let env_vars_context = env_vars_context.clone();
     if let Some(config) = (*config_state).clone() {
         if let Some(root_dir) = &config.config.root_dir {
             html! {
@@ -318,15 +343,22 @@ pub fn install(props: &InstallDRyMcGTechProps) -> Html {
             match *is_fresh_install {
                 None => html! { <ChooseInstall on_choose={on_choose_install}/> },
                 Some(true) => {
-                    if let Some(env_vars) = (*env_vars_state).clone() {
+                    let env_props = (*env_vars_context).0.as_ref();
+                    if let Some(env_vars) = env_props {
+                        debug!(format!(
+                            "Rendering installer - env_vars_context::::: {:?}",
+                            Some(env_vars.clone())
+                        ));
                         html! {
+                            <ContextProvider<EnvVarsContext> context={(*env_vars_context).clone()}>
                             <Card>
                                 <CardBody>
                                 <TerminalOutput script="InstallDRymcgTech" is_valid={*root_dir_validation} reload_trigger={props.reload_trigger} selected_tab={props.selected_tab.clone()} on_done={TerminalOutputProps::default_on_done()} footer_section={footer_section}>
-                                        <EnvVarList env_vars={env_vars}/>
+                                        <EnvVarList env_vars={env_vars.clone()}/>
                                 </TerminalOutput>
                                 </CardBody>
-                            </Card>
+                                </Card>
+                            </ContextProvider<EnvVarsContext>>
                         }
                     } else {
                         html! { <LoadingState/> }
@@ -439,7 +471,7 @@ pub struct ConfirmInstallProps {
 
 #[function_component(ConfirmInstall)]
 pub fn confirm_install(props: &ConfirmInstallProps) -> Html {
-    let candidate_dir = rc::Rc::new(props.root_dir.clone());
+    let candidate_dir = Rc::new(props.root_dir.clone());
     let on_refresh = props.on_refresh.clone();
 
     let on_click_deny = {
